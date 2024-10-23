@@ -1,7 +1,0 @@
-isic2019_dir: isic2019_dir
-isic2020_dir: isic2020_dir
-bone_dir: bone_dir
-imagenet_dir: imagenet_dir
-celeba_dir: celeba_dir
-checkpoint_dir: checkpoints
-local_batch_size: 64
