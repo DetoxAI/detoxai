@@ -119,12 +119,9 @@ def extract_activations(
             tqdm(dataloader, desc="Extracting Activations")
         ):
             data = batch[0]
-            labels = batch[1]
-            extra = batch[2]
-            # print(data.shape)
-            # print(batch.shape)
+ 
             rest = np.array(batch[1:]).reshape(-1, len(batch[1:]))
-            print(rest.shape)
+
             labels_np = np.concatenate((labels_np, rest), axis=0)
             data = data.to(device)
             _ = model(data)

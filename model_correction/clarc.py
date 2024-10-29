@@ -4,7 +4,7 @@ from torch import nn
 def stabilize(x: torch.Tensor, epsilon: float = 1e-8) -> torch.Tensor:
     return x + epsilon
 
-def clarc_hook(cav: torch.Tensor, mean_length: float):
+def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor):
     """
     Creates a forward hook to adjust layer activations based on the CAV.
 
@@ -17,6 +17,9 @@ def clarc_hook(cav: torch.Tensor, mean_length: float):
 
     """
     def hook(module: nn.Module, input: tuple, output: torch.Tensor) -> torch.Tensor:
+        device = input[0].device
+        cav.to(device)
+        mean_length.to(device)
         output_shapes = output.shape
         flat_output = output.flatten(start_dim=1).detach()
         cav_dot = cav @ cav.T
@@ -27,6 +30,8 @@ def clarc_hook(cav: torch.Tensor, mean_length: float):
         return output
 
     return hook
+
+
 
 def add_clarc_hook(model: nn.Module, cav: torch.Tensor, mean_length: float, layer_names: list) -> list:
     """
@@ -42,9 +47,6 @@ def add_clarc_hook(model: nn.Module, cav: torch.Tensor, mean_length: float, laye
         list: A list of hook handles. Keep them to remove hooks later if needed.
     """
     hooks = []
-    model_device = next(model.parameters()).device
-    cav = cav.to(model_device)
-    mean_length = torch.tensor(mean_length).to(model_device)
     for name, module in model.named_modules():
         if name in layer_names:
             hook_fn = clarc_hook(cav, mean_length)
