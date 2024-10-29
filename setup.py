@@ -19,7 +19,6 @@ setup(
         "wandb",
         "albumentations",
         "pytorch-lightning",
-        "zennit-crp",
         "pprint",
     ],
     classifiers=[
