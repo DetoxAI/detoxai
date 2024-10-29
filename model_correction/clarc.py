@@ -42,6 +42,9 @@ def add_clarc_hook(model: nn.Module, cav: torch.Tensor, mean_length: float, laye
         list: A list of hook handles. Keep them to remove hooks later if needed.
     """
     hooks = []
+    model_device = next(model.parameters()).device
+    cav = cav.to(model_device)
+    mean_length = torch.tensor(mean_length).to(model_device)
     for name, module in model.named_modules():
         if name in layer_names:
             hook_fn = clarc_hook(cav, mean_length)

@@ -113,13 +113,18 @@ def extract_activations(
         handle = layer.register_forward_hook(get_activation(name))
         handles.append(handle)
 
-    labels_np = np.array([]).reshape(-1, 1)
+    labels_np = np.array([]).reshape(-1, 2)
     with torch.no_grad():
         for batch_idx, batch in enumerate(
             tqdm(dataloader, desc="Extracting Activations")
         ):
             data = batch[0]
+            labels = batch[1]
+            extra = batch[2]
+            # print(data.shape)
+            # print(batch.shape)
             rest = np.array(batch[1:]).reshape(-1, len(batch[1:]))
+            print(rest.shape)
             labels_np = np.concatenate((labels_np, rest), axis=0)
             data = data.to(device)
             _ = model(data)
