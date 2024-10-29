@@ -1,5 +1,3 @@
-# pclarc.py
-
 import torch
 from torch import nn
 
