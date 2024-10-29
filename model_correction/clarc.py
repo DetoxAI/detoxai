@@ -17,9 +17,9 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor):
 
     """
     def hook(module: nn.Module, input: tuple, output: torch.Tensor) -> torch.Tensor:
-        device = input[0].device
-        cav.to(device)
-        mean_length.to(device)
+        # device = input[0].device
+        # cav.to(device)
+        # mean_length.to(device)
         output_shapes = output.shape
         flat_output = output.flatten(start_dim=1).detach()
         cav_dot = cav @ cav.T
