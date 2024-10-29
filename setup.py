@@ -19,7 +19,6 @@ setup(
         "wandb",
         "albumentations",
         "pytorch-lightning",
-        "pprint",
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
