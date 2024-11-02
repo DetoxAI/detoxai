@@ -93,10 +93,6 @@ def compute_gradients(
 
     target_output = outputs[:, target_class]
     target_output.backward(target_output)
-    # print graph
-    from torchviz import make_dot
-    make_dot(target_output).render("target_output")
-
     
     if inputs.grad is None:
         raise ValueError("Gradients with respect to inputs could not be computed.")

@@ -17,30 +17,31 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor):
 
     """
     def hook(module: nn.Module, input: tuple, output: torch.Tensor) -> torch.Tensor:
-        # device = input[0].device
-        # cav.to(device)
-        # mean_length.to(device)
+        device = output.device
+
+        cav_local = stabilize(cav.to(device))
+        mean_length_local = stabilize(mean_length.to(device))
         output_shapes = output.shape
         flat_output = output.flatten(start_dim=1).detach()
-        cav_dot = cav @ cav.T
-        shift = flat_output - mean_length  # (B, F), (F,)
+        cav_dot = torch.matmul(cav_local, cav_local.T)
+        shift = flat_output - mean_length_local
         correction = cav_dot * shift
-        output = flat_output - correction
-        output = output.reshape(output_shapes)
-        return output
+        adjusted_flat_output = flat_output - correction
+        adjusted_output = adjusted_flat_output.reshape(output_shapes)
+        return adjusted_output
 
     return hook
 
 
 
-def add_clarc_hook(model: nn.Module, cav: torch.Tensor, mean_length: float, layer_names: list) -> list:
+def add_clarc_hook(model: nn.Module, cav: torch.Tensor, mean_length: torch.Tensor, layer_names: list) -> list:
     """
     Applies debiasing to the specified layers of a PyTorch model using the provided CAV.
 
     Args:
         model (nn.Module): The PyTorch model to be debiased.
         cav (torch.Tensor): The Concept Activation Vector, shape (channels,).
-        mean_length (float): The desired mean alignment length.
+        mean_length (torch.Tensor): Mean activation length of the unaffected activations.
         layer_names (list): List of layer names (strings) to apply the hook on.
 
     Returns:
