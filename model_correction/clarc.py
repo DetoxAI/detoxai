@@ -16,21 +16,19 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor):
         function: A hook function to be registered with a PyTorch module.
 
     """
-    def hook(module: nn.Module, input: tuple, output: torch.Tensor) -> torch.Tensor:
-        device = output.device
-
-        cav_local = stabilize(cav.to(device))
-        mean_length_local = stabilize(mean_length.to(device))
-        output_shapes = output.shape
-        flat_output = output.clone().flatten(start_dim=1).detach()
-        cav_dot = torch.matmul(cav_local, cav_local.T)
-        shift = flat_output - mean_length_local
-        correction = cav_dot * shift
-        adjusted_flat_output = output.flatten(start_dim=1) - correction
-        adjusted_output = adjusted_flat_output.reshape(output_shapes)
-        return adjusted_output
-
-    return hook
+    def clarc_hook(self, m, i, o):
+        outs = o + 0
+        cav = self.cav.to(outs)
+        nonlocal mean_length
+        mean_length = mean_length.to(outs)
+        length = (outs.flatten(start_dim=2).max(2).values * cav).sum(1)
+        v = self.cav.to(outs)
+        beta = (cav * v).sum(1)
+        mag = (self.mean_length - length).to(outs) / stabilize(beta)
+        addition = (mag[:, None, None, None] * v[..., None, None])
+        acts = outs + addition
+        return acts
+    return clarc_hook
 
 
 
