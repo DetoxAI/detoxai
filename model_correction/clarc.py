@@ -26,7 +26,7 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor):
         cav_dot = torch.matmul(cav_local, cav_local.T)
         shift = flat_output - mean_length_local
         correction = cav_dot * shift
-        adjusted_flat_output = output.flatten(start_dim=1) - correction
+        adjusted_flat_output = output.flatten(start_dim=1) - correction * alpha
         adjusted_output = adjusted_flat_output.reshape(output_shapes)
         return adjusted_output
 
