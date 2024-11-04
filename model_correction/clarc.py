@@ -1,8 +1,10 @@
 import torch
 from torch import nn
 
+
 def stabilize(x: torch.Tensor, epsilon: float = 1e-8) -> torch.Tensor:
     return x + epsilon
+
 
 def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float = 1.0):
     """
@@ -16,6 +18,7 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float = 1.0)
         function: A hook function to be registered with a PyTorch module.
 
     """
+
     def hook(module: nn.Module, input: tuple, output: torch.Tensor) -> torch.Tensor:
         device = output.device
 
@@ -30,18 +33,25 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float = 1.0)
         adjusted_flat_output = output.flatten(start_dim=1) - correction * alpha
         adjusted_output = adjusted_flat_output.reshape(output_shapes)
         return adjusted_output
+
     return hook
+
 
 def mass_mean_probe_hook(probe: torch.Tensor):
     def hook(module: nn.Module, input: tuple, output: torch.Tensor):
         nonlocal probe
         probe = probe.to(output)
-        return output + probe
+        o = output.clone().flatten(start_dim=1)
+        perturbed = o - probe
+        perturbed = perturbed.reshape(output.shape)
+        return perturbed
+
     return hook
 
 
-
-def add_clarc_hook(model: nn.Module, cav: torch.Tensor, mean_length: torch.Tensor, layer_names: list) -> list:
+def add_clarc_hook(
+    model: nn.Module, cav: torch.Tensor, mean_length: torch.Tensor, layer_names: list
+) -> list:
     """
     Applies debiasing to the specified layers of a PyTorch model using the provided CAV.
 
@@ -63,7 +73,10 @@ def add_clarc_hook(model: nn.Module, cav: torch.Tensor, mean_length: torch.Tenso
             print(f"Added hook to layer: {name}")
     return hooks
 
-def add_mass_mean_probe_hook(model: nn.Module, probe: torch.Tensor, layer_names: list) -> list:
+
+def add_mass_mean_probe_hook(
+    model: nn.Module, probe: torch.Tensor, layer_names: list
+) -> list:
     """
     Adds a probe to the specified layers of a PyTorch model.
 
