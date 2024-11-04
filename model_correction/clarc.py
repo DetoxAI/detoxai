@@ -96,3 +96,63 @@ def add_mass_mean_probe_hook(
             hooks.append(handle)
             print(f"Added probe to layer: {name}")
     return hooks
+
+
+def outer_clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float = 1.0):
+    """
+    Creates a forward hook to adjust layer activations based on the CAV.
+
+    Args:
+        cav (torch.Tensor): Concept Activation Vector of shape (channels,).
+        mean_length (float): Desired mean alignment length.
+
+    Returns:
+        function: A hook function to be registered with a PyTorch module.
+
+    """
+
+    def hook(module: nn.Module, input: tuple, output: torch.Tensor) -> torch.Tensor:
+        nonlocal alpha
+        device = output.device
+        output_shapes = output.shape
+
+        v = stabilize(cav.to(device)).squeeze(0)
+        z = stabilize(mean_length.to(device)).unsqueeze(0)
+        x_copy_detached = output.clone().flatten(start_dim=1).detach()
+        output = output.flatten(start_dim=1)
+
+        vvt = torch.outer(v, v)
+
+        A = torch.matmul(vvt, (x_copy_detached - z).T).T  # (N, batch_size)
+
+        results = output - A
+
+        adjusted_output = results.reshape(output_shapes)
+        return adjusted_output
+
+    return hook
+
+
+def add_outer_clarc_hook(
+    model: nn.Module, cav: torch.Tensor, mean_length: torch.Tensor, layer_names: list
+) -> list:
+    """
+    Applies debiasing to the specified layers of a PyTorch model using the provided CAV.
+
+    Args:
+        model (nn.Module): The PyTorch model to be debiased.
+        cav (torch.Tensor): The Concept Activation Vector, shape (channels,).
+        mean_length (torch.Tensor): Mean activation length of the unaffected activations.
+        layer_names (list): List of layer names (strings) to apply the hook on.
+
+    Returns:
+        list: A list of hook handles. Keep them to remove hooks later if needed.
+    """
+    hooks = []
+    for name, module in model.named_modules():
+        if name in layer_names:
+            hook_fn = outer_clarc_hook(cav, mean_length)
+            handle = module.register_forward_hook(hook_fn)
+            hooks.append(handle)
+            print(f"Added hook to layer: {name}")
+    return hooks
