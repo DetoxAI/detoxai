@@ -78,10 +78,10 @@ def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm"):
 
 
     cav = w / torch.sqrt((w ** 2).sum())
+    cav = cav.detach().cpu()
 
     mean_activation_over_nonartifact_samples = X[targets == 0].mean(0)
     print("CAV type: ", cav_type)
     print("largest CAV values:", torch.topk(cav.flatten(), 10))
-    cav_tensor = torch.tensor(cav)
     mean_activation_over_nonartifact_samples_tensor = torch.tensor(mean_activation_over_nonartifact_samples)
-    return cav_tensor, mean_activation_over_nonartifact_samples_tensor
+    return cav, mean_activation_over_nonartifact_samples_tensor
