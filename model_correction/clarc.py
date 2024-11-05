@@ -13,7 +13,7 @@ def mass_mean_probe_hook(probe: torch.Tensor, alpha: float):
         o = output.clone().flatten(start_dim=1)
         perturbed = o - probe * alpha
         perturbed = perturbed.reshape(output.shape)
-        print("hook mean probe")
+        print("DEBUG: mass mean probe hook applied")
         return perturbed
 
     return hook
@@ -40,7 +40,7 @@ def add_mass_mean_probe_hook(
             hook_fn = mass_mean_probe_hook(probe, alpha)
             handle = module.register_forward_hook(hook_fn)
             hooks.append(handle)
-            print(f"Added probe to layer: {name}")
+            print(f"DEBUG: Added probe to layer: {name}")
     return hooks
 
 
@@ -69,21 +69,21 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
 
         vvt = torch.outer(v, v)
 
-        print(
-            f"vvt dtype: {vvt.dtype}, x_copy_detached dtype: {x_copy_detached.dtype}, z dtype: {z.dtype}"
-        )
+        # print(
+        #     f"vvt dtype: {vvt.dtype}, x_copy_detached dtype: {x_copy_detached.dtype}, z dtype: {z.dtype}"
+        # )
 
         A = torch.matmul(vvt, (x_copy_detached - z).T).T  # (N, batch_size)
 
         results = output - A * alpha
 
-        print(
-            f"Intervention: {torch.mean(A*alpha):.5f}, x mean {torch.mean(x_copy_detached):.5f} std {torch.std(x_copy_detached):.5f}"
-        )
+        # print(
+        #     f"Intervention: {torch.mean(A*alpha):.5f}, x mean {torch.mean(x_copy_detached):.5f} std {torch.std(x_copy_detached):.5f}"
+        # )
 
         adjusted_output = results.reshape(output_shapes)
 
-        print("hook clarc hook")
+        print("DEBUG: clarc hook applied")
         return adjusted_output
 
     return hook
@@ -115,5 +115,5 @@ def add_clarc_hook(
             hook_fn = clarc_hook(cav, mean_length, alpha)
             handle = module.register_forward_hook(hook_fn)
             hooks.append(handle)
-            print(f"Added hook to layer: {name}")
+            print(f"DEBUG: Added hook to layer: {name}")
     return hooks
