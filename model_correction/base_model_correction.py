@@ -7,14 +7,16 @@ from ..cavs import extract_activations, compute_mass_mean_probe, compute_cav
 
 # Wrapper for requiring activations and CAVs to be computed before applying model correction
 def require_activations_and_cav(func):
-    def wrapped(self, cav_layer: str):
+    def wrapped(self, cav_layer: str, *args, **kwargs):
         if not hasattr(self, "activations"):
-            raise ValueError("Activations have not been computed yet")
+            raise ValueError(
+                "Activations must be computed before applying model correction"
+            )
+
         if not hasattr(self, "cav"):
-            raise ValueError("CAV has not been computed yet")
-        if not hasattr(self, "mean_act"):
-            raise ValueError("Mean activations have not been computed yet")
-        return func(self, cav_layer)
+            raise ValueError("CAVs must be computed before applying model correction")
+
+        return func(self, cav_layer, *args, **kwargs)
 
     return wrapped
 
@@ -74,8 +76,7 @@ class ModelCorrectionMethod(ABC):
 
     def remove_hooks(self) -> None:
         if hasattr(self, "hooks"):
-            for hook in self.hooks:
-                hook.remove()
+            self.hooks = list()
 
     @abstractmethod
     def apply_model_correction(self, cav_layer: str) -> None:
