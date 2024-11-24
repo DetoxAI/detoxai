@@ -1,4 +1,5 @@
 import lightning as L
+import torch
 
 from .base_model_correction import ModelCorrectionMethod
 from .hooks import add_clarc_hook
@@ -8,20 +9,17 @@ class ACLARC(ModelCorrectionMethod):
     def __init__(self, model, dataloader, experiment_name, layers, device):
         super().__init__(model, dataloader, experiment_name, layers, device)
 
-        # Make sure that model
-
     def apply_model_correction(
         self,
         cav_layer: str,
-        lightning_model,
-        dataloader_train,
-        logger,
+        lightning_model: L.LightningModule,
+        dataloader_train: torch.utils.data.DataLoader,
+        logger: object,
         fine_tune_epochs: int = 1,
         alpha: float = 1.0,
     ) -> None:
-        self.hooks = add_clarc_hook(
-            self.model, self.cav, self.mean_act_a, [cav_layer], alpha
-        )
+        hook = add_clarc_hook(self.model, self.cav, self.mean_act_a, [cav_layer], alpha)
+        self.hooks.append(hook)
 
         # Make sure model is in training mode
         self.model.train()

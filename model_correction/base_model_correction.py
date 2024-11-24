@@ -24,6 +24,7 @@ class ModelCorrectionMethod(ABC):
         self.model = model
         self.experiment_name = experiment_name
         self.device = device
+        self.hooks = list()
 
     def __init_subclass__(cls) -> None:
         """
