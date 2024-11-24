@@ -37,15 +37,17 @@ def process_cav(cav: np.ndarray or torch.Tensor, device: str) -> torch.Tensor:
         cav = cav.float().to(device)
     else:
         raise TypeError("CAV must be a NumPy array or a PyTorch tensor.")
-    
+
     cav_norm = torch.norm(cav)
     if cav_norm == 0:
         raise ValueError("CAV has zero norm and cannot be normalized.")
-    
+
     return cav / cav_norm
 
 
-def register_activation_hook(model: nn.Module, target_layer: str, activations: dict) -> torch.utils.hooks.RemovableHandle:
+def register_activation_hook(
+    model: nn.Module, target_layer: str, activations: dict
+) -> torch.utils.hooks.RemovableHandle:
     """
     Register a forward hook to capture activations from the specified target layer.
 
@@ -57,21 +59,20 @@ def register_activation_hook(model: nn.Module, target_layer: str, activations: d
     Returns:
         torch.utils.hooks.RemovableHandle: The hook handle for later removal.
     """
+
     def forward_hook(module, input, output):
         output.retain_grad()  # Retain gradients for non-leaf tensors
-        activations['activations'] = output
+        activations["activations"] = output
 
     for name, module in model.named_modules():
         if name == target_layer:
             return module.register_forward_hook(forward_hook)
-    
+
     raise ValueError(f"Layer '{target_layer}' not found in the model.")
 
 
 def compute_gradients(
-    model: nn.Module, 
-    inputs: torch.Tensor, 
-    target_class: int
+    model: nn.Module, inputs: torch.Tensor, target_class: int
 ) -> torch.Tensor:
     """
     Perform a forward and backward pass to compute gradients with respect to the target class.
@@ -87,16 +88,18 @@ def compute_gradients(
     inputs.requires_grad = True
     model.zero_grad()
     outputs = model(inputs)
-    
+
     if outputs.ndimension() == 1 or outputs.size(1) <= target_class:
-        raise IndexError(f"Target class {target_class} is out of bounds for the model output.")
+        raise IndexError(
+            f"Target class {target_class} is out of bounds for the model output."
+        )
 
     target_output = outputs[:, target_class]
     target_output.backward(target_output)
-    
+
     if inputs.grad is None:
         raise ValueError("Gradients with respect to inputs could not be computed.")
-    
+
     return inputs.grad
 
 
@@ -110,13 +113,13 @@ def extract_activation_gradients(activations: dict) -> torch.Tensor:
     Returns:
         torch.Tensor: Gradients with respect to the activations.
     """
-    act = activations.get('activations')
+    act = activations.get("activations")
     if act is None:
         raise ValueError("Activations have not been captured.")
-    
+
     if act.grad is None:
         raise ValueError("Gradients with respect to activations could not be computed.")
-    
+
     return act.grad
 
 
@@ -150,18 +153,18 @@ def compute_alignment(grad: torch.Tensor, cav: torch.Tensor) -> torch.Tensor:
     # Ensure that grad and cav have compatible dimensions
     if grad.size(1) != cav.size(0):
         raise ValueError("Dimension mismatch between gradients and CAV.")
-    
+
     return torch.sum(grad * cav, dim=1)
 
 
 def get_tcav_scores(
-    model: nn.Module, 
-    cav: np.ndarray or torch.Tensor, 
-    dataloader: torch.utils.data.DataLoader, 
-    target_layer: str, 
-    target_class: int, 
-    device: str = 'cuda', 
-    num_samples: int = 100
+    model: nn.Module,
+    cav: np.ndarray | torch.Tensor,
+    dataloader: torch.utils.data.DataLoader,
+    target_layer: str,
+    target_class: int,
+    device: str = "cuda",
+    num_samples: int = 100,
 ) -> float:
     """
     Compute TCAV scores for a given model, CAV, and dataset.
@@ -214,12 +217,14 @@ def get_tcav_scores(
             try:
                 grad = extract_activation_gradients(activations)
             except Exception as e:
-                print(f"Skipping batch due to error in extracting activation gradients: {e}")
+                print(
+                    f"Skipping batch due to error in extracting activation gradients: {e}"
+                )
                 continue
 
             # Flatten gradients and activations
             grad = grad.view(grad.size(0), -1)
-            act = activations['activations']
+            act = activations["activations"]
             act = act.view(act.size(0), -1)
 
             # Normalize gradients
