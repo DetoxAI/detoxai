@@ -5,7 +5,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.svm import LinearSVC
 
 
-def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm"):
+def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm") -> tuple:
     """
     Compute a concept activation vector (CAV) for a set of vectors and targets.
 
@@ -88,10 +88,9 @@ def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm"):
     cav = w / torch.sqrt((w**2).sum())
     cav = cav.detach().cpu()
 
-    mean_activation_over_nonartifact_samples = X[targets == 0].mean(0)
+    mean_act_nonartif = torch.tensor(X[targets == 0].mean(0), dtype=torch.float32)
+    mean_act_artif = torch.tensor(X[targets == 1].mean(0), dtype=torch.float32)
     print("CAV type: ", cav_type)
     print("largest CAV values:", torch.topk(cav.flatten(), 10))
-    mean_activation_over_nonartifact_samples_tensor = torch.tensor(
-        mean_activation_over_nonartifact_samples
-    )
-    return cav, mean_activation_over_nonartifact_samples_tensor
+
+    return cav, mean_act_nonartif, mean_act_artif

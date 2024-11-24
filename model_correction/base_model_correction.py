@@ -39,6 +39,9 @@ class ModelCorrectionMethod(ABC):
         layers: list,
         use_cache: bool = False,
     ) -> None:
+        # Freeze the model
+        self.model.eval()
+
         self.activations = extract_activations(
             self.model,
             dataloader,
@@ -56,13 +59,16 @@ class ModelCorrectionMethod(ABC):
 
         match cav_type:
             case "mmp":
-                cav, mean_act = compute_mass_mean_probe(layer_acts, labels)
+                cav, mean_na, mean_a = compute_mass_mean_probe(layer_acts, labels)
             case _:
-                cav, mean_act = compute_cav(layer_acts, labels, cav_type=cav_type)
+                cav, mean_na, mean_a = compute_cav(layer_acts, labels, cav_type)
 
         # Move cav and mean_act to proper torch dtype
         self.cav = cav.float().to(self.device)
-        self.mean_act = mean_act.float().to(self.device)
+        # mean activation over non-artifact samples
+        self.mean_act_na = mean_na.float().to(self.device)
+        # mean activation over artifact samples
+        self.mean_act_a = mean_a.float().to(self.device)
         self.cav_type = cav_type
 
     def remove_hooks(self) -> None:

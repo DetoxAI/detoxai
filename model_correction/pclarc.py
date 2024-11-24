@@ -8,5 +8,5 @@ class PCLARC(ModelCorrectionMethod):
 
     def apply_model_correction(self, cav_layer: str, alpha: float = 1.0) -> None:
         self.hooks = add_clarc_hook(
-            self.model, self.cav, self.mean_act, [cav_layer], alpha
+            self.model, self.cav, self.mean_act_na, [cav_layer], alpha
         )
