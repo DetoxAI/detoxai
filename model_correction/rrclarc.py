@@ -5,7 +5,7 @@ import torch
 from copy import deepcopy
 import types
 
-from .base_model_correction import ModelCorrectionMethod
+from .base_model_correction import CLARC
 
 
 # Enum masking patterns
@@ -24,7 +24,7 @@ class RRLossType(Enum):
     COSINE = "cosine"
 
 
-class RRCLARC(ModelCorrectionMethod):
+class RRCLARC(CLARC):
     def __init__(
         self,
         model: L.LightningModule,
