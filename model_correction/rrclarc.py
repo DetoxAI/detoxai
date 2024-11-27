@@ -47,6 +47,7 @@ class RRCLARC(ModelCorrectionMethod):
         logger: object,
         fine_tune_epochs: int = 1,
         alpha: float = 1.0,
+        ft_lr: float = 1e-5,
     ) -> None:
         # Register rr_clarc_hook
         for name, module in self.model.named_modules():
@@ -62,12 +63,21 @@ class RRCLARC(ModelCorrectionMethod):
             self.modified_training_step(), self.lightning_model
         )
 
+        def configure_optimizers(self):
+            optimizer = torch.optim.Adam(self.parameters(), lr=ft_lr)
+            return optimizer
+
+        self.lightning_model.configure_optimizers = types.MethodType(
+            configure_optimizers, self.lightning_model
+        )
+
         # Make sure model is in training mode
         self.lightning_model.train()
 
         trainer = L.Trainer(
             max_epochs=fine_tune_epochs, logger=logger, log_every_n_steps=1
         )
+
         trainer.fit(self.lightning_model, dataloader_train)
 
         # Go back to eval mode
