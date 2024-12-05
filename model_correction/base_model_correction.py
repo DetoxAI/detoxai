@@ -25,7 +25,8 @@ class ModelCorrectionMethod(ABC):
         self,
         dataloader: torch.utils.data.DataLoader,
         layers: list,
-        use_cache: bool = False,
+        use_cache: bool = True,
+        save_dir: str = './activations'
     ) -> None:
         # Freeze the model
         self.model.eval()
@@ -37,6 +38,7 @@ class ModelCorrectionMethod(ABC):
             layers,
             self.device,
             use_cache,
+            save_dir
         )
 
     def compute_cav(self, cav_type: str, cav_layer: str) -> None:
@@ -58,6 +60,8 @@ class ModelCorrectionMethod(ABC):
         # mean activation over artifact samples
         self.mean_act_a = mean_a.float().to(self.device)
         self.cav_type = cav_type
+
+        self.activations = None
 
     def remove_hooks(self) -> None:
         if hasattr(self, "hooks"):

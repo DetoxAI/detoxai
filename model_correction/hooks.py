@@ -67,6 +67,8 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
         x_copy_detached = output.clone().flatten(start_dim=1).detach()
         output = output.flatten(start_dim=1)
 
+        print(f"CAV_SHAPE:{v.shape}")
+
         vvt = torch.outer(v, v)
 
         # print(
