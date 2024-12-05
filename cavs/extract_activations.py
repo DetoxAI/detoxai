@@ -43,8 +43,16 @@ def get_layer_by_name(model, layer_name):
     return module
 
 
+def load_activations(save_path):
+    activations_np = np.load(save_path)
+    activations = {}
+    for key in activations_np:
+        activations[key] = activations_np[key]
+    print(f"Loaded activations from '{save_path}'")
+    return activations
+
 def extract_activations(
-    model, dataloader, experiment_name, layers=None, device="cuda", use_cache=True
+    model, dataloader, experiment_name, layers=None, device="cuda", use_cache=True, save_dir='./activations'
 ):
     """
     Extract activations from all layers of a model for data from a dataloader.
@@ -62,22 +70,16 @@ def extract_activations(
     Returns:
         dict: Dictionary mapping layer names to activations.
     """
-    if use_cache:
-        save_path = os.path.join("./activations", experiment_name + ".npz")
-        if os.path.exists(save_path):
-            activations_np = np.load(save_path)
-            activations = {}
-            for key in activations_np:
-                activations[key] = activations_np[key]
-            print(f"Loaded activations from '{save_path}'")
-            return activations
+    save_path = os.path.join(save_dir, experiment_name + ".npz")
+
+    if use_cache and os.path.exists(save_path):
+        return load_activations(save_path)
     model.eval()
     model.to(device)
 
-    save_path = os.path.join("./activations")
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-    save_path = os.path.join(save_path, experiment_name + ".npz")
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+        
 
     activations = {}
 

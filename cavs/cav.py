@@ -71,7 +71,7 @@ def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm") ->
         w = torch.tensor(clf.coef_)
 
     elif "signal" in cav_type:
-        print("SIGNAL RIDGE")
+        print("SIGNAL")
         y = targets
         mean_y = y.mean()
         X_residuals = X - X.mean(axis=0)[None]
