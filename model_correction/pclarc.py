@@ -9,10 +9,6 @@ class PCLARC(CLARC):
     def __init__(
         self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
     ):
-        # Unwrap LightningModule
-        if isinstance(model, L.LightningModule):
-            model = model.model
-
         super().__init__(model, experiment_name, device)
 
     def apply_model_correction(self, cav_layer: str, alpha: float = 1.0) -> None:

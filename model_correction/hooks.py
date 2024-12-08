@@ -13,7 +13,7 @@ def mass_mean_probe_hook(probe: torch.Tensor, alpha: float):
         o = output.clone().flatten(start_dim=1)
         perturbed = o - probe * alpha
         perturbed = perturbed.reshape(output.shape)
-        print("DEBUG: mass mean probe hook applied")
+        # print("DEBUG: mass mean probe hook applied")
         return perturbed
 
     return hook
@@ -40,7 +40,7 @@ def add_mass_mean_probe_hook(
             hook_fn = mass_mean_probe_hook(probe, alpha)
             handle = module.register_forward_hook(hook_fn)
             hooks.append(handle)
-            print(f"DEBUG: Added probe to layer: {name}")
+            # print(f"DEBUG: Added probe to layer: {name}")
     return hooks
 
 
@@ -67,7 +67,7 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
         x_copy_detached = output.clone().flatten(start_dim=1).detach()
         output = output.flatten(start_dim=1)
 
-        print(f"CAV_SHAPE:{v.shape}")
+        # print(f"CAV_SHAPE:{v.shape}")
 
         vvt = torch.outer(v, v)
 
@@ -85,7 +85,7 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
 
         adjusted_output = results.reshape(output_shapes)
 
-        print("DEBUG: clarc hook applied")
+        # print("DEBUG: clarc hook applied")
         return adjusted_output
 
     return hook
@@ -117,5 +117,5 @@ def add_clarc_hook(
             hook_fn = clarc_hook(cav, mean_length, alpha)
             handle = module.register_forward_hook(hook_fn)
             hooks.append(handle)
-            print(f"DEBUG: Added hook to layer: {name}")
+            # print(f"DEBUG: Added hook to layer: {name}")
     return hooks

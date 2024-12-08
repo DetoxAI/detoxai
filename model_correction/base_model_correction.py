@@ -1,13 +1,21 @@
 from abc import ABC, abstractmethod
 import torch
 from torch import nn
+import lightning as L
 
 from ..cavs import extract_activations, compute_mass_mean_probe, compute_cav
 from .helpers import require_activations_and_cav
 from src.models.SklearnWrapper import SklearnWrapper
 
+
 class ModelCorrectionMethod(ABC):
-    def __init__(self, model: nn.Module, experiment_name: str, device: str) -> None:
+    def __init__(
+        self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
+    ) -> None:
+        # Unwrap LightningModule
+        if isinstance(model, L.LightningModule):
+            model = model.model
+
         self.model = model
         self.experiment_name = experiment_name
         self.device = device
@@ -15,14 +23,16 @@ class ModelCorrectionMethod(ABC):
     @abstractmethod
     def apply_model_correction(self) -> None:
         raise NotImplementedError
-    
+
     @abstractmethod
     def get_corrected_model(self) -> SklearnWrapper | L.LightningModule:
         raise NotImplementedError
-    
+
 
 class CLARC(ModelCorrectionMethod):
-    def __init__(self, model: nn.Module, experiment_name: str, device: str) -> None:
+    def __init__(
+        self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
+    ) -> None:
         super().__init__(model, experiment_name, device)
         self.hooks = list()
 
@@ -39,7 +49,7 @@ class CLARC(ModelCorrectionMethod):
         dataloader: torch.utils.data.DataLoader,
         layers: list,
         use_cache: bool = True,
-        save_dir: str = './activations'
+        save_dir: str = "./activations",
     ) -> None:
         # Freeze the model
         self.model.eval()
@@ -51,7 +61,7 @@ class CLARC(ModelCorrectionMethod):
             layers,
             self.device,
             use_cache,
-            save_dir
+            save_dir,
         )
 
     def compute_cav(self, cav_type: str, cav_layer: str) -> None:
@@ -83,6 +93,6 @@ class CLARC(ModelCorrectionMethod):
     @abstractmethod
     def apply_model_correction(self, cav_layer: str) -> None:
         raise NotImplementedError
-    
-    def get_corrected_model(self) -> L.LightningModule:
-        return self.lightning_model
+
+    def get_corrected_model(self) -> nn.Module:
+        return self.model

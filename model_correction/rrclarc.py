@@ -32,7 +32,7 @@ class RRCLARC(CLARC):
         device: str,
         rr_config: dict,
     ):
-        super().__init__(model.model, experiment_name, device)
+        super().__init__(model, experiment_name, device)
 
         self.lightning_model = model
         self.lambda_rr = rr_config.get("lambda_rr", 1.0)

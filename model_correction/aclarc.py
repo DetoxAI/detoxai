@@ -7,7 +7,7 @@ from .hooks import add_clarc_hook
 
 class ACLARC(CLARC):
     def __init__(self, model: L.LightningModule, experiment_name: str, device: str):
-        super().__init__(model.model, experiment_name, device)
+        super().__init__(model, experiment_name, device)
         self.lightning_model = model
 
     def apply_model_correction(

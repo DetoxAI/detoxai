@@ -51,8 +51,15 @@ def load_activations(save_path):
     print(f"Loaded activations from '{save_path}'")
     return activations
 
+
 def extract_activations(
-    model, dataloader, experiment_name, layers=None, device="cuda", use_cache=True, save_dir='./activations'
+    model,
+    dataloader,
+    experiment_name,
+    layers=None,
+    device="cuda",
+    use_cache=True,
+    save_dir="./activations",
 ):
     """
     Extract activations from all layers of a model for data from a dataloader.
@@ -79,7 +86,6 @@ def extract_activations(
 
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-        
 
     activations = {}
 
@@ -121,7 +127,7 @@ def extract_activations(
             tqdm(dataloader, desc="Extracting Activations")
         ):
             data = batch[0]
- 
+
             rest = np.array(batch[1:]).reshape(-1, len(batch[1:]))
 
             labels_np = np.concatenate((labels_np, rest), axis=0)
@@ -130,14 +136,18 @@ def extract_activations(
 
     for handle in handles:
         handle.remove()
-    
+
     activations_np = {}
     activations_np["labels"] = labels_np
     for name, acts in activations.items():
         np_acts = torch.cat(acts).cpu().numpy()
-        if "resnet" in experiment_name and "relu" in name.lower() and np_acts.shape[0] == len(labels_np)//2:
-            activations_np[name + "_pre"] = np_acts[:len(labels_np)//2]
-            activations_np[name + "_post"] = np_acts[len(labels_np)//2:]
+        if (
+            "resnet" in experiment_name
+            and "relu" in name.lower()
+            and np_acts.shape[0] == len(labels_np) // 2
+        ):
+            activations_np[name + "_pre"] = np_acts[: len(labels_np) // 2]
+            activations_np[name + "_post"] = np_acts[len(labels_np) // 2 :]
         else:
             activations_np[name] = np_acts
     np.savez(save_path, **activations_np)
