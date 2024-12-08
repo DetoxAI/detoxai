@@ -1,11 +1,11 @@
 from torch import nn
 import lightning as L
 
-from .base_model_correction import ModelCorrectionMethod
+from .base_model_correction import CLARC
 from .hooks import add_clarc_hook
 
 
-class PCLARC(ModelCorrectionMethod):
+class PCLARC(CLARC):
     def __init__(
         self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
     ):
