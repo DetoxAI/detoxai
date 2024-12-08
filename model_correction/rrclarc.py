@@ -47,7 +47,7 @@ class RRCLARC(CLARC):
         logger: object,
         fine_tune_epochs: int = 1,
         alpha: float = 1.0,
-        ft_lr: float = 1e-5,
+        ft_lr: float = 1e-3,
     ) -> None:
         # Register rr_clarc_hook
         for name, module in self.model.named_modules():
@@ -153,7 +153,7 @@ class RRCLARC(CLARC):
 
                 rr_loss = self.rr_loss(rr_grad)
 
-            loss = lightning_obj.criterion(y_hat, y) + self.lambda_rr * rr_loss
+                loss = lightning_obj.criterion(y_hat, y) + self.lambda_rr * rr_loss
 
             lightning_obj.log("train_loss", loss)
             return {"loss": loss, "preds": y_hat}
