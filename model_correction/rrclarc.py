@@ -5,7 +5,7 @@ import torch
 from copy import deepcopy
 import types
 
-from .base_model_correction import CLARC
+from .clarc import CLARC
 
 
 # Enum masking patterns
@@ -34,7 +34,6 @@ class RRCLARC(CLARC):
     ):
         super().__init__(model, experiment_name, device)
 
-        self.lightning_model = model
         self.lambda_rr = rr_config.get("lambda_rr", 1.0)
         self.rr_loss_type = rr_config.get("rr_loss_type", RRLossType.L2)
         self.masking = rr_config.get("masking_pattern", RRMaskingPattern.MAX_LOGIT)

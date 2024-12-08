@@ -1,14 +1,21 @@
 import lightning as L
-import torch
 
 from src.core.collators.base_collator import BaseCollator
 
-from .base_model_correction import ModelCorrectionMethod
+from .model_correction import ModelCorrectionMethod
 from src.models.SklearnWrapper import SklearnWrapper
 import numpy as np
 
+
 class ThresholdOptimizer(ModelCorrectionMethod):
-    def __init__(self, model: L.LightningModule, experiment_name: str, device: str, base_collator: BaseCollator, logger):
+    def __init__(
+        self,
+        model: L.LightningModule,
+        experiment_name: str,
+        device: str,
+        base_collator: BaseCollator,
+        logger,
+    ):
         super().__init__(model.model, experiment_name, device)
         self.scikit_model = SklearnWrapper(model, collator=base_collator, logger=logger)
 
@@ -34,11 +41,18 @@ class ThresholdOptimizer(ModelCorrectionMethod):
         if len(unique_labels) > 1:
             # Check if each unique label in sensitive features has more than one unique target label
             valid_sensitive_feature = all(
-                len(np.unique(y_unlearn[contains_protected_attrubutes_unlearn == label])) > 1
+                len(
+                    np.unique(y_unlearn[contains_protected_attrubutes_unlearn == label])
+                )
+                > 1
                 for label in unique_labels
             )
             if valid_sensitive_feature:
-                self.postprocess_est.fit(X_unlearn, y_unlearn, sensitive_features=contains_protected_attrubutes_unlearn)
+                self.postprocess_est.fit(
+                    X_unlearn,
+                    y_unlearn,
+                    sensitive_features=contains_protected_attrubutes_unlearn,
+                )
             else:
                 print(
                     "Each unique label in sensitive features must have more than one unique target label."
@@ -48,6 +62,7 @@ class ThresholdOptimizer(ModelCorrectionMethod):
 
     def get_corrected_model(self) -> SklearnWrapper:
         return self.scikit_model
+
 
 # from threshold_optimizer import ThresholdOptimizer
 # from src.core.collators.base_collator import BaseCollator

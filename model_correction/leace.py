@@ -3,7 +3,7 @@ from torch import nn
 from concept_erasure import LeaceEraser
 
 from ..cavs import extract_activations
-from .base_model_correction import ModelCorrectionMethod
+from .model_correction import ModelCorrectionMethod
 
 
 class LEACE(ModelCorrectionMethod):

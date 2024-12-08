@@ -1,7 +1,7 @@
 import lightning as L
 import torch
 
-from .base_model_correction import CLARC
+from .clarc import CLARC
 from .hooks import add_clarc_hook
 
 
