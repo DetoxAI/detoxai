@@ -10,6 +10,7 @@ class PCLARC(CLARC):
         self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
     ):
         super().__init__(model, experiment_name, device)
+        self.lightning_model = model
 
     def apply_model_correction(self, cav_layer: str, alpha: float = 1.0) -> None:
         hook = add_clarc_hook(

@@ -30,6 +30,9 @@ def compute_mass_mean_probe(
     mean_activation_over_nonartifact_samples = torch.tensor(
         mean_activation_over_nonartifact_samples, dtype=torch.float32
     )
+    mean_activation_over_artifact_samples = torch.tensor(
+        mean_activation_over_artifact_samples, dtype=torch.float32
+    )
 
     return (
         mass_mean_probe,

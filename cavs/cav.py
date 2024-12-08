@@ -23,7 +23,7 @@ def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm") ->
     X = vecs
 
     if "svm" in cav_type:
-        linear = LinearSVC(random_state=0, fit_intercept=False, max_iter=200)
+        linear = LinearSVC(random_state=0, fit_intercept=True, max_iter=200)
         grid_search = GridSearchCV(
             linear, param_grid={"C": [10**i for i in range(-5, 5)]}
         )
@@ -33,7 +33,7 @@ def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm") ->
         # linear.fit(X, targets, sample_weight=weights)
         w = torch.Tensor(linear.coef_)
     elif "ridge" in cav_type:
-        clf = Ridge(alpha=100, fit_intercept=False, random_state=0)
+        clf = Ridge(alpha=100, fit_intercept=True, random_state=0)
         grid_search = GridSearchCV(
             clf, param_grid={"alpha": [10**i for i in range(-5, 5)]}
         )
@@ -46,7 +46,7 @@ def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm") ->
     elif "lasso" in cav_type:
         from sklearn.linear_model import Lasso
 
-        clf = Lasso(alpha=0.1, fit_intercept=False, max_iter=200, random_state=0)
+        clf = Lasso(alpha=0.1, fit_intercept=True, max_iter=200, random_state=0)
 
         grid_search = GridSearchCV(
             clf, param_grid={"alpha": [10**i for i in range(-5, 5)]}
@@ -60,7 +60,7 @@ def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm") ->
     elif "logistic" in cav_type:
         from sklearn.linear_model import LogisticRegression
 
-        clf = LogisticRegression(fit_intercept=False, random_state=0)
+        clf = LogisticRegression(fit_intercept=True, random_state=0)
 
         grid_search = GridSearchCV(clf, param_grid={"C": [10**i for i in range(-5, 5)]})
         grid_search.fit(X, targets * 2 - 1, sample_weight=weights)
