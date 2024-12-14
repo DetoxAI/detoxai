@@ -1,4 +1,3 @@
-import numpy as np
 import sys
 import torch
 import lightning as L
@@ -8,14 +7,14 @@ from copy import deepcopy
 from scipy import optimize
 from scipy.optimize import OptimizeResult
 from tqdm import tqdm
-from torch.nn.functional import softmax, sigmoid
+from torch.nn.functional import softmax
 
 # Project imports
-from ..model_correction import ModelCorrectionMethod
-from .utils import BiasMetrics, phi_np
+from .savani_base import SavaniBase
+from .utils import BiasMetrics
 
 
-class SavaniRP(ModelCorrectionMethod):
+class SavaniRP(SavaniBase):
     def __init__(
         self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
     ) -> None:
@@ -47,20 +46,26 @@ class SavaniRP(ModelCorrectionMethod):
             0 <= frac_of_batches_to_use <= 1
         ), "frac_of_batches_to_use must be in [0, 1]"
         assert T_iters > 0, "T_iters must be a positive integer"
-        assert self._check_layer_name_exists(
+        assert self.check_layer_name_exists(
             last_layer_name
         ), f"Layer name {last_layer_name} not found in the model"
 
         self.last_layer_name = last_layer_name
+        self.epsilon = epsilon
+        self.options = options
+        self.bias_metric = bias_metric
 
         best_tau = None
         best_model = deepcopy(self.model)
         best_phi = -1
 
         # Unpack multiple batches of the dataloader
-        X, Y_true, ProtAttr = self._unpack_batches(dataloader, frac_of_batches_to_use)
-        Y_true_np = Y_true.detach().cpu().numpy()
-        ProtAttr_np = ProtAttr.detach().cpu().numpy()
+        self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
+            dataloader, frac_of_batches_to_use
+        )
+
+        self.Y_true_np = self.Y_true_torch.detach().cpu().numpy()
+        self.ProtAttr_np = self.ProtAttr_torch.detach().cpu().numpy()
 
         with tqdm(
             desc=f"Random Perturbation iterations (phi: {best_phi}, tau: {best_tau})",
@@ -71,36 +76,9 @@ class SavaniRP(ModelCorrectionMethod):
             for i in range(T_iters):
                 self._perturb_weights(self.model, **options)
 
-                # Compute phi
-                with torch.no_grad():
-                    # Assuming binary classification and logits
-                    y_raw_preds = self.model(X)
-                    if options.get("outputs_are_logits", True):
-                        y_probs = softmax(y_raw_preds, dim=1)
-                    else:
-                        y_probs = y_raw_preds
-                    y_preds = y_probs[:, 1]  # Probability of class 1
-                    y_preds_np = y_preds.detach().cpu().numpy()
-
-                def objective(tau):
-                    return -phi_np(
-                        Y_true_np, y_preds_np > tau, ProtAttr_np, epsilon, bias_metric
-                    )[0]
-
-                # for _tau in np.linspace(0, 1, optimizer_maxiter):
-                #     _phi, bias = objective(_tau)
-
-                #     print(f"tau: {_tau:.3f}, phi: {_phi:.3f}, bias: {bias:.3f}")
-
-                #     if _phi > best_phi:
-                #         best_tau = _tau
-                #         best_model = deepcopy(self.model)
-                #         best_phi = _phi
-                #         best_bias = bias
-
                 # Optimize the threshold tau
                 res: OptimizeResult = optimize.minimize_scalar(
-                    objective,
+                    self.objective_thresh("np", True),
                     bounds=(0, 1),
                     method="bounded",
                     options={"maxiter": optimizer_maxiter},
@@ -109,9 +87,8 @@ class SavaniRP(ModelCorrectionMethod):
                 if res.success:
                     tau = res.x
                     phi = -res.fun
-                    bias = phi_np(
-                        Y_true_np, y_preds_np > tau, ProtAttr_np, epsilon, bias_metric
-                    )[1]
+                    bias = self.phi_np(tau)[1]
+
                     print(f"tau: {tau:.3f}, phi: {phi:.3f}, bias: {bias:.3f}")
 
                     if phi > best_phi:
@@ -148,56 +125,3 @@ class SavaniRP(ModelCorrectionMethod):
                 param.data = param.data * torch.normal(
                     mean, std, param.data.shape, device=self.device
                 )
-
-    def _unpack_batches(
-        self, dataloader: DataLoader, frac: float
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        X, Y_true, ProtAttr = [], [], []
-        all_batches = len(dataloader)
-        n_batches = int(all_batches * frac)
-        for i, batch in enumerate(dataloader):
-            X.append(batch[0])
-            Y_true.append(batch[1])
-            ProtAttr.append(batch[2])
-            if i == n_batches:
-                break
-        X = torch.cat(X)
-        Y_true = torch.cat(Y_true)
-        ProtAttr = torch.cat(ProtAttr)
-        return X, Y_true, ProtAttr
-
-    def _check_layer_name_exists(self, layer_name: str) -> bool:
-        for name, _ in self.model.named_modules():
-            if name == layer_name:
-                return True
-        return False
-
-    def _sigmoid_np(self, x: np.ndarray) -> np.ndarray:
-        return 1 / (1 + np.exp(-x))
-
-    def get_corrected_model(self) -> L.LightningModule | nn.Module:
-        if hasattr(self, "lightning_model"):
-            return self.lightning_model
-        else:
-            return self.model
-
-    def apply_hook(self, tau: float) -> None:
-        def hook(module, input, output):
-            # output = (output > tau).int() # doesn't allow gradients to flow
-            # Assuming binary classification
-            output[:, 1] = sigmoid((output[:, 1] - tau) * 10)  # soft thresholding
-            output[:, 0] = 1 - output[:, 1]
-            print(f"Hook applied, threshold: {tau}")
-            return output
-
-        hook_fn = hook
-
-        # Register the hook on the model
-        hooks = []
-        for name, module in self.model.named_modules():
-            if isinstance(module, nn.Linear) and name == self.last_layer_name:
-                handle = module.register_forward_hook(hook_fn)
-                print(f"Hook registered on layer: {name}")
-                hooks.append(handle)
-
-        self.hooks = hooks
