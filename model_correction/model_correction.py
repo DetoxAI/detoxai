@@ -25,3 +25,7 @@ class ModelCorrectionMethod(ABC):
     @abstractmethod
     def get_corrected_model(self) -> SklearnWrapper | L.LightningModule:
         raise NotImplementedError
+
+    def remove_hooks(self) -> None:
+        if hasattr(self, "hooks"):
+            self.hooks = list()

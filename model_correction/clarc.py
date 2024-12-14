@@ -66,10 +66,6 @@ class CLARC(ModelCorrectionMethod, ABC):
 
         self.activations = None
 
-    def remove_hooks(self) -> None:
-        if hasattr(self, "hooks"):
-            self.hooks = list()
-
     @abstractmethod
     def apply_model_correction(self, cav_layer: str) -> None:
         raise NotImplementedError
