@@ -16,11 +16,19 @@ from .utils import phi_torch, phi_np
 
 class SavaniBase(ModelCorrectionMethod, ABC):
     def __init__(
-        self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
+        self,
+        model: nn.Module | L.LightningModule,
+        experiment_name: str,
+        device: str,
+        seed: int = 123,
     ) -> None:
         super().__init__(model, experiment_name, device)
         if isinstance(model, L.LightningModule):
             self.lightning_model = model
+
+        self.seed = seed
+        torch.manual_seed(seed)
+        np.random.seed(seed)
 
     @abstractmethod
     def apply_model_correction(self) -> None:

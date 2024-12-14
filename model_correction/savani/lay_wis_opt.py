@@ -22,9 +22,13 @@ logger = logging.getLogger(__name__)
 
 class SavaniLWO(SavaniBase):
     def __init__(
-        self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
+        self,
+        model: nn.Module | L.LightningModule,
+        experiment_name: str,
+        device: str,
+        seed: int = 123,
     ) -> None:
-        super().__init__(model, experiment_name, device)
+        super().__init__(model, experiment_name, device, seed)
         if isinstance(model, L.LightningModule):
             self.lightning_model = model
 
@@ -73,15 +77,14 @@ class SavaniLWO(SavaniBase):
         )
 
         total_layers = len(list(self.model.parameters()))
+        if n_layers_to_optimize == "all":
+            n_layers_to_optimize = total_layers
         assert (
             n_layers_to_optimize <= total_layers
         ), "n_layers_to_optimize must be less than the total number of layers"
 
-        if n_layers_to_optimize == "all":
-            n_layers_to_optimize = total_layers
-
         with tqdm(
-            desc=f"Layer-wise optimization. (global best phi: {best_phi}, tau: {best_tau})",
+            desc=f"LWO (global best phi: {best_phi}, tau: {best_tau})",
             total=n_layers_to_optimize,
             file=sys.stdout,
         ) as pbar:
@@ -148,7 +151,7 @@ class SavaniLWO(SavaniBase):
                         print(f"Optimization failed: {res.message}")
 
                 pbar.set_description(
-                    f"Layer-wise optimization. Layer {i}. (global phi: {best_phi:.3f}, tau: {best_tau:.3f}, bias: {best_bias:.3f})"
+                    f"LWO layer {i} (global phi: {best_phi:.3f}, tau: {best_tau:.3f}, bias: {best_bias:.3f})"
                 )
 
                 pbar.update(1)

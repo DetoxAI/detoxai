@@ -16,9 +16,13 @@ from .utils import BiasMetrics
 
 class SavaniRP(SavaniBase):
     def __init__(
-        self, model: nn.Module | L.LightningModule, experiment_name: str, device: str
+        self,
+        model: nn.Module | L.LightningModule,
+        experiment_name: str,
+        device: str,
+        seed: int = 123,
     ) -> None:
-        super().__init__(model, experiment_name, device)
+        super().__init__(model, experiment_name, device, seed)
         if isinstance(model, L.LightningModule):
             self.lightning_model = model
 
