@@ -1,2 +1,2 @@
-from .random_perturbation import RandomPerturbation  # noqa
+from .random_perturbation import SavaniRP  # noqa
 from .utils import BiasMetrics  # noqa

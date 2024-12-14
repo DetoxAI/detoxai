@@ -5,4 +5,4 @@ from .pclarc import PCLARC  # noqa
 from .rrclarc import RRCLARC, RRLossType, RRMaskingPattern  # noqa
 from .model_correction import ModelCorrectionMethod  # noqa
 from .leace import LEACE  # noqa
-from .savani import RandomPerturbation, BiasMetrics  # noqa
+from .savani import SavaniRP, BiasMetrics  # noqa

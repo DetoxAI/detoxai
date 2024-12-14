@@ -8,6 +8,8 @@ class BiasMetrics(enum.Enum):
     FPR_GAP = "FPR-GAP"
     TNR_GAP = "TNR-GAP"
     FNR_GAP = "FNR-GAP"
+    EO_GAP = "EO-GAP"
+    DP_GAP = "DP-GAP"
 
 
 def calculate_bias_metric(
@@ -110,6 +112,10 @@ def phi(
     return phi
 
 
+def stabilize(x, epsilon=1e-6):
+    return x + epsilon
+
+
 def calculate_bias_metric_np(
     metric: BiasMetrics | str,
     Y_pred: np.ndarray,
@@ -131,22 +137,45 @@ def calculate_bias_metric_np(
     if isinstance(metric, str):
         metric = BiasMetrics(metric)
 
+    tp = (Y_pred[ProtAttr == 1] == 1).sum()
+    fp = (Y_pred[ProtAttr == 0] == 1).sum()
+    tn = (Y_pred[ProtAttr == 1] == 0).sum()
+    fn = (Y_pred[ProtAttr == 0] == 0).sum()
+
+    tpr = tp / stabilize(tp + fn)
+    fpr = fp / stabilize(fp + tn)
+    tnr = tn / stabilize(tn + fp)
+    fnr = fn / stabilize(fn + tp)
+
     if metric == BiasMetrics.TPR_GAP:
-        bias = np.abs(
-            (Y_pred[ProtAttr == 1] == 1).mean() - (Y_pred[ProtAttr == 0] == 1).mean()
-        )
+        bias = abs(tpr - fpr)
     elif metric == BiasMetrics.FPR_GAP:
-        bias = np.abs(
-            (Y_pred[ProtAttr == 1] == 1).mean() - (Y_pred[ProtAttr == 0] == 1).mean()
-        )
+        bias = abs(fpr - tpr)
     elif metric == BiasMetrics.TNR_GAP:
-        bias = np.abs(
-            (Y_pred[ProtAttr == 1] == 0).mean() - (Y_pred[ProtAttr == 0] == 0).mean()
-        )
+        bias = abs(tnr - fnr)
     elif metric == BiasMetrics.FNR_GAP:
-        bias = np.abs(
-            (Y_pred[ProtAttr == 1] == 0).mean() - (Y_pred[ProtAttr == 0] == 0).mean()
-        )
+        bias = abs(fnr - tnr)
+    elif metric == BiasMetrics.EO_GAP or metric == BiasMetrics.DP_GAP:
+        tp_a = (Y_pred[ProtAttr == 1] == 1).sum()
+        fp_a = (Y_pred[ProtAttr == 1] == 0).sum()
+        tn_a = (Y_pred[ProtAttr == 0] == 0).sum()
+        fn_a = (Y_pred[ProtAttr == 0] == 1).sum()
+
+        tpr_a = tp_a / stabilize(tp_a + fn_a)
+        fpr_a = fp_a / stabilize(fp_a + tn_a)
+
+        tp_b = (Y_pred[ProtAttr == 0] == 1).sum()
+        fp_b = (Y_pred[ProtAttr == 0] == 0).sum()
+        tn_b = (Y_pred[ProtAttr == 1] == 0).sum()
+        fn_b = (Y_pred[ProtAttr == 1] == 1).sum()
+
+        tpr_b = tp_b / stabilize(tp_b + fn_b)
+        fpr_b = fp_b / stabilize(fp_b + tn_b)
+
+        if metric == BiasMetrics.EO_GAP:
+            bias = 0.5 * (abs(tpr_a - tpr_b) + abs(fpr_a - fpr_b))
+        elif metric == BiasMetrics.DP_GAP:
+            bias = abs(tpr_a - tpr_b)
     else:
         raise ValueError(f"Unknown bias metric: {metric}")
 
@@ -185,7 +214,7 @@ def phi_np(
     Y_pred: np.ndarray,
     ProtAttr: np.ndarray,
     epsilon: float = 0.05,
-    bias_metric: BiasMetrics | str = BiasMetrics.TPR_GAP,
+    bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
 ) -> float:
     """
     Calculate phi as in the paper
@@ -203,4 +232,4 @@ def phi_np(
     # Compute phi
     phi = balanced_accuracy_np(Y_true, Y_pred) if bias < epsilon else 0
 
-    return phi
+    return phi, bias
