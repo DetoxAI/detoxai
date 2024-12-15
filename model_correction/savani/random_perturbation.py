@@ -7,11 +7,13 @@ from copy import deepcopy
 from scipy import optimize
 from scipy.optimize import OptimizeResult
 from tqdm import tqdm
-from torch.nn.functional import softmax
+import logging
 
 # Project imports
 from .savani_base import SavaniBase
 from .utils import BiasMetrics
+
+logger = logging.getLogger(__name__)
 
 
 class SavaniRP(SavaniBase):
@@ -93,7 +95,7 @@ class SavaniRP(SavaniBase):
                     phi = -res.fun
                     bias = self.phi_np(tau)[1]
 
-                    print(f"tau: {tau:.3f}, phi: {phi:.3f}, bias: {bias:.3f}")
+                    logger.debug(f"tau: {tau:.3f}, phi: {phi:.3f}, bias: {bias:.3f}")
 
                     if phi > best_phi:
                         best_tau = tau
@@ -102,7 +104,7 @@ class SavaniRP(SavaniBase):
                         best_bias = bias
 
                 else:
-                    print(f"Optimization failed: {res.message}")
+                    logger.warning(f"Optimization failed: {res.message}")
 
                 pbar.set_description(
                     f"Random Perturbation iterations (phi: {best_phi:.3f}, tau: {best_tau:.3f}, bias: {best_bias:.3f})"

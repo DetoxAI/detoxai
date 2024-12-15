@@ -10,14 +10,23 @@ from copy import deepcopy
 from scipy import optimize
 from scipy.optimize import OptimizeResult
 from tqdm import tqdm
-from skopt import gbrt_minimize
+from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize
 from skopt.space import Real
 
 # Project imports
 from .savani_base import SavaniBase
-from .utils import BiasMetrics, flatten_with_map, unflatten_with_map
+from .utils import BiasMetrics
 
 logger = logging.getLogger(__name__)
+
+
+def flatten_with_map(arr, indices):
+    return arr[indices].flatten()
+
+
+def unflatten_with_map(original, flat_arr, indices):
+    original[indices] = flat_arr.reshape(original[indices].shape)
+    return original
 
 
 class SavaniLWO(SavaniBase):
@@ -67,9 +76,10 @@ class SavaniLWO(SavaniBase):
         self.bias_metric = bias_metric
         self.options = options
 
-        best_tau = None
+        best_tau = tau_init
         best_model = deepcopy(self.model)
         best_phi = -1
+        best_bias = 1
 
         # Unpack multiple batches of the dataloader
         self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
@@ -84,7 +94,7 @@ class SavaniLWO(SavaniBase):
         ), "n_layers_to_optimize must be less than the total number of layers"
 
         with tqdm(
-            desc=f"LWO (global best phi: {best_phi}, tau: {best_tau})",
+            desc=f"LWO layer -1 (global phi: {best_phi:.3f}, tau: {best_tau:.3f}, bias: {best_bias:.3f})",
             total=n_layers_to_optimize,
             file=sys.stdout,
         ) as pbar:
@@ -97,6 +107,12 @@ class SavaniLWO(SavaniBase):
                 self.parameters_np = parameters.detach().cpu().numpy()
                 std = self.parameters_np.std()
                 n = max(int(neuron_frac * len(self.parameters_np)), 1)
+                # Cap the number of neurons to optimize, this is useful for large models
+                if "max_neurons_to_optimize" in options:
+                    n = min(n, options["max_neurons_to_optimize"])
+                print(
+                    f"Optimizing layer {i} with {n} out of {len(self.parameters_np)} neurons"
+                )
                 self.idx = np.random.choice(len(self.parameters_np), n, replace=False)
 
                 flat_parameters = flatten_with_map(self.parameters_np, self.idx)
@@ -152,11 +168,10 @@ class SavaniLWO(SavaniBase):
                     else:
                         logger.info(f"Optimization failed: {res.message}")
 
+                pbar.update(1)
                 pbar.set_description(
                     f"LWO layer {i} (global phi: {best_phi:.3f}, tau: {best_tau:.3f}, bias: {best_bias:.3f})"
                 )
-
-                pbar.update(1)
 
         self.model = best_model
         self.best_tau = best_tau

@@ -143,7 +143,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         X, Y_true, ProtAttr = [], [], []
         all_batches = len(dataloader)
-        n_batches = int(all_batches * frac)
+        n_batches = max(int(all_batches * frac), 1)
         for i, batch in enumerate(dataloader):
             X.append(batch[0])
             Y_true.append(batch[1])
