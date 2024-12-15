@@ -11,7 +11,7 @@ import logging
 
 # Project imports
 from .savani_base import SavaniBase
-from .utils import BiasMetrics
+from ...utils.bias_metrics import BiasMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ class SavaniRP(SavaniBase):
         experiment_name: str,
         device: str,
         seed: int = 123,
+        **kwargs,
     ) -> None:
         super().__init__(model, experiment_name, device, seed)
         if isinstance(model, L.LightningModule):
@@ -38,6 +39,7 @@ class SavaniRP(SavaniBase):
         frac_of_batches_to_use: float = 1.0,
         optimizer_maxiter: int = 10,
         options: dict = {},
+        **kwargs,
     ) -> None:
         """
         Apply random weights perturbation to the model, then select threshold 'tau' that maximizes phi

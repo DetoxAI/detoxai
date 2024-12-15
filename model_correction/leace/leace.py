@@ -2,12 +2,14 @@ import torch
 from torch import nn
 from concept_erasure import LeaceEraser
 
-from ..cavs import extract_activations
-from .model_correction import ModelCorrectionMethod
+from ...cavs import extract_activations
+from ..model_correction import ModelCorrectionMethod
 
 
 class LEACE(ModelCorrectionMethod):
-    def __init__(self, model: nn.Module, experiment_name: str, device: str) -> None:
+    def __init__(
+        self, model: nn.Module, experiment_name: str, device: str, **kwargs
+    ) -> None:
         super().__init__(model, experiment_name, device)
         self.hooks = list()
 
@@ -31,7 +33,7 @@ class LEACE(ModelCorrectionMethod):
             save_dir,
         )
 
-    def apply_model_correction(self, layers: list[str]) -> None:
+    def apply_model_correction(self, layers: list[str], **kwargs) -> None:
         """
         Apply the LEACE eraser to the specified layers of the model.
         """

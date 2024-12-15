@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 # Project imports
 from .savani_base import SavaniBase
-from .utils import (
+from ...utils.bias_metrics import (
     BiasMetrics,
     calculate_bias_metric_torch,
 )
@@ -26,6 +26,7 @@ class SavaniAFT(SavaniBase):
         experiment_name: str,
         device: str,
         seed: int = 123,
+        **kwargs,
     ) -> None:
         super().__init__(model, experiment_name, device, seed)
         if isinstance(model, L.LightningModule):
@@ -47,6 +48,7 @@ class SavaniAFT(SavaniBase):
         lam: float = 1.0,
         delta: float = 0.01,
         options: dict = {},
+        **kwargs,
     ) -> None:
         """backward
         Do layer-wise optimization to find the best weights for each layer and the best threshold tau

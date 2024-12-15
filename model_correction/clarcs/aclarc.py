@@ -6,7 +6,9 @@ from .hooks import add_clarc_hook
 
 
 class ACLARC(CLARC):
-    def __init__(self, model: L.LightningModule, experiment_name: str, device: str):
+    def __init__(
+        self, model: L.LightningModule, experiment_name: str, device: str, **kwargs
+    ) -> None:
         super().__init__(model, experiment_name, device)
         self.lightning_model = model
 
@@ -17,6 +19,7 @@ class ACLARC(CLARC):
         logger: object,
         fine_tune_epochs: int = 1,
         alpha: float = 1.0,
+        **kwargs,
     ) -> None:
         hook = add_clarc_hook(self.model, self.cav, self.mean_act_a, [cav_layer], alpha)
         self.hooks.append(hook)

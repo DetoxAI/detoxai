@@ -31,6 +31,7 @@ class RRCLARC(CLARC):
         experiment_name: str,
         device: str,
         rr_config: dict,
+        **kwargs,
     ):
         super().__init__(model, experiment_name, device)
 
@@ -45,8 +46,8 @@ class RRCLARC(CLARC):
         dataloader_train: torch.utils.data.DataLoader,
         logger: object,
         fine_tune_epochs: int = 1,
-        alpha: float = 1.0,
         ft_lr: float = 1e-3,
+        **kwargs,
     ) -> None:
         # Register rr_clarc_hook
         for name, module in self.model.named_modules():

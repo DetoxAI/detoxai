@@ -15,7 +15,7 @@ from skopt.space import Real
 
 # Project imports
 from .savani_base import SavaniBase
-from .utils import BiasMetrics
+from ...utils.bias_metrics import BiasMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ class SavaniLWO(SavaniBase):
         experiment_name: str,
         device: str,
         seed: int = 123,
+        **kwargs,
     ) -> None:
         super().__init__(model, experiment_name, device, seed)
         if isinstance(model, L.LightningModule):
@@ -55,6 +56,7 @@ class SavaniLWO(SavaniBase):
         neuron_frac: float = 0.1,
         tau_init: float = 0.5,
         options: dict = {},
+        **kwargs,
     ) -> None:
         """
         Do layer-wise optimization to find the best weights for each layer and the best threshold tau

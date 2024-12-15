@@ -1,10 +1,10 @@
 import lightning as L
-
-from src.core.collators.base_collator import BaseCollator
-
-from .model_correction import ModelCorrectionMethod
-from src.models.SklearnWrapper import SklearnWrapper
 import numpy as np
+
+
+from ..model_correction import ModelCorrectionMethod
+from src.models.SklearnWrapper import SklearnWrapper
+from src.core.collators.base_collator import BaseCollator
 
 
 class ThresholdOptimizer(ModelCorrectionMethod):
