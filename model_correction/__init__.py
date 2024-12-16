@@ -1,6 +1,6 @@
 from .model_correction import ModelCorrectionMethod  # noqa
 from .leace import LEACE  # noqa
-from .savani import SavaniRP, SavaniLWO, SavaniAFT  # noqa
+from .savani import SavaniRP, SavaniLWO, SavaniAFT, ZhangM  # noqa
 
 from .clarcs import (  # noqa
     CLARC,

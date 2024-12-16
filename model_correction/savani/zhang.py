@@ -3,6 +3,7 @@ import lightning as L
 import logging
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch import autograd
 
 
 from scipy import optimize
@@ -13,13 +14,14 @@ from tqdm import tqdm
 from .savani_base import SavaniBase
 from ...utils.bias_metrics import (
     BiasMetrics,
-    calculate_bias_metric_torch,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class SavaniAFT(SavaniBase):
+class ZhangM(SavaniBase):
+    """Brian Hu Zhang, Blake Lemoine, Margaret Mitchell - "Mitigating unwanted biases with adversarial learning" """
+
     def __init__(
         self,
         model: nn.Module | L.LightningModule,
@@ -37,20 +39,18 @@ class SavaniAFT(SavaniBase):
         dataloader: DataLoader,
         last_layer_name: str,
         epsilon: float = 0.05,
-        bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
+        bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
         frac_of_batches_to_use: float = 1.0,
         iterations: int = 10,
-        critic_iterations: int = 5,
-        model_iterations: int = 5,
+        critic_iterations: int = 25,
+        model_iterations: int = 25,
         train_batch_size: int = 16,
         thresh_optimizer_maxiter: int = 100,
         tau_init: float = 0.5,
-        lam: float = 1.0,
-        delta: float = 0.01,
+        alpha: float = 5.0,
         critic_lr: float = 1e-4,
         model_lr: float = 1e-4,
-        critic_filters: list[int] = [32, 64, 128],
-        critic_linear: list[int] = [256],
+        critic_linear: list[int] = [64, 32, 16],
         options: dict = {},
         **kwargs,
     ) -> None:
@@ -73,61 +73,99 @@ class SavaniAFT(SavaniBase):
         self.epsilon = epsilon
         self.bias_metric = bias_metric
         self.options = options
-        self.lam = lam
-        self.delta = delta
 
         # Unpack multiple batches of the dataloader
         self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
             dataloader, frac_of_batches_to_use
         )
+        self.ProtAttr_torch = self.ProtAttr_torch.to(dtype=torch.float32)
+        self.Y_true_torch = self.ProtAttr_torch.to(dtype=torch.float32)
 
-        channels = self.X_torch.shape[1]
+        self.critic = self.get_critic(2, critic_linear)  # Binary classification
 
-        self.critic = self.get_critic(
-            channels, critic_filters, critic_linear, train_batch_size
-        )
-
-        critic_criterion = nn.MSELoss()
+        critic_criterion = nn.BCELoss()
         critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
         model_optimizer = torch.optim.Adam(self.model.parameters(), lr=model_lr)
-        self.model_loss = nn.CrossEntropyLoss()
+        model_loss = nn.BCELoss()
 
         for i in tqdm(range(iterations), desc="Adversarial Fine Tuning"):
             logger.debug(f"Minibatch no. {i}")
 
+            for param in self.critic.parameters():
+                param.requires_grad = True
+            for param in self.model.parameters():
+                param.requires_grad = False
+
+            self.model.eval()
+            self.critic.train()
             # Train the critic
             for j in range(critic_iterations):
-                self.model.eval()
-                self.critic.train()
-
-                x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
-
-                with torch.no_grad():
-                    y_pred = self.model(x)
-
-                bias = calculate_bias_metric_torch(self.bias_metric, y_pred, prot_attr)
-
-                c_loss = critic_criterion(self.critic(x)[0], bias)
-                critic_optimizer.zero_grad()
-                c_loss.backward()
-                critic_optimizer.step()
-
-                logger.debug(f"[{j}] Critic loss: {c_loss.item()}")
-
-            # Train the model
-            for j in range(model_iterations):
-                self.model.train()
-                self.critic.eval()
-
                 x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
 
                 y_pred = self.model(x)
-                m_loss = self.fair_loss(y_pred, y_true, x)
-
+                c_pred = self.critic(y_pred)[:, 0]
+                if bias_metric.value == BiasMetrics.DP_GAP.value:
+                    c_loss = critic_criterion(c_pred, prot_attr)
+                elif bias_metric.value == BiasMetrics.EO_GAP.value:
+                    c_loss = critic_criterion(c_pred, y_true)
+                else:
+                    raise ValueError(f"Not supported: {bias_metric.value}")
+                c_loss.backward()
+                critic_optimizer.step()
+                critic_optimizer.zero_grad()
                 model_optimizer.zero_grad()
-                m_loss.backward()
+
+                logger.debug(f"[{j}] Critic loss: {c_loss.item()}")
+
+            for param in self.critic.parameters():
+                param.requires_grad = False
+            for param in self.model.parameters():
+                param.requires_grad = True
+            self.model.train()
+            self.critic.eval()
+
+            # Train the model
+            for j in range(model_iterations):
+                x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
+
+                y_pred = self.model(x)
+
+                c_pred = self.critic(y_pred)[:, 0]
+
+                if bias_metric.value == BiasMetrics.DP_GAP.value:
+                    c_loss = critic_criterion(c_pred, prot_attr)
+                elif bias_metric.value == BiasMetrics.EO_GAP.value:
+                    c_loss = critic_criterion(c_pred, y_true)
+                else:
+                    raise ValueError(f"Not supported: {bias_metric.value}")
+
+                if self.options.get("outputs_are_logits", True):
+                    y_pred = torch.softmax(y_pred, dim=1)[:, 0]
+
+                m_loss = model_loss(y_pred, y_true)
+
+                for name, param in self.model.named_parameters():
+                    try:
+                        m_grad = autograd.grad(m_loss, param, retain_graph=True)[0]
+                        c_grad = autograd.grad(c_loss, param, retain_graph=True)[0]
+                    except RuntimeError as e:
+                        logger.warning(
+                            RuntimeError(f"[{i},{j}] Grad error in layer {name}: {e}")
+                        )
+                        continue
+                    shape = c_grad.shape
+                    m_grad = m_grad.flatten()
+                    c_grad = c_grad.flatten()
+
+                    m_grad_proj = (m_grad.T @ c_grad) * c_grad
+                    grad = m_grad - m_grad_proj - alpha * c_grad
+                    grad = grad.reshape(shape)
+                    param.backward(grad)
+
                 model_optimizer.step()
+                model_optimizer.zero_grad()
+                critic_optimizer.zero_grad()
 
                 logger.debug(f"[{j}] Model loss: {m_loss.item()}")
 
@@ -154,47 +192,25 @@ class SavaniAFT(SavaniBase):
         # Add a hook with the best transformation
         self.apply_hook(tau)
 
-    def fair_loss(self, y_pred, y_true, input):
-        fair = torch.max(
-            torch.tensor(1, dtype=torch.float32, device=self.device),
-            self.lam * (self.critic(input).squeeze() - self.epsilon + self.delta) + 1,
-        )
-        return self.model_loss(y_pred, y_true) * fair
-
     def get_critic(
         self,
-        channels: int,
-        critic_filters: list[int],
+        input_dim: int,
         critic_linear: list[int],
-        batch_size: int,
     ) -> nn.Module:
-        encoder_layers = [
-            nn.Conv2d(channels, critic_filters[0], 3, padding="same"),
+        critic_layers = [
+            nn.Linear(input_dim, critic_linear[0]),
             nn.ReLU(),
+            nn.Dropout(0.2),
         ]
-
-        for i in range(1, len(critic_filters)):
-            encoder_layers += [
-                nn.Conv2d(critic_filters[i - 1], critic_filters[i], 3, padding="same"),
-                nn.ReLU(),
-                nn.MaxPool2d(2),
-            ]
-        encoder_layers.append(nn.Flatten())
-
-        encoder = nn.Sequential(*encoder_layers).to(self.device)
-
-        with torch.no_grad():
-            size_after = encoder(self.X_torch[:batch_size]).shape[1]
-
-        critic_layers = [encoder, nn.Linear(size_after, critic_linear[0]), nn.ReLU()]
 
         for i in range(1, len(critic_linear)):
             critic_layers += [
                 nn.Linear(critic_linear[i - 1], critic_linear[i]),
                 nn.ReLU(),
+                nn.Dropout(0.2),
             ]
 
         critic_layers.append(nn.Linear(critic_linear[-1], 2))
-        critic_layers.append(nn.Softmax())
+        critic_layers.append(nn.Softmax(dim=1))
 
         return nn.Sequential(*critic_layers).to(self.device)
