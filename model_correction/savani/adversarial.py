@@ -179,12 +179,12 @@ class SavaniAFT(SavaniBase):
                 nn.ReLU(),
                 nn.MaxPool2d(2),
             ]
-        encoder_layers.append(nn.Flatten())
+        encoder_layers.append(nn.Flatten(start_dim=0))
 
         encoder = nn.Sequential(*encoder_layers).to(self.device)
 
         with torch.no_grad():
-            size_after = encoder(self.X_torch[:batch_size]).shape[1]
+            size_after = encoder(self.X_torch[:batch_size]).shape[0]
 
         critic_layers = [encoder, nn.Linear(size_after, critic_linear[0]), nn.ReLU()]
 
@@ -194,7 +194,6 @@ class SavaniAFT(SavaniBase):
                 nn.ReLU(),
             ]
 
-        critic_layers.append(nn.Linear(critic_linear[-1], 2))
-        critic_layers.append(nn.Softmax())
+        critic_layers.append(nn.Linear(critic_linear[-1], 1))
 
         return nn.Sequential(*critic_layers).to(self.device)
