@@ -154,3 +154,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         Y_true = torch.cat(Y_true)
         ProtAttr = torch.cat(ProtAttr)
         return X, Y_true, ProtAttr
+
+    def sample_minibatch(self, batch_size: int) -> tuple:
+        idx = torch.randperm(self.X_torch.shape[0])[:batch_size]
+        return self.X_torch[idx], self.Y_true_torch[idx], self.ProtAttr_torch[idx]
