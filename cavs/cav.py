@@ -1,3 +1,7 @@
+"""
+Credit: https://github.com/frederikpahde/rrclarc
+"""
+
 import numpy as np
 import torch
 from sklearn.linear_model import Ridge
