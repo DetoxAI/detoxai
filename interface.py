@@ -9,31 +9,9 @@ from .methods import (
     LEACE,
 )
 from ..src.models.LightningWrapper import BaseLightningWrapper
-
-
-class CorrectionResult:
-    def __init__(self):
-        self.method: str
-        self.model: BaseLightningWrapper
-        self.metrics: dict
-
-    def __str__(self):
-        return f"Results for: {self.method}"
-
-    def __repr__(self):
-        return self.__str__()
-
-    def get_all_metrics(self) -> dict:
-        return self.metrics
-
-    def get_metric(self, metric: str) -> float:
-        return self.metrics[metric]
-
-    def get_model(self) -> BaseLightningWrapper:
-        return self.model
-
-    def get_method(self) -> str:
-        return self.method
+from .results_class import CorrectionResult
+from .evaluation import evaluate_model
+from .mcda_helpers import filter_pareto_front, select_best_method
 
 
 def run_correction(method: str, method_kwargs: dict) -> CorrectionResult:
@@ -71,65 +49,10 @@ def run_correction(method: str, method_kwargs: dict) -> CorrectionResult:
         return None
 
     # TODO: evaluate the model after correction
-    # model = corrector.get_model()
-    # metrics = evaluate_model(model)
+    model = corrector.get_corrected_model()
+    metrics = evaluate_model(model)
 
-    return CorrectionResult(
-        method=method, model=corrector.get_corrected_model(), metrics={}
-    )
-
-
-def evaluate_model(model: BaseLightningWrapper) -> dict:
-    """
-    Evaluate the model on various metrics
-
-
-    ***
-    `TEMPLATE FOR METRICS DICT`
-    ***
-
-    metrics_dict_template = {
-        "pareto": {
-            "balanced_accuracy": 0.0,
-            "equal_opportunity": 0.0,
-        },
-        "all": {
-            "balanced_accuracy": 0.0,
-            "equal_opportunity": 0.0,
-            "equalized_odds": 0.0,
-            "demographic_parity": 0.0,
-            "accuracy": 0.0,
-            "precision": 0.0,
-            "recall": 0.0,
-            "f1": 0.0,
-        },
-    }
-
-    Args:
-        model: Model to evaluate
-    """
-    raise NotImplementedError
-
-
-def filter_pareto_front(results: list[CorrectionResult]) -> list[CorrectionResult]:
-    """
-    Filter the results to only include those on the pareto front
-
-    Args:
-        results: List of CorrectionResult objects to filter
-    """
-    raise NotImplementedError
-
-
-def select_best_method(results: list[CorrectionResult]) -> CorrectionResult:
-    """
-    Select the best correction method from the results using the ideal point method
-
-    Args:
-        results: List of CorrectionResult objects to choose from
-    """
-    pf = filter_pareto_front(results)
-    raise NotImplementedError
+    return CorrectionResult(method=method, model=model, metrics=metrics)
 
 
 def run_suite(
