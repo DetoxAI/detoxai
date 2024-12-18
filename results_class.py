@@ -17,7 +17,7 @@ class CorrectionResult:
         return self.metrics
 
     def get_metric(self, metric: str) -> float:
-        return self.metrics[metric]
+        return self.metrics["all"][metric]
 
     def get_model(self) -> BaseLightningWrapper:
         return self.model

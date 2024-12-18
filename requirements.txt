@@ -6,3 +6,4 @@ pandas
 Pillow
 torchvision
 gdown
+EasyMCDM

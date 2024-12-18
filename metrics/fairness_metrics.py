@@ -49,9 +49,9 @@ from torchmetrics.classification import (
 # GMean: Geometric Mean = root of the product of class-wise sensitivity = sqrt(TPR * TNR) | HB
 
 # Advanced Fairness Metrics
-# EqualizedOdds = return the worst score of TPR difference/ratio and FPR difference/ratio between groups | Difference - LB (0 is best) | Ratio - HB (1 is best)
-# DemographicParity = requires equal proportion of positive predictions in each group (PPR difference/ratio) | Difference - LB (0 is best) | Ratio - HB (1 is best)
-# EqualityOfOpportunity = requires equal TPR in each group | Difference - LB (0 is best) | Ratio - HB (1 is best)
+# EO = return the worst score of TPR difference/ratio and FPR difference/ratio between groups | Difference - LB (0 is best) | Ratio - HB (1 is best)
+# DP = requires equal proportion of positive predictions in each group (PPR difference/ratio) | Difference - LB (0 is best) | Ratio - HB (1 is best)
+# EOO = requires equal TPR in each group | Difference - LB (0 is best) | Ratio - HB (1 is best)
 # TreatmentEquality = requires FN/FP ratio between groups to be equal  | Difference - LB (0 is best, CAN BE HIGHER THAN 1) | Ratio - 1 is best
 
 # You can also use reducers to calculate the ratio or difference of metrics between groups
@@ -75,9 +75,9 @@ DEFAULT_METRICS_CONFIG = {
         # Will be calculated per group
         # reduce: Literal["difference", "ratio", "none"]
         "metrics": {
-            "EqualizedOdds": {"reduce": ["difference"]},
-            "DemographicParity": {"reduce": ["difference"]},
-            "EqualityOfOpportunity": {"reduce": ["difference"]},
+            "EO": {"reduce": ["difference"]},
+            "DP": {"reduce": ["difference"]},
+            "EOO": {"reduce": ["difference"]},
         }
     },
 }
@@ -283,7 +283,7 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
         >>> metrics_spec = {
         ...     "TPR": {"reduce": ["ratio", "difference", "per_group"]},
         ...     "FPR": {"reduce": ["ratio", "difference"]},
-        ...     "EqualizedOdds": {"reduce": ["difference"]},
+        ...     "EO": {"reduce": ["difference"]},
         ...     "ACC": {"reduce":  ["per_group"]},
         ... }
         >>> derived_metrics = DerivedMetrics(metrics_spec, num_groups=2)
@@ -318,9 +318,9 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
         "F1": "F1_Score",
         "GMean": "Geometric_Mean",
         "PPR": "Predicted_Positive_Rate",
-        "EqualizedOdds": "Equalize_Odds",
-        "DemographicParity": "Demographic_Parity",
-        "EqualityOfOpportunity": "Equality_of_Opportunity",
+        "EO": "Equalize_Odds",
+        "DP": "Demographic_Parity",
+        "EOO": "Equality_of_Opportunity",
         "TreatmentEquality": "Treatment_Equality",
     }
 
@@ -341,19 +341,19 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
             assert set(metrics_spec[metric]["reduce"]).issubset(
                 set(self._reduce_options)
             ), "Invalid reduce option specified"
-        # Assert that if there is EqualizedOdds then it must have reduce option specified
+        # Assert that if there is EO then it must have reduce option specified
         assert (
-            "EqualizedOdds" not in metrics_spec.keys()
-            or not metrics_spec["EqualizedOdds"]["reduce"] == "per_group"
-        ), "EqualizedOdds must have a reduce option 'ratio' or 'difference' specified"
+            "EO" not in metrics_spec.keys()
+            or not metrics_spec["EO"]["reduce"] == "per_group"
+        ), "EO must have a reduce option 'ratio' or 'difference' specified"
         assert (
-            "DemographicParity" not in metrics_spec.keys()
-            or not metrics_spec["DemographicParity"]["reduce"] == "per_group"
-        ), "DemographicParity must have a reduce option 'ratio' or 'difference' specified"
+            "DP" not in metrics_spec.keys()
+            or not metrics_spec["DP"]["reduce"] == "per_group"
+        ), "DP must have a reduce option 'ratio' or 'difference' specified"
         assert (
-            "EqualityOfOpportunity" not in metrics_spec.keys()
-            or not metrics_spec["EqualityOfOpportunity"]["reduce"] == "per_group"
-        ), "EqualityOfOpportunity must have a reduce option 'ratio' or 'difference' specified"
+            "EOO" not in metrics_spec.keys()
+            or not metrics_spec["EOO"]["reduce"] == "per_group"
+        ), "EOO must have a reduce option 'ratio' or 'difference' specified"
         assert (
             "TreatmentEquality" not in metrics_spec.keys()
             or not metrics_spec["TreatmentEquality"]["reduce"] == "per_group"
@@ -379,15 +379,15 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
                         }
                     )
             if "ratio" or "difference" in reduce_options:
-                if metric == "EqualizedOdds":
+                if metric == "EO":
                     min_group_metric, max_group_metric = self.calculate_equalized_odds(
                         derived_metrics
                     )
-                elif metric == "DemographicParity":
+                elif metric == "DP":
                     min_group_metric, max_group_metric = (
                         self.calculate_demographic_parity(derived_metrics)
                     )
-                elif metric == "EqualityOfOpportunity":
+                elif metric == "EOO":
                     min_group_metric, max_group_metric = (
                         self.calculate_equality_of_opportunity(derived_metrics)
                     )
