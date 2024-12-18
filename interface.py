@@ -72,7 +72,6 @@ def debias(
             }
         },
     }
-
     """
     # Parse methods
     if methods == "all":
