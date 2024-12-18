@@ -38,16 +38,20 @@ def debias(
     methods: list[str] | str = "all",
     metrics: list[str] | str = "all",
     methods_config: dict = {},
+    pareto_metrics: list[str] = ["balanced_accuracy", "equalized_odds"],
     return_type: str = "pareto-front",
 ) -> CorrectionResult | list[CorrectionResult]:
     """
     Run a suite of correction methods on the model and return the results
 
     Args:
-        methods: List of correction methods to run
-        model: Model to run the correction methods on
-        methods_config: Configuration for each correction method
-        return_type (optional): Type of results to return. Options are 'pareto-front', 'all', 'best'
+        `model`: Model to run the correction methods on
+        `harmful_concept`: Concept to debias -- this is the protected attribute
+        `methods`: List of correction methods to run
+        `metrics`: List of metrics to include in the configuration
+        `methods_config`: Configuration for each correction method
+        `pareto_metrics`: List of metrics to use for the pareto front and selection of best method
+        `return_type` (optional): Type of results to return. Options are 'pareto-front', 'all', 'best'
             "pareto-front": Return the results CorrectionResult objects only for results on the pareto front
             "all": Return the results for all correction methods
             "best": Return the results for the best correction method, chosen with ideal point method from pareto front
@@ -110,8 +114,9 @@ def debias(
     results = []
     for method in methods:
         method_kwargs = methods_config[method]
-        method_kwargs["model"] = model
-        result = run_correction(method, method_kwargs, deepcopy(metrics_calculator))
+        method_kwargs["model"] = deepcopy(model)
+        method_kwargs["dataloader"] = NotImplementedError  # TODO
+        result = run_correction(method, method_kwargs, pareto_metrics)
         results.append(result)
 
     if return_type == "pareto-front":
@@ -128,7 +133,7 @@ def run_correction(
     method: str,
     dataloader: DataLoader,
     method_kwargs: dict,
-    metrics_calculator: AllMetrics,
+    pareto_metrics: list[str] | None = None,
 ) -> CorrectionResult:
     """
     Run the specified correction method
@@ -165,6 +170,6 @@ def run_correction(
 
     # TODO: evaluate the model after correction
     model = corrector.get_corrected_model()
-    metrics = evaluate_model(model, dataloader, metrics_calculator)
+    metrics = evaluate_model(model, dataloader, pareto_metrics)
 
     return CorrectionResult(method=method, model=model, metrics=metrics)

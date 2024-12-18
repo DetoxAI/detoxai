@@ -61,7 +61,7 @@ def construct_metrics_config(
     else:
         raise ValueError(f"Invalid type {types}")
 
-    metrics_config = {
+    dl_metrics_config = {
         "performance": {"metrics": {}},
         "fairness": {"metrics": {}},
     }
@@ -69,15 +69,15 @@ def construct_metrics_config(
     # Default to all metrics
     if metrics == "all":
         fair_metrics = ["ACC", "EO", "DP", "EOO"]
-        perf_metrics = ["Accuracy", "Precision", "Recall"]
+        perf_metrics = ["GMean", "F1", "Accuracy", "Precision", "Recall"]
     else:
         raise NotImplementedError("Custom metrics not yet supported")
 
     for metric in fair_metrics:
-        metrics_config["fairness"]["metrics"][metric] = {"reduce": [f"{f_reduce}"]}
+        dl_metrics_config["fairness"]["metrics"][metric] = {"reduce": [f"{f_reduce}"]}
 
     for metric in perf_metrics:
         a = {"reduce": ["macro", "per_class"]}
-        metrics_config["performance"]["metrics"][metric] = a
+        dl_metrics_config["performance"]["metrics"][metric] = a
 
-    return metrics_config
+    return dl_metrics_config

@@ -1,13 +1,14 @@
 from torch.utils.data import DataLoader
+import lightning as L
 
+# Project imports
 from .model_wrappers import FairnessLightningWrapper
-from .metrics.fairness_metrics import AllMetrics
 
 
 def evaluate_model(
     model: FairnessLightningWrapper,
     dataloader: DataLoader,
-    metrics_calculator: AllMetrics,
+    pareto_metrics: list[str] | None = None,
 ) -> dict:
     """
     Evaluate the model on various metrics
@@ -42,3 +43,32 @@ def evaluate_model(
     Args:
         model: Model to evaluate
     """
+
+    trainer = L.Trainer()
+    raw_results = trainer.test(model, dataloader)
+
+    metrics = {"pareto": {}, "all": {}}
+
+    if pareto_metrics:
+        # Options
+        # test_{metric}_macro for performance metrics
+        # test_{metric}_difference for fairness metrics
+        # test_{metric}_ratio for fairness metrics
+        for metric in raw_results.keys():
+            accept = (
+                metric.endswith("macro")
+                or metric.endswith("difference")
+                or metric.endswith("ratio")
+            )
+            # We only collect the metrics we care about
+            if accept:
+                cleaned_metric = metric.split("_")[1]
+
+                for pareto_metric in pareto_metrics:
+                    if pareto_metric in metric:
+                        metrics["pareto"][cleaned_metric] = raw_results[metric]
+
+                # Collect all metrics
+                metrics["all"][cleaned_metric] = raw_results[metric]
+
+    return metrics
