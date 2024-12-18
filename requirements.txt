@@ -1,7 +1,8 @@
-zennit-crp
-pytorch-lightning
-pandas
-opencv-python
-wandb
-scikit-learn
-albumentations
+torch
+lightning
+tqdm
+numpy
+pandas 
+Pillow
+torchvision
+gdown
