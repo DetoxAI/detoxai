@@ -15,6 +15,7 @@ from .methods import (
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
+from .utils.dataloader import WrappedDataLoader
 from .metrics.fairness_metrics import AllMetrics
 from .evaluation import evaluate_model
 from .mcda_helpers import filter_pareto_front, select_best_method
@@ -32,12 +33,49 @@ SUPPORTED_METHODS = [
 ]
 
 
+# EO = (TPR_prot_attr - TPR_non_prot_attr) / (TPR_prot_attr + TPR_non_prot_attr)
+# TP on original classifcation task
+# CAV _|_ task
+# --> downstream są
+# (1) P-CLARC + LEACE bez metryk i bez dostępu do oryginalnych danych
+# (2) Reszta do odpalenia potrzebuje dostępu do oryginalnych danych
+# (3) Do metryk fainress potrzeba dostępu do oryginalnych danych z concept labelami
+
+# Bez metryk fairness
+# -> Apply all methods, do not evaluate fairness metrics
+
+# Substitute fairness estimation
+#
+
+DEFAULT_METHODS_CONFIG = {
+    "global": {
+        "last_layer_name": "last",
+        "experiment_name": "default",
+        "device": "cpu",
+        "dataloader": None,
+    },
+    "PCLARC": {
+        "intervention_layers": "last",
+        "cav_type": "signal",
+        "cav_layers": "last",
+        "use_cache": True,
+    },
+    "LEACE": {
+        "intervention_layers": "last",
+        "cav_type": "signal",
+        "cav_layers": "last",
+        "use_cache": True,
+    },
+}
+
+
 def debias(
     model: nn.Module,
-    harmful_concept: str,
+    dataloader: WrappedDataLoader,  # bez concept labeli
+    # harmful_concept: str,
     methods: list[str] | str = "all",
     metrics: list[str] | str = "all",
-    methods_config: dict = {},
+    methods_config: dict = DEFAULT_METHODS_CONFIG,
     pareto_metrics: list[str] = ["balanced_accuracy", "equalized_odds"],
     return_type: str = "pareto-front",
 ) -> CorrectionResult | list[CorrectionResult]:
@@ -46,7 +84,8 @@ def debias(
 
     Args:
         `model`: Model to run the correction methods on
-        `harmful_concept`: Concept to debias -- this is the protected attribute
+        `dataloader`: WrappedDataLoader object with the dataset
+        `harmful_concept`: Concept to debias -- this is the protected attribute # NOT SUPPORTED YET
         `methods`: List of correction methods to run
         `metrics`: List of metrics to include in the configuration
         `methods_config`: Configuration for each correction method
@@ -82,19 +121,22 @@ def debias(
             if method.upper() not in SUPPORTED_METHODS:
                 raise ValueError(f"Method {method} not supported")
 
-    # ------------------------------------------------
-    # DATASET HANDLING IS TODO HERE
-    # Load supported tags ie. protected attributes
-    supported_tags = load_supported_tags()
-    if harmful_concept not in supported_tags["attributes"]:
-        raise ValueError(
-            f"Attribute {harmful_concept} not found in supported attributes"
-        )
-    else:
-        prot_attr_arity = len(supported_tags["mapping"][harmful_concept])
-        class_labels = NotImplementedError  # TODO: Take it from somewhere
+    # # ------------------------------------------------
+    # # DATASET HANDLING IS TODO HERE
+    # # Load supported tags ie. protected attributes
+    # supported_tags = load_supported_tags()
+    # if harmful_concept not in supported_tags["attributes"]:
+    #     raise ValueError(
+    #         f"Attribute {harmful_concept} not found in supported attributes"
+    #     )
+    # else:
+    #     prot_attr_arity = len(supported_tags["mapping"][harmful_concept])
+    #     class_labels = NotImplementedError  # TODO: Take it from somewhere
 
-    pass
+    # pass
+
+    class_labels = dataloader.collator.get_class_names()
+    prot_attr_arity = len(dataloader.collator.get_group_label_names())
 
     # Create an AllMetrics object
     metrics_calculator = AllMetrics(
@@ -112,9 +154,9 @@ def debias(
 
     results = []
     for method in methods:
-        method_kwargs = methods_config[method]
+        method_kwargs = methods_config[method] | methods_config["global"]
         method_kwargs["model"] = deepcopy(model)
-        method_kwargs["dataloader"] = NotImplementedError  # TODO
+        method_kwargs["dataloader"] = dataloader
         result = run_correction(method, method_kwargs, pareto_metrics)
         results.append(result)
 
@@ -130,7 +172,6 @@ def debias(
 
 def run_correction(
     method: str,
-    dataloader: DataLoader,
     method_kwargs: dict,
     pareto_metrics: list[str] | None = None,
 ) -> CorrectionResult:
@@ -161,14 +202,41 @@ def run_correction(
         case _:
             raise ValueError(f"Correction method {method} not found")
 
+    # Precompute CAVs if required
+    if corrector.requires_cav:
+        cav_layers = infer_layers(corrector, method_kwargs["cav_layers"])
+        corrector.extract_activations(method_kwargs["dataloader"], cav_layers)
+        corrector.compute_cav(method_kwargs["cav_type"], cav_layers)
+
+    # Parse intervention layers
+    method_kwargs["intervention_layers"] = infer_layers(
+        corrector, method_kwargs["intervention_layers"]
+    )
+
+    # Parse last layer name
+    method_kwargs["last_layer_name"] = infer_layers(
+        corrector, method_kwargs["last_layer_name"]
+    )
+
+    # Here we finally run the correction method
     try:
         corrector.apply_model_correction(**method_kwargs)
     except Exception as e:
         print(f"Error running correction method {method}: {e}")
         return None
 
-    # TODO: evaluate the model after correction
     model = corrector.get_corrected_model()
-    metrics = evaluate_model(model, dataloader, pareto_metrics)
+    metrics = evaluate_model(model, method_kwargs["dataloader"], pareto_metrics)
 
     return CorrectionResult(method=method, model=model, metrics=metrics)
+
+
+def infer_layers(corrector, layers):
+    if layers == "last":
+        last_layer = list(corrector.model.named_modules())[-1][0]
+        return [last_layer]
+    elif layers == "penultimate":
+        penultimate_layer = list(corrector.model.named_modules())[-2][0]
+        return [penultimate_layer]
+    else:
+        return layers

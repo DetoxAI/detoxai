@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 
-from ..datasets import MemMappedDataset
+# from ..datasets import MemMappedDataset
 
 
 class BaseCollator:
@@ -25,8 +25,8 @@ class BaseCollator:
         return cls(class_names=class_names)
 
     def infer_best_collate_fn(self, dataset: torch.utils.data.Dataset):
-        if isinstance(dataset, MemMappedDataset):
-            return self.get_memmap_collate_fn()
+        # if isinstance(dataset, MemMappedDataset):
+        #     return self.get_memmap_collate_fn()
         return self.get_collate_fn()
 
     def get_collate_fn(self):

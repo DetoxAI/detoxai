@@ -12,6 +12,7 @@ class LEACE(ModelCorrectionMethod):
     ) -> None:
         super().__init__(model, experiment_name, device)
         self.hooks = list()
+        self.requires_cav = True
 
     def extract_activations(
         self,

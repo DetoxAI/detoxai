@@ -18,6 +18,8 @@ class ModelCorrectionMethod(ABC):
         self.experiment_name = experiment_name
         self.device = device
 
+        self.requires_cav: bool = False
+
     @abstractmethod
     def apply_model_correction(self) -> None:
         raise NotImplementedError

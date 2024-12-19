@@ -30,6 +30,7 @@ class CLARC(ModelCorrectionMethod, ABC):
         super().__init__(model, experiment_name, device)
         self.hooks = list()
         self.lightning_model = model
+        self.requires_cav = True
 
     def __init_subclass__(cls) -> None:
         """
