@@ -1,23 +1,33 @@
 import torch
+import logging
 from torch import nn
+import lightning as L
 from concept_erasure import LeaceEraser
 
 from ...cavs import extract_activations
 from ..model_correction import ModelCorrectionMethod
 
 
+logger = logging.getLogger(__name__)
+
+
 class LEACE(ModelCorrectionMethod):
     def __init__(
-        self, model: nn.Module, experiment_name: str, device: str, **kwargs
+        self,
+        model: nn.Module | L.LightningModule,
+        experiment_name: str,
+        device: str,
+        **kwargs,
     ) -> None:
         super().__init__(model, experiment_name, device)
+
         self.hooks = list()
-        self.requires_cav = True
+        self.requires_acts = True
 
     def extract_activations(
         self,
         dataloader: torch.utils.data.DataLoader,
-        layers: list,
+        intervention_layers: list[str],
         use_cache: bool = True,
         save_dir: str = "./activations",
     ) -> None:
@@ -28,20 +38,20 @@ class LEACE(ModelCorrectionMethod):
             self.model,
             dataloader,
             self.experiment_name,
-            layers,
+            intervention_layers,
             self.device,
             use_cache,
             save_dir,
         )
 
-    def apply_model_correction(self, layers: list[str], **kwargs) -> None:
+    def apply_model_correction(self, intervention_layers: list[str], **kwargs) -> None:
         """
         Apply the LEACE eraser to the specified layers of the model.
         """
         assert hasattr(self, "activations"), "Activations must be extracted first."
         assert self.activations is not None, "Activations must be extracted first."
 
-        for lay in layers:
+        for lay in intervention_layers:
             labels = self.activations["labels"][:, 1]
             layer_acts = self.activations[lay].reshape(
                 self.activations[lay].shape[0], -1
@@ -49,8 +59,6 @@ class LEACE(ModelCorrectionMethod):
 
             X_torch = torch.from_numpy(layer_acts).to(self.device)
             y_torch = torch.from_numpy(labels).to(self.device)
-
-            print(X_torch.shape)
 
             eraser = LeaceEraser.fit(X_torch, y_torch)
 
@@ -80,7 +88,7 @@ class LEACE(ModelCorrectionMethod):
                 module: nn.Module, input: tuple, output: torch.Tensor
             ) -> torch.Tensor:
                 nonlocal eraser
-                print(output.shape)
+
                 output = eraser(output.flatten(start_dim=1)).reshape(output.shape)
                 return output
 
@@ -91,11 +99,4 @@ class LEACE(ModelCorrectionMethod):
                 hook_fn = __leace_hook(eraser)
                 handle = module.register_forward_hook(hook_fn)
                 self.hooks.append(handle)
-                print(f"DEBUG: Added hook to layer: {name}")
-
-    def remove_hooks(self) -> None:
-        if hasattr(self, "hooks"):
-            self.hooks = list()
-
-    def get_corrected_model(self) -> nn.Module:
-        return self.model
+                logger.debug(f"Added hook to layer: {name}")

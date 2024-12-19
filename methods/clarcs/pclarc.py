@@ -10,8 +10,15 @@ class PCLARC(CLARC):
     ) -> None:
         super().__init__(model, experiment_name, device)
 
-    def apply_model_correction(self, cav_layer: str, alpha: float = 1.0) -> None:
-        hook = add_clarc_hook(
-            self.model, self.cav, self.mean_act_na, [cav_layer], alpha
-        )
-        self.hooks.append(hook)
+    def apply_model_correction(
+        self, cav_layers: list[str], alpha: float = 1.0, **kwargs
+    ) -> None:
+        for cav_layer in cav_layers:
+            hook = add_clarc_hook(
+                self.model,
+                self.cav[cav_layer],
+                self.mean_act_na[cav_layer],
+                cav_layer,
+                alpha,
+            )
+            self.hooks.append(hook)

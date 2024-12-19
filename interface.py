@@ -1,6 +1,7 @@
 import torch.nn as nn
 from copy import deepcopy
 from torch.utils.data import DataLoader
+import logging
 
 # Project imports
 from .methods import (
@@ -20,6 +21,8 @@ from .metrics.fairness_metrics import AllMetrics
 from .evaluation import evaluate_model
 from .mcda_helpers import filter_pareto_front, select_best_method
 from .interface_helpers import construct_metrics_config, load_supported_tags
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_METHODS = [
     "SAVANIRP",
@@ -55,15 +58,12 @@ DEFAULT_METHODS_CONFIG = {
         "dataloader": None,
     },
     "PCLARC": {
-        "intervention_layers": "last",
         "cav_type": "signal",
-        "cav_layers": "last",
+        "cav_layers": "penultimate",
         "use_cache": True,
     },
     "LEACE": {
-        "intervention_layers": "last",
-        "cav_type": "signal",
-        "cav_layers": "last",
+        "intervention_layers": "penultimate",
         "use_cache": True,
     },
 }
@@ -202,33 +202,55 @@ def run_correction(
         case _:
             raise ValueError(f"Correction method {method} not found")
 
-    # Precompute CAVs if required
-    if corrector.requires_cav:
-        cav_layers = infer_layers(corrector, method_kwargs["cav_layers"])
-        corrector.extract_activations(method_kwargs["dataloader"], cav_layers)
-        corrector.compute_cav(method_kwargs["cav_type"], cav_layers)
-
     # Parse intervention layers
-    method_kwargs["intervention_layers"] = infer_layers(
-        corrector, method_kwargs["intervention_layers"]
-    )
+    if "intervention_layers" in method_kwargs:
+        method_kwargs["intervention_layers"] = infer_layers(
+            corrector, method_kwargs["intervention_layers"]
+        )
+
+    # Parse cav layers
+    if "cav_layers" in method_kwargs:
+        method_kwargs["cav_layers"] = infer_layers(
+            corrector, method_kwargs["cav_layers"]
+        )
 
     # Parse last layer name
     method_kwargs["last_layer_name"] = infer_layers(
         corrector, method_kwargs["last_layer_name"]
     )
 
+    # Precompute CAVs if required
+    if corrector.requires_acts:
+        if "intervention_layers" not in method_kwargs:
+            lays = method_kwargs["cav_layers"]
+        else:
+            lays = method_kwargs["intervention_layers"]
+        corrector.extract_activations(method_kwargs["dataloader"], lays)
+
+        logger.debug(f"Computing CAVs on layers: {lays}")
+
+        if corrector.requires_cav:
+            corrector.compute_cavs(method_kwargs["cav_type"], lays)
+
+    logger.debug(f"Running correction method {method}")
+
     # Here we finally run the correction method
-    try:
-        corrector.apply_model_correction(**method_kwargs)
-    except Exception as e:
-        print(f"Error running correction method {method}: {e}")
-        return None
+    # try:
+    corrector.apply_model_correction(**method_kwargs)
+    # except Exception as e:
+    #     print(f"Error running correction method {method}: {e}")
+    #     return None
 
-    model = corrector.get_corrected_model()
-    metrics = evaluate_model(model, method_kwargs["dataloader"], pareto_metrics)
+    logger.debug(f"Correction method {method} applied")
 
-    return CorrectionResult(method=method, model=model, metrics=metrics)
+    method_kwargs["model"] = corrector.get_lightning_model()
+    metrics = evaluate_model(
+        method_kwargs["model"], method_kwargs["dataloader"], pareto_metrics
+    )
+
+    return CorrectionResult(
+        method=method, model=method_kwargs["model"], metrics=metrics
+    )
 
 
 def infer_layers(corrector, layers):
@@ -238,5 +260,7 @@ def infer_layers(corrector, layers):
     elif layers == "penultimate":
         penultimate_layer = list(corrector.model.named_modules())[-2][0]
         return [penultimate_layer]
-    else:
+    elif isinstance(layers, list):
         return layers
+    else:
+        raise ValueError(f"Invalid layer specification {layers}")

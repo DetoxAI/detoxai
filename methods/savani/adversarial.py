@@ -29,8 +29,6 @@ class SavaniAFT(SavaniBase):
         **kwargs,
     ) -> None:
         super().__init__(model, experiment_name, device, seed)
-        if isinstance(model, L.LightningModule):
-            self.lightning_model = model
 
     def apply_model_correction(
         self,

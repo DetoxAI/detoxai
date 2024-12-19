@@ -29,8 +29,10 @@ Once you have `uv` installed, you can set up local environment by running the fo
 
 ```bash
 # create a virtual environment with the required dependencies
-#uv init 
 uv venv 
+
+# install the dependencies in the virtual environment
+uv pip install -r pyproject.toml
 
 # activate the virtual environment
 source .venv/bin/activate

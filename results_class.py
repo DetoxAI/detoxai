@@ -2,10 +2,10 @@ from .model_wrappers import BaseLightningWrapper
 
 
 class CorrectionResult:
-    def __init__(self):
-        self.method: str
-        self.model: BaseLightningWrapper
-        self.metrics: dict
+    def __init__(self, method: str, model: BaseLightningWrapper, metrics: dict) -> None:
+        self.method = method
+        self.model = model
+        self.metrics = metrics
 
     def __str__(self):
         return f"Results for: {self.method}"

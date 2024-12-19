@@ -1,5 +1,8 @@
+import logging
 import torch
 from torch import nn
+
+logger = logging.getLogger(__name__)
 
 
 def stabilize(x: torch.Tensor, epsilon: float = 1e-8) -> torch.Tensor:
@@ -8,8 +11,7 @@ def stabilize(x: torch.Tensor, epsilon: float = 1e-8) -> torch.Tensor:
 
 def mass_mean_probe_hook(probe: torch.Tensor, alpha: float):
     def hook(module: nn.Module, input: tuple, output: torch.Tensor):
-        nonlocal probe
-        probe = probe.to(output)
+        nonlocal probe, alpha
         o = output.clone().flatten(start_dim=1)
         perturbed = o - probe * alpha
         perturbed = perturbed.reshape(output.shape)
@@ -58,34 +60,22 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
     """
 
     def hook(module: nn.Module, input: tuple, output: torch.Tensor) -> torch.Tensor:
-        nonlocal alpha
-        device = output.device
+        nonlocal alpha, cav, mean_length
         output_shapes = output.shape
 
-        v = stabilize(cav.to(device)).squeeze(0)
-        z = stabilize(mean_length.to(device)).unsqueeze(0)
+        v = stabilize(cav).squeeze(0)
+        z = stabilize(mean_length).unsqueeze(0)
         x_copy_detached = output.clone().flatten(start_dim=1).detach()
         output = output.flatten(start_dim=1)
 
-        # print(f"CAV_SHAPE:{v.shape}")
-
         vvt = torch.outer(v, v)
-
-        # print(
-        #     f"vvt dtype: {vvt.dtype}, x_copy_detached dtype: {x_copy_detached.dtype}, z dtype: {z.dtype}"
-        # )
 
         A = torch.matmul(vvt, (x_copy_detached - z).T).T  # (N, batch_size)
 
         results = output - A * alpha
 
-        # print(
-        #     f"Intervention: {torch.mean(A*alpha):.5f}, x mean {torch.mean(x_copy_detached):.5f} std {torch.std(x_copy_detached):.5f}"
-        # )
-
         adjusted_output = results.reshape(output_shapes)
 
-        # print("DEBUG: clarc hook applied")
         return adjusted_output
 
     return hook
@@ -95,7 +85,7 @@ def add_clarc_hook(
     model: nn.Module,
     cav: torch.Tensor,
     mean_length: torch.Tensor,
-    layer_names: list,
+    layer_name: str,
     alpha: float = 1.0,
 ) -> list:
     """
@@ -113,9 +103,9 @@ def add_clarc_hook(
     """
     hooks = []
     for name, module in model.named_modules():
-        if name in layer_names:
+        if name == layer_name:
             hook_fn = clarc_hook(cav, mean_length, alpha)
             handle = module.register_forward_hook(hook_fn)
             hooks.append(handle)
-            # print(f"DEBUG: Added hook to layer: {name}")
+            logger.debug(f"Added CLARC hook to layer: {name}")
     return hooks

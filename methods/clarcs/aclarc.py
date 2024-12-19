@@ -14,15 +14,22 @@ class ACLARC(CLARC):
 
     def apply_model_correction(
         self,
-        cav_layer: str,
+        cav_layers: list[str],
         dataloader_train: torch.utils.data.DataLoader,
         logger: object,
         fine_tune_epochs: int = 1,
         alpha: float = 1.0,
         **kwargs,
     ) -> None:
-        hook = add_clarc_hook(self.model, self.cav, self.mean_act_a, [cav_layer], alpha)
-        self.hooks.append(hook)
+        for cav_layer in cav_layers:
+            hook = add_clarc_hook(
+                self.model,
+                self.cav[cav_layer],
+                self.mean_act_a[cav_layer],
+                cav_layer,
+                alpha,
+            )
+            self.hooks.append(hook)
 
         # Make sure model is in training mode
         self.model.train()

@@ -1,8 +1,12 @@
 from torch.utils.data import DataLoader
 import lightning as L
+import logging
+
 
 # Project imports
 from .model_wrappers import FairnessLightningWrapper
+
+logger = logging.getLogger(__name__)
 
 
 def evaluate_model(
@@ -45,7 +49,10 @@ def evaluate_model(
     """
 
     trainer = L.Trainer()
-    raw_results = trainer.test(model, dataloader)
+    model.eval()
+    raw_results = trainer.test(model, dataloader)[0]
+
+    logger.debug(f"Raw results: {raw_results}")
 
     metrics = {"pareto": {}, "all": {}}
 

@@ -9,7 +9,7 @@ from ..model_correction import ModelCorrectionMethod
 
 # Wrapper for requiring activations and CAVs to be computed before applying model correction
 def require_activations_and_cav(func):
-    def wrapped(self, cav_layer: str, *args, **kwargs):
+    def wrapped(self, cav_layers: list[str], *args, **kwargs):
         if not hasattr(self, "activations"):
             raise ValueError(
                 "Activations must be computed before applying model correction"
@@ -18,7 +18,7 @@ def require_activations_and_cav(func):
         if not hasattr(self, "cav"):
             raise ValueError("CAVs must be computed before applying model correction")
 
-        return func(self, cav_layer, *args, **kwargs)
+        return func(self, cav_layers, *args, **kwargs)
 
     return wrapped
 
@@ -31,6 +31,7 @@ class CLARC(ModelCorrectionMethod, ABC):
         self.hooks = list()
         self.lightning_model = model
         self.requires_cav = True
+        self.requires_acts = True
 
     def __init_subclass__(cls) -> None:
         """
@@ -60,24 +61,31 @@ class CLARC(ModelCorrectionMethod, ABC):
             save_dir,
         )
 
-    def compute_cav(self, cav_type: str, cav_layer: str) -> None:
+    def compute_cavs(self, cav_type: str, cav_layers: list[str]) -> None:
         labels = self.activations["labels"][:, 1]
-        layer_acts = self.activations[cav_layer].reshape(
-            self.activations[cav_layer].shape[0], -1
-        )
 
-        match cav_type:
-            case "mmp":
-                cav, mean_na, mean_a = compute_mass_mean_probe(layer_acts, labels)
-            case _:
-                cav, mean_na, mean_a = compute_cav(layer_acts, labels, cav_type)
+        self.cav = dict()
+        self.mean_act_na = dict()
+        self.mean_act_a = dict()
 
-        # Move cav and mean_act to proper torch dtype
-        self.cav = cav.float().to(self.device)
-        # mean activation over non-artifact samples
-        self.mean_act_na = mean_na.float().to(self.device)
-        # mean activation over artifact samples
-        self.mean_act_a = mean_a.float().to(self.device)
+        for cav_layer in cav_layers:
+            layer_acts = self.activations[cav_layer].reshape(
+                self.activations[cav_layer].shape[0], -1
+            )
+
+            match cav_type:
+                case "mmp":
+                    cav, mean_na, mean_a = compute_mass_mean_probe(layer_acts, labels)
+                case _:
+                    cav, mean_na, mean_a = compute_cav(layer_acts, labels, cav_type)
+
+            # Move cav and mean_act to proper torch dtype
+            self.cav[cav_layer] = cav.float().to(self.device)
+            # mean activation over non-artifact samples
+            self.mean_act_na[cav_layer] = mean_na.float().to(self.device)
+            # mean activation over artifact samples
+            self.mean_act_a[cav_layer] = mean_a.float().to(self.device)
+
         self.cav_type = cav_type
 
         self.activations = None
@@ -85,6 +93,3 @@ class CLARC(ModelCorrectionMethod, ABC):
     @abstractmethod
     def apply_model_correction(self, cav_layer: str) -> None:
         raise NotImplementedError
-
-    def get_corrected_model(self) -> nn.Module:
-        return self.model

@@ -1,11 +1,16 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from torch.utils.data import DataLoader
 import os
 from tqdm import tqdm
+import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def get_all_layers(model, prefix=""):
+def get_all_layers(model: nn.Module, prefix: str = "") -> dict:
     """
     Recursively get all layers from the model.
 
@@ -25,7 +30,7 @@ def get_all_layers(model, prefix=""):
     return layers
 
 
-def get_layer_by_name(model, layer_name):
+def get_layer_by_name(model: nn.Module, layer_name: str) -> nn.Module:
     """
     Retrieve a layer from the model by its name.
 
@@ -43,7 +48,7 @@ def get_layer_by_name(model, layer_name):
     return module
 
 
-def load_activations(save_path):
+def load_activations(save_path: str) -> dict[str, np.ndarray]:
     activations_np = np.load(save_path)
     activations = {}
     for key in activations_np:
@@ -53,14 +58,14 @@ def load_activations(save_path):
 
 
 def extract_activations(
-    model,
-    dataloader,
-    experiment_name,
-    layers=None,
-    device="cuda",
-    use_cache=True,
-    save_dir="./activations",
-):
+    model: nn.Module,
+    dataloader: DataLoader,
+    experiment_name: str,
+    layers: list | None = None,
+    device: str = "cuda",
+    use_cache: bool = True,
+    save_dir: str = "./activations",
+) -> dict[str, np.ndarray]:
     """
     Extract activations from all layers of a model for data from a dataloader.
 
@@ -80,11 +85,13 @@ def extract_activations(
     save_path = os.path.join(save_dir, experiment_name + ".npz")
 
     if use_cache and os.path.exists(save_path):
+        logger.debug(f"Loading activations from '{save_path}'")
         return load_activations(save_path)
+
     model.eval()
-    model.to(device)
 
     if not os.path.exists(save_dir):
+        logger.debug(f"Creating directory '{save_dir}' since it does not exist.")
         os.makedirs(save_dir)
 
     activations = {}
@@ -124,14 +131,13 @@ def extract_activations(
     labels_np = np.array([]).reshape(-1, 2)
     with torch.no_grad():
         for batch_idx, batch in enumerate(
-            tqdm(dataloader, desc="Extracting Activations")
+            tqdm(dataloader, desc="Extracting Activations", file=sys.stdout)
         ):
             data = batch[0]
 
             rest = np.array(batch[1:]).reshape(-1, len(batch[1:]))
 
             labels_np = np.concatenate((labels_np, rest), axis=0)
-            data = data.to(device)
             _ = model(data)
 
     for handle in handles:
@@ -151,5 +157,7 @@ def extract_activations(
         else:
             activations_np[name] = np_acts
     np.savez(save_path, **activations_np)
-    print(f"Saved all activations at '{save_path}'")
+
+    logger.debug(f"Saved all activations at '{save_path}'")
+
     return activations_np

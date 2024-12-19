@@ -42,13 +42,15 @@ class RRCLARC(CLARC):
 
     def apply_model_correction(
         self,
-        cav_layer: str,
+        cav_layers: list[str],
         dataloader_train: torch.utils.data.DataLoader,
         logger: object,
         fine_tune_epochs: int = 1,
         ft_lr: float = 1e-3,
         **kwargs,
     ) -> None:
+        assert len(cav_layers) == 1, "RR-CLARC only supports one CAV layer"
+        cav_layer = cav_layers[0]
         # Register rr_clarc_hook
         for name, module in self.model.named_modules():
             if name == cav_layer:

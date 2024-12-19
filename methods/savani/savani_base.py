@@ -23,8 +23,6 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         seed: int = 123,
     ) -> None:
         super().__init__(model, experiment_name, device)
-        if isinstance(model, L.LightningModule):
-            self.lightning_model = model
 
         self.seed = seed
         torch.manual_seed(seed)
@@ -104,12 +102,6 @@ class SavaniBase(ModelCorrectionMethod, ABC):
                 self.epsilon,
                 self.bias_metric,
             )
-
-    def get_corrected_model(self) -> L.LightningModule | nn.Module:
-        if hasattr(self, "lightning_model"):
-            return self.lightning_model
-        else:
-            return self.model
 
     def apply_hook(self, tau: float) -> None:
         def hook(module, input, output):
