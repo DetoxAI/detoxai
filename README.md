@@ -10,7 +10,7 @@ import detoxai
 model = ...
 dataloader = ... # required for methods that fine-tune the model
 
-corrected = detoxai.debias(model, dataloader, 'gender.male')
+corrected = detoxai.debias(model, dataloader)
 
 metrics = corrected.get_all_metrics()
 model = corrected.get_model()

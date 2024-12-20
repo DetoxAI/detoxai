@@ -10,7 +10,6 @@ class ACLARC(CLARC):
         self, model: L.LightningModule, experiment_name: str, device: str, **kwargs
     ) -> None:
         super().__init__(model, experiment_name, device)
-        self.lightning_model = model
 
     def apply_model_correction(
         self,
