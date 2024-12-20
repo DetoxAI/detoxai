@@ -33,7 +33,7 @@ class RRCLARC(CLARC):
         model: L.LightningModule,
         experiment_name: str,
         device: str,
-        rr_config: dict,
+        rr_config: dict = {},
         **kwargs,
     ):
         super().__init__(model, experiment_name, device)

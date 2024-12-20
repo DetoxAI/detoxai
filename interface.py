@@ -1,6 +1,5 @@
 import torch.nn as nn
 from copy import deepcopy
-from torch.utils.data import DataLoader
 import logging
 import traceback
 
@@ -37,20 +36,6 @@ SUPPORTED_METHODS = [
 ]
 
 
-# EO = (TPR_prot_attr - TPR_non_prot_attr) / (TPR_prot_attr + TPR_non_prot_attr)
-# TP on original classifcation task
-# CAV _|_ task
-# --> downstream są
-# (1) P-CLARC + LEACE bez metryk i bez dostępu do oryginalnych danych
-# (2) Reszta do odpalenia potrzebuje dostępu do oryginalnych danych
-# (3) Do metryk fainress potrzeba dostępu do oryginalnych danych z concept labelami
-
-# Bez metryk fairness
-# -> Apply all methods, do not evaluate fairness metrics
-
-# Substitute fairness estimation
-#
-
 DEFAULT_METHODS_CONFIG = {
     "global": {
         "last_layer_name": "last",
@@ -77,10 +62,18 @@ DEFAULT_METHODS_CONFIG = {
         "intervention_layers": "penultimate",
         "use_cache": True,
     },
-    "SAVANIRP": {},
-    "SAVANILWO": {},
-    "SAVANIAFT": {},
-    "ZHANGM": {},
+    "SAVANIRP": {
+        "frac_of_batches_to_use": 0.15,
+    },
+    "SAVANILWO": {
+        "frac_of_batches_to_use": 0.15,
+    },
+    "SAVANIAFT": {
+        "frac_of_batches_to_use": 0.15,
+    },
+    "ZHANGM": {
+        "frac_of_batches_to_use": 0.15,
+    },
 }
 
 
@@ -273,7 +266,20 @@ def run_correction(
     )
 
 
-def infer_layers(corrector, layers):
+def infer_layers(corrector, layers: list[str] | str) -> list[str]:
+    """
+    Infer the layers to use for the correction method
+
+    Args:
+        corrector: Correction method object
+        layers: Layer specification
+
+    There are wildcards available:
+    - "last": Use the last layer
+    - "penultimate": Use the penultimate layer
+
+    Otherwise, a list of *actual* layer names can be passed
+    """
     if layers == "last":
         last_layer = list(corrector.model.named_modules())[-1][0]
         return [last_layer]
@@ -281,6 +287,12 @@ def infer_layers(corrector, layers):
         penultimate_layer = list(corrector.model.named_modules())[-2][0]
         return [penultimate_layer]
     elif isinstance(layers, list):
-        return layers
+        # Verify that all layers exist in the model
+        all_layers = set([layer[0] for layer in corrector.model.named_modules()])
+        if set(layers).issubset(all_layers):
+            return layers
+        else:
+            not_found = set(layers) - all_layers
+            raise ValueError(f"Layers {not_found} not found in the model")
     else:
         raise ValueError(f"Invalid layer specification {layers}")
