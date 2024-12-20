@@ -8,7 +8,7 @@ import logging
 
 from .clarc import CLARC
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 # Enum masking patterns
@@ -60,7 +60,7 @@ class RRCLARC(CLARC):
                 hook_fn = self.rr_clarc_hook()
                 handle = module.register_forward_hook(hook_fn)
                 self.hooks.append(handle)
-                logger.debug(f"Added RR-CLARC hook to layer: {name}")
+                _logger.debug(f"Added RR-CLARC hook to layer: {name}")
 
         # Override training_step in lightning model by modified_training_step
         clone_original_training_step = deepcopy(self.lightning_model.training_step)
