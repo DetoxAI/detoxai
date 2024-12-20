@@ -13,6 +13,7 @@ def evaluate_model(
     model: FairnessLightningWrapper,
     dataloader: DataLoader,
     pareto_metrics: list[str] | None = None,
+    verbose: bool = False,
 ) -> dict:
     """
     Evaluate the model on various metrics
@@ -48,9 +49,9 @@ def evaluate_model(
         model: Model to evaluate
     """
 
-    trainer = L.Trainer()
+    trainer = L.Trainer(logger=False)
     model.eval()
-    raw_results = trainer.test(model, dataloader)[0]
+    raw_results = trainer.test(model, dataloader, verbose=verbose)[0]
 
     logger.debug(f"Raw results: {raw_results}")
 

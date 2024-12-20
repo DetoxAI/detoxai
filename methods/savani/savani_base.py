@@ -1,5 +1,6 @@
 import numpy as np
 
+import logging
 import torch
 import lightning as L
 import torch.nn as nn
@@ -12,6 +13,8 @@ from abc import ABC, abstractmethod
 # Project imports
 from ..model_correction import ModelCorrectionMethod
 from .utils import phi_torch, phi_np
+
+logger = logging.getLogger(__name__)
 
 
 class SavaniBase(ModelCorrectionMethod, ABC):
@@ -109,7 +112,6 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             # Assuming binary classification
             output[:, 1] = sigmoid((output[:, 1] - tau) * 10)  # soft thresholding
             output[:, 0] = 1 - output[:, 1]
-            print(f"Hook applied, threshold: {tau}")
             return output
 
         hook_fn = hook
@@ -119,7 +121,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         for name, module in self.model.named_modules():
             if isinstance(module, nn.Linear) and name == self.last_layer_name:
                 handle = module.register_forward_hook(hook_fn)
-                print(f"Hook registered on layer: {name}")
+                logger.debug(f"Hook registered on layer: {name}")
                 hooks.append(handle)
 
         self.hooks = hooks

@@ -4,8 +4,11 @@ import lightning as L
 import torch
 from copy import deepcopy
 import types
+import logging
 
 from .clarc import CLARC
+
+logger = logging.getLogger(__name__)
 
 
 # Enum masking patterns
@@ -43,8 +46,8 @@ class RRCLARC(CLARC):
     def apply_model_correction(
         self,
         cav_layers: list[str],
-        dataloader_train: torch.utils.data.DataLoader,
-        logger: object,
+        dataloader: torch.utils.data.DataLoader,
+        logger: object | bool = False,
         fine_tune_epochs: int = 1,
         ft_lr: float = 1e-3,
         **kwargs,
@@ -57,7 +60,7 @@ class RRCLARC(CLARC):
                 hook_fn = self.rr_clarc_hook()
                 handle = module.register_forward_hook(hook_fn)
                 self.hooks.append(handle)
-                print(f"DEBUG: Added RR-CLARC hook to layer: {name}")
+                logger.debug(f"Added RR-CLARC hook to layer: {name}")
 
         # Override training_step in lightning model by modified_training_step
         clone_original_training_step = deepcopy(self.lightning_model.training_step)
@@ -80,7 +83,7 @@ class RRCLARC(CLARC):
             max_epochs=fine_tune_epochs, logger=logger, log_every_n_steps=1
         )
 
-        trainer.fit(self.lightning_model, dataloader_train)
+        trainer.fit(self.lightning_model, dataloader)
 
         # Go back to eval mode
         self.lightning_model.eval()

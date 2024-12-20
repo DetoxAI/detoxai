@@ -1,11 +1,40 @@
 import logging
-from EasyMCDM.models.Pareto import Pareto
+import numpy as np
 from .results_class import CorrectionResult
 
 logger = logging.getLogger(__name__)
 
 # IF YOU ADD A NEW METRIC, MAKE SURE TO ADD IT TO MINIMIZE IF IT IS A COST TYPE METRIC
 MINIMIZE = ["EOO", "DP", "EO"]
+
+
+# Faster than is_pareto_efficient_simple, but less readable.
+def is_pareto_efficient(costs: np.ndarray, return_mask: bool = True) -> np.ndarray:
+    """
+    Find the pareto-efficient points
+    :param costs: An (n_points, n_costs) array
+    :param return_mask: True to return a mask
+    :return: An array of indices of pareto-efficient points.
+        If return_mask is True, this will be an (n_points, ) boolean array
+        Otherwise it will be a (n_efficient_points, ) integer array of indices.
+
+    Credit: https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
+    """
+    is_efficient = np.arange(costs.shape[0])
+    n_points = costs.shape[0]
+    next_point_index = 0  # Next index in the is_efficient array to search for
+    while next_point_index < len(costs):
+        nondominated_point_mask = np.any(costs < costs[next_point_index], axis=1)
+        nondominated_point_mask[next_point_index] = True
+        is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
+        costs = costs[nondominated_point_mask]
+        next_point_index = np.sum(nondominated_point_mask[:next_point_index]) + 1
+    if return_mask:
+        is_efficient_mask = np.zeros(n_points, dtype=bool)
+        is_efficient_mask[is_efficient] = True
+        return is_efficient_mask
+    else:
+        return is_efficient
 
 
 def filter_pareto_front(results: list[CorrectionResult]) -> list[CorrectionResult]:
@@ -17,28 +46,20 @@ def filter_pareto_front(results: list[CorrectionResult]) -> list[CorrectionResul
     """
 
     metrics = results[0].get_all_metrics()["pareto"].keys()
-    data = {}
+    data = []
     for result in results:
-        data[result] = [
-            result.get_all_metrics()["pareto"][metric] for metric in metrics
-        ]
+        d = []
+        for met in metrics:
+            if met in MINIMIZE:
+                d.append(result.get_metric(met))
+            else:
+                d.append(-result.get_metric(met))
+        data.append(d)
 
-    prefs = ["min" if metric in MINIMIZE else "max" for metric in metrics]
-    indices = list(range(len(prefs)))
+    data = np.array(data)
+    mask = is_pareto_efficient(data)
 
-    p = Pareto(data)
-    res = p.solve(indexes=indices, prefs=prefs)
-
-    mask = []
-
-    for _, d in res.items():
-        w_dom = len(d["Weakly-dominated-by"])
-        dom = len(d["Dominated-by"])
-
-        if w_dom == 0 and dom == 0:
-            mask.append(True)
-        else:
-            mask.append(False)
+    logger.info(f"Pareto front: {list(zip(results, mask))}")
 
     return [result for result, m in zip(results, mask) if m]
 

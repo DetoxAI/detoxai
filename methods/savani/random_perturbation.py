@@ -36,6 +36,7 @@ class SavaniRP(SavaniBase):
         bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
         frac_of_batches_to_use: float = 1.0,
         optimizer_maxiter: int = 10,
+        tau_init: float = 0.5,
         options: dict = {},
         **kwargs,
     ) -> None:
@@ -61,7 +62,7 @@ class SavaniRP(SavaniBase):
         self.options = options
         self.bias_metric = bias_metric
 
-        best_tau = None
+        best_tau = tau_init
         best_model = deepcopy(self.model)
         best_phi = -1
 

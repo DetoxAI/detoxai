@@ -15,8 +15,8 @@ class ACLARC(CLARC):
     def apply_model_correction(
         self,
         cav_layers: list[str],
-        dataloader_train: torch.utils.data.DataLoader,
-        logger: object,
+        dataloader: torch.utils.data.DataLoader,
+        logger: object | bool = False,
         fine_tune_epochs: int = 1,
         alpha: float = 1.0,
         **kwargs,
@@ -37,7 +37,7 @@ class ACLARC(CLARC):
         trainer = L.Trainer(
             max_epochs=fine_tune_epochs, logger=logger, log_every_n_steps=1
         )
-        trainer.fit(self.lightning_model, dataloader_train)
+        trainer.fit(self.lightning_model, dataloader)
 
         # Go back to eval mode
         self.model.eval()

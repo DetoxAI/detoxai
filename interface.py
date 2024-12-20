@@ -2,6 +2,7 @@ import torch.nn as nn
 from copy import deepcopy
 from torch.utils.data import DataLoader
 import logging
+import traceback
 
 # Project imports
 from .methods import (
@@ -62,10 +63,24 @@ DEFAULT_METHODS_CONFIG = {
         "cav_layers": "penultimate",
         "use_cache": True,
     },
+    "ACLARC": {
+        "cav_type": "signal",
+        "cav_layers": "penultimate",
+        "use_cache": True,
+    },
+    "RRCLARC": {
+        "cav_type": "signal",
+        "cav_layers": "penultimate",
+        "use_cache": True,
+    },
     "LEACE": {
         "intervention_layers": "penultimate",
         "use_cache": True,
     },
+    "SAVANIRP": {},
+    "SAVANILWO": {},
+    "SAVANIAFT": {},
+    "ZHANGM": {},
 }
 
 
@@ -120,6 +135,9 @@ def debias(
         for method in methods:
             if method.upper() not in SUPPORTED_METHODS:
                 raise ValueError(f"Method {method} not supported")
+
+        # Capitalize all methods
+        methods = [method.upper() for method in methods]
 
     # # ------------------------------------------------
     # # DATASET HANDLING IS TODO HERE
@@ -215,9 +233,10 @@ def run_correction(
         )
 
     # Parse last layer name
-    method_kwargs["last_layer_name"] = infer_layers(
-        corrector, method_kwargs["last_layer_name"]
-    )
+    if "last_layer_name" in method_kwargs:
+        method_kwargs["last_layer_name"] = infer_layers(
+            corrector, method_kwargs["last_layer_name"]
+        )[0]
 
     # Precompute CAVs if required
     if corrector.requires_acts:
@@ -235,11 +254,12 @@ def run_correction(
     logger.debug(f"Running correction method {method}")
 
     # Here we finally run the correction method
-    # try:
-    corrector.apply_model_correction(**method_kwargs)
-    # except Exception as e:
-    #     print(f"Error running correction method {method}: {e}")
-    #     return None
+    try:
+        corrector.apply_model_correction(**method_kwargs)
+    except Exception as e:
+        logger.error(f"Error running correction method {method}: {e}")
+        logger.error(traceback.format_exc())
+        return None
 
     logger.debug(f"Correction method {method} applied")
 

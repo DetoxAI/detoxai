@@ -5,10 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11.5"
 dependencies = [
-    "easymcdm>=0.5.13",
     "gdown>=5.2.0",
     "lightning>=2.4.0",
-    "pillow>=11.0.0",
     "torchvision>=0.20.1",
-    "tqdm>=4.67.1",
 ]
