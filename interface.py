@@ -67,6 +67,7 @@ DEFAULT_METHODS_CONFIG = {
     },
     "SAVANILWO": {
         "frac_of_batches_to_use": 0.15,
+        "n_layers_to_optimize": 4,
     },
     "SAVANIAFT": {
         "frac_of_batches_to_use": 0.15,
@@ -86,6 +87,7 @@ def debias(
     methods_config: dict = DEFAULT_METHODS_CONFIG,
     pareto_metrics: list[str] = ["balanced_accuracy", "equalized_odds"],
     return_type: str = "pareto-front",
+    device: str = "cpu",
 ) -> CorrectionResult | list[CorrectionResult]:
     """
     Run a suite of correction methods on the model and return the results
@@ -132,6 +134,8 @@ def debias(
         # Capitalize all methods
         methods = [method.upper() for method in methods]
 
+    methods_config["global"]["device"] = device
+
     # # ------------------------------------------------
     # # DATASET HANDLING IS TODO HERE
     # # Load supported tags ie. protected attributes
@@ -165,6 +169,7 @@ def debias(
 
     results = []
     for method in methods:
+        logger.info("=" * 50 + f" Running method {method} " + "=" * 50)
         method_kwargs = methods_config[method] | methods_config["global"]
         method_kwargs["model"] = deepcopy(model)
         method_kwargs["dataloader"] = dataloader
@@ -258,7 +263,10 @@ def run_correction(
 
     method_kwargs["model"] = corrector.get_lightning_model()
     metrics = evaluate_model(
-        method_kwargs["model"], method_kwargs["dataloader"], pareto_metrics
+        method_kwargs["model"],
+        method_kwargs["dataloader"],
+        pareto_metrics,
+        device=method_kwargs["device"],
     )
 
     return CorrectionResult(

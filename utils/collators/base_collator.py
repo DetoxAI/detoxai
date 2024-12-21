@@ -7,10 +7,11 @@ import torch
 
 
 class BaseCollator:
-    def __init__(self, class_names: List[str], *args, **kwargs):
+    def __init__(self, class_names: List[str], device: str = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.class_names = class_names
         self.label_translation = {name: i for i, name in enumerate(class_names)}
+        self.device = device
 
     def __repr__(self) -> str:
         return (
@@ -38,6 +39,11 @@ class BaseCollator:
         ) -> Tuple[torch.Tensor, torch.Tensor]:
             images = torch.stack([item[0] for item in batch])
             labels = torch.tensor([self.label_translation[item[1]] for item in batch])
+
+            if self.device is not None:
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+
             return images, labels
 
         return collate_fn
@@ -52,6 +58,11 @@ class BaseCollator:
             labels = torch.tensor(
                 [torch.tensor(item[1], dtype=torch.long) for item in batch]
             )
+
+            if self.device is not None:
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+
             return images, labels
 
         return collate_fn

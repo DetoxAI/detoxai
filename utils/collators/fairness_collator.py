@@ -12,10 +12,11 @@ class FairnessCollator(BaseCollator):
         class_names: List[str],
         protected_attribute: str,
         protected_attribute_value: Union[str, int],
+        device: str = None,
         *args,
         **kwargs,
     ):
-        super().__init__(class_names, *args, **kwargs)
+        super().__init__(class_names, device, *args, **kwargs)
         self.protected_attribute = protected_attribute
         self.protected_attribute_value = protected_attribute_value
 
@@ -53,6 +54,12 @@ class FairnessCollator(BaseCollator):
                     for item in batch
                 ]
             )
+
+            if self.device is not None:
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+                protected_attributes = protected_attributes.to(self.device)
+
             return images, labels, protected_attributes
 
         return collate_fn
@@ -71,6 +78,12 @@ class FairnessCollator(BaseCollator):
             protected_attributes = torch.tensor(
                 [torch.tensor(item[2], dtype=torch.long) for item in batch]
             )
+
+            if self.device is not None:
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+                protected_attributes = protected_attributes.to(self.device)
+
             return images, labels, protected_attributes
 
         return collate_fn

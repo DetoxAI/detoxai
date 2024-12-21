@@ -38,7 +38,8 @@ def get_fairunlearn_datasets(
     ] = None,  # A function/transform that takes in the target and transforms it.
     download: bool = False,
     seed: Optional[int] = None,
-):
+    device: str = None,
+) -> Dict[str, "FairUnlearnDataset"]:
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
@@ -67,6 +68,7 @@ def get_fairunlearn_datasets(
             target_transform=target_transform,
             download=download,
             seed=seed,
+            device=device,
         )
 
     return datasets
@@ -89,7 +91,8 @@ class FairUnlearnDataset(VisionDataset):
         ] = None,  # A function/transform that takes in the target and transforms it.
         download: bool = False,
         seed: Optional[int] = None,
-    ):
+        device: str = None,
+    ) -> None:
         super().__init__(
             root,
             transform=transform,
@@ -98,6 +101,7 @@ class FairUnlearnDataset(VisionDataset):
         )
         self.config = config
         self.root = Path(root)
+        self.device = device
 
         if download:
             self.download()
@@ -179,7 +183,7 @@ class FairUnlearnDataset(VisionDataset):
         protected_attribute_value: str,
     ):
         c = FairnessCollator(
-            class_names, protected_attribute, protected_attribute_value
+            class_names, protected_attribute, protected_attribute_value, self.device
         )
 
         return c

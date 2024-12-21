@@ -35,7 +35,7 @@ class RRCLARC(CLARC):
         device: str,
         rr_config: dict = {},
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(model, experiment_name, device)
 
         self.lambda_rr = rr_config.get("lambda_rr", 1.0)
@@ -53,11 +53,13 @@ class RRCLARC(CLARC):
         **kwargs,
     ) -> None:
         assert len(cav_layers) == 1, "RR-CLARC only supports one CAV layer"
-        cav_layer = cav_layers[0]
+        self.cav_layer = cav_layers[0]
+
         # Register rr_clarc_hook
         for name, module in self.model.named_modules():
-            if name == cav_layer:
+            if name == self.cav_layer:
                 hook_fn = self.rr_clarc_hook()
+
                 handle = module.register_forward_hook(hook_fn)
                 self.hooks.append(handle)
                 _logger.debug(f"Added RR-CLARC hook to layer: {name}")
@@ -80,7 +82,12 @@ class RRCLARC(CLARC):
         self.lightning_model.train()
 
         trainer = L.Trainer(
-            max_epochs=fine_tune_epochs, logger=logger, log_every_n_steps=1
+            max_epochs=fine_tune_epochs,
+            logger=logger,
+            log_every_n_steps=1,
+            enable_model_summary=False,
+            enable_progress_bar=False,
+            devices=self.devices_indices,
         )
 
         trainer.fit(self.lightning_model, dataloader)
@@ -118,7 +125,7 @@ class RRCLARC(CLARC):
                 raise ValueError(f"Invalid masking pattern: {self.masking}")
 
     def rr_loss(self, gradient: torch.Tensor) -> torch.Tensor:
-        cav = self.cav.to(gradient)
+        cav = self.cav[self.cav_layer]
 
         # TODO: Figure out what it was
         # if "mean" in self.rr_loss_type and gradient.dim() != 2:

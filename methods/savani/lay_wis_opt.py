@@ -110,7 +110,7 @@ class SavaniLWO(SavaniBase):
                 # Cap the number of neurons to optimize, this is useful for large models
                 if "max_neurons_to_optimize" in options:
                     n = min(n, options["max_neurons_to_optimize"])
-                print(
+                logger.debug(
                     f"Optimizing layer {i} with {n} out of {len(self.parameters_np)} neurons"
                 )
                 self.idx = np.random.choice(len(self.parameters_np), n, replace=False)
@@ -125,7 +125,7 @@ class SavaniLWO(SavaniBase):
                     for x in flat_parameters
                 ]
 
-                res = gbrt_minimize(
+                res = forest_minimize(
                     self.objective_LWO(parameters, tau_init),
                     space,
                     n_calls=optimizer_maxiter,
@@ -194,6 +194,7 @@ class SavaniLWO(SavaniBase):
                 parameters.data = torch.tensor(ps, device=self.device)
 
             phi, _ = self.phi_torch(tau)
+
             return -phi.detach().cpu().numpy()
 
         return objective

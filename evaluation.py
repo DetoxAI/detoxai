@@ -14,6 +14,7 @@ def evaluate_model(
     dataloader: DataLoader,
     pareto_metrics: list[str] | None = None,
     verbose: bool = False,
+    device: str = None,
 ) -> dict:
     """
     Evaluate the model on various metrics
@@ -49,7 +50,20 @@ def evaluate_model(
         model: Model to evaluate
     """
 
-    trainer = L.Trainer(logger=False)
+    device = str(device)
+    if device is not None and "cuda" in device and ":" in device:
+        devices_id = [int(device.split(":")[1])]
+    else:
+        devices_id = None
+
+    logger.debug(f"Evaluating model on device: {device}")
+
+    trainer = L.Trainer(
+        logger=False,
+        enable_model_summary=verbose,
+        enable_progress_bar=verbose,
+        devices=devices_id,
+    )
     model.eval()
     raw_results = trainer.test(model, dataloader, verbose=verbose)[0]
 

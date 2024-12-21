@@ -34,7 +34,12 @@ class ACLARC(CLARC):
         self.model.train()
 
         trainer = L.Trainer(
-            max_epochs=fine_tune_epochs, logger=logger, log_every_n_steps=1
+            max_epochs=fine_tune_epochs,
+            logger=logger,
+            log_every_n_steps=1,
+            enable_progress_bar=False,
+            enable_model_summary=False,
+            devices=self.devices_indices,
         )
         trainer.fit(self.lightning_model, dataloader)
 

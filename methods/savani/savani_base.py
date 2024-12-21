@@ -144,9 +144,9 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             ProtAttr.append(batch[2])
             if i == n_batches:
                 break
-        X = torch.cat(X)
-        Y_true = torch.cat(Y_true)
-        ProtAttr = torch.cat(ProtAttr)
+        X = torch.cat(X).to(self.device)
+        Y_true = torch.cat(Y_true).to(self.device)
+        ProtAttr = torch.cat(ProtAttr).to(self.device)
         return X, Y_true, ProtAttr
 
     def sample_minibatch(self, batch_size: int) -> tuple:

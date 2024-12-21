@@ -10,11 +10,17 @@ class ModelCorrectionMethod(ABC):
     ) -> None:
         # Unwrap LightningModule
         if isinstance(model, L.LightningModule):
-            self.lightning_model = model
-            self.model = model.model
+            self.lightning_model = model.to(device)
+            self.model = model.model.to(device)
+        else:
+            self.model = model.to(device)
 
         self.experiment_name = experiment_name
-        self.device = device
+        self.device = str(device)
+        if "cuda" in self.device and ":" in self.device:
+            self.devices_indices = [int(str(self.device).split(":")[1])]
+        else:
+            self.devices_indices = None
 
         self.requires_cav: bool = False
         self.requires_acts: bool = False
