@@ -4,7 +4,7 @@ import logging
 import traceback
 
 # Project imports
-from .methods import (
+from ..methods import (
     SavaniRP,
     SavaniLWO,
     SavaniAFT,
@@ -16,11 +16,11 @@ from .methods import (
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
-from .utils.dataloader import WrappedDataLoader
-from .metrics.fairness_metrics import AllMetrics
+from ..utils.dataloader import WrappedDataLoader
+from ..metrics.fairness_metrics import AllMetrics
 from .evaluation import evaluate_model
 from .mcda_helpers import filter_pareto_front, select_best_method
-from .interface_helpers import construct_metrics_config, load_supported_tags
+from .interface_helpers import construct_metrics_config
 
 logger = logging.getLogger(__name__)
 

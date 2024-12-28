@@ -39,3 +39,17 @@ source .venv/bin/activate
 
 python main.py
 ```
+
+
+To upgrade packages run
+```bash
+    uv lock --upgrade-package gdown
+```
+
+To build package run (recommended)
+```bash
+    uv build --no-sources
+```
+
+uv add --dev ipykernel
+uv run ipython kernel install --user --name=detoxaikernel

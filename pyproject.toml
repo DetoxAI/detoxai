@@ -3,9 +3,28 @@ name = "detoxai"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11.5"
+requires-python = ">=3.11"
+authors = [
+    { name = "Łukasz Sztukiewicz", email = "sztukiewicz.lukasz@gmail.com" }
+]
 dependencies = [
     "gdown>=5.2.0",
     "lightning>=2.4.0",
     "torchvision>=0.20.1",
+    "easymcdm>=0.5.13",
+    "pillow>=11.0.0",
+    "tqdm>=4.67.1",
+    # "scipy",
+    # "scikit-image",
+    # "scikit-learn",
+    # "pandas",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
 ]
