@@ -1,0 +1,31 @@
+name: Build and Publish to PyPI
+
+on:
+  #Allows you to run it manually from Actions tab in GitHub repo
+  workflow_dispatch:
+
+jobs:
+  build_and_publish:
+    name: python
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable caching
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: "Build"
+        run: uv build --no-sources
+
+      - name: "Publish"
+        run: uv publish --token {{ secrets.GA_UV_PUBLISH_TOKEN }}
+
