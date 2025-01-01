@@ -13,6 +13,7 @@ from ..methods import (
     PCLARC,
     ACLARC,
     LEACE,
+    RejectOptionClassification,
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
@@ -33,6 +34,7 @@ SUPPORTED_METHODS = [
     "PCLARC",
     "ACLARC",
     "LEACE",
+    "RejectOptionClassification",
 ]
 
 
@@ -74,6 +76,14 @@ DEFAULT_METHODS_CONFIG = {
     },
     "ZHANGM": {
         "frac_of_batches_to_use": 0.15,
+    },
+    "RejectOptionClassification": {
+        "theta_range": (0.55, 0.95),
+        "theta_steps": 20,
+        "metrics_spec": {
+            "EqualizedOdds": {"reduce": ["difference"]},
+        },
+        "objective_function": lambda fairness, accuracy: fairness * accuracy,
     },
 }
 
@@ -215,6 +225,8 @@ def run_correction(
             corrector = ACLARC(**method_kwargs)
         case "LEACE":
             corrector = LEACE(**method_kwargs)
+        case "RejectOptionClassification":
+            corrector = RejectOptionClassification(**method_kwargs) 
         case _:
             raise ValueError(f"Correction method {method} not found")
 
