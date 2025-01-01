@@ -26,7 +26,6 @@ DEFAULT_FAIRUNLEARN_DATASET_CONFIG = CELEBA_DATASET_CONFIG
 
 def get_fairunlearn_datasets(
     config: dict,
-    root: Union[str, Path],
     transform: Optional[
         callable
     ] = None,  # takes in a PIL image and returns a transformed version
@@ -46,8 +45,8 @@ def get_fairunlearn_datasets(
         torch.manual_seed(seed)
 
     # generate indices for all the splits randomly
-    root = Path(root)
-    labels = pd.read_csv(root / "catalog" / config["name"] / "labels.csv")
+    home_detoxai_dir = Path.home() / ".detoxai"
+    labels = pd.read_csv(home_detoxai_dir / config["name"] / "labels.csv")
     all_indices = np.arange(len(labels))
     np.random.shuffle(all_indices)
     split_indices = {}
@@ -61,7 +60,7 @@ def get_fairunlearn_datasets(
     for split, indices in split_indices.items():
         datasets[split] = FairUnlearnDataset(
             config,
-            root,
+            home_detoxai_dir,
             indices,
             transform=transform,
             transforms=transforms,
@@ -121,12 +120,12 @@ class FairUnlearnDataset(VisionDataset):
             torch.manual_seed(seed)
 
     def _read_labels_from_file(self) -> pd.DataFrame:
-        df = pd.read_csv(self.root / "catalog" / self.config["name"] / "labels.csv")
+        df = pd.read_csv(self.root / self.config["name"] / "labels.csv")
         return df
 
     def _read_labels_mapping_from_file(self) -> pd.DataFrame:
         labels_mapping_from_yaml = yaml.safe_load(
-            (self.root / "catalog" / self.config["name"] / "labels_mapping.yaml").open()
+            (self.root / self.config["name"] / "labels_mapping.yaml").open()
         )
         return labels_mapping_from_yaml
 
@@ -134,7 +133,7 @@ class FairUnlearnDataset(VisionDataset):
         pass
 
     def _check_integrity(self) -> bool:
-        return (self.root / "catalog" / self.config["name"]).exists()
+        return (self.root / self.config["name"]).exists()
 
     def __len__(self) -> int:
         return len(self.split_indices)
@@ -156,11 +155,7 @@ class FairUnlearnDataset(VisionDataset):
 
     def _load_image(self, idx: int) -> PIL.Image.Image:
         img_path = (
-            self.root
-            / "catalog"
-            / self.config["name"]
-            / "data"
-            / self.labels.iloc[idx]["image_id"]
+            self.root / self.config["name"] / "data" / self.labels.iloc[idx]["image_id"]
         )
         img = PIL.Image.open(img_path)
         return img
