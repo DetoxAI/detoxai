@@ -27,6 +27,9 @@ jobs:
       - name: Build
         run: uv build
 
+      - name: LS
+        run: ls -la
+
       - name: Publish
         run: uv publish --token {{ secrets.GA_UV_PUBLISH_TOKEN }}
 
