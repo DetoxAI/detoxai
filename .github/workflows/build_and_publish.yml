@@ -25,17 +25,8 @@ jobs:
         run: uv python install 3.11  # Or whatever version I want to use.
 
       - name: Build
-        run: uv build
-
-      - name: LS
-        run: ls -la
-  
-      - name: LS dist
-        run: ls -la dist
-
-      - name: cat
-        run: cat pyproject.toml
+        run: uv build --no-sources
 
       - name: Publish
-        run: uv publish dist/* --token {{ secrets.GA_UV_PUBLISH_TOKEN }}
+        run: uv publish dist/* --token ${{ secrets.GA_UV_PUBLISH_TOKEN }}
 
