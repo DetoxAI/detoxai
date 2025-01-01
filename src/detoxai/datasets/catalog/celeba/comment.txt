@@ -1,0 +1,16 @@
+Source: https://www.kaggle.com/datasets/jessicali9530/celeba-dataset?select=list_attr_celeba.csv
+Creatores: S. Yang, P. Luo, C. C. Loy, and X. Tang, "From Facial Parts Responses to Face Detection: A Deep Learning Approach", in IEEE International Conference on Computer Vision (ICCV), 2015
+
+
+Acknowledgements
+Original data and banner image source came from http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html
+As mentioned on the website, the CelebA dataset is available for non-commercial research purposes only. For specifics please refer to the website.
+
+
+@inproceedings{liu2015faceattributes,
+  title = {Deep Learning Face Attributes in the Wild},
+  author = {Liu, Ziwei and Luo, Ping and Wang, Xiaogang and Tang, Xiaoou},
+  booktitle = {Proceedings of International Conference on Computer Vision (ICCV)},
+  month = {December},
+  year = {2015}
+}

@@ -1,0 +1,12 @@
+link1:
+  url: https://drive.google.com/uc?id=1Z1RqRo0_JiavaZw2yzZG6WETdZQ8qX86
+  output: data.zip
+  type: google_drive
+link2:
+  url: https://drive.google.com/uc?id=1i1L3Yqwaio7YSOCj7ftgk8ZZchPG7dmH
+  output: l_train.csv
+  type: google_drive
+link3:
+  url: https://drive.google.com/uc?id=1wOdja-ezstMEp81tX1a-EYkFebev4h7D
+  output: l_val.csv
+  type: google_drive
