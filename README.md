@@ -56,7 +56,11 @@ uv run ipython kernel install --user --name=detoxaikernel
 
 uv build --no-sources --index-strategy unsafe-best-match
 
-uv run --with detoxai --no-project --python -c "import detoxai; print(detoxai.__version__)"
+uv run --with detoxai --no-project -- python -c "import detoxai; print(detoxai.__version__)"
+
+uv publish --token $UV_PUBLISH_TOKEN --index testpypi
+
+### Be careful with the following command, upload all files from dist folder
 
 
 pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ detoxai
