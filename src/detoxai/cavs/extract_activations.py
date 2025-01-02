@@ -133,9 +133,12 @@ def extract_activations(
         for batch_idx, batch in enumerate(
             tqdm(dataloader, desc="Extracting Activations", file=sys.stdout)
         ):
-            data = batch[0].cpu().detach().numpy()
+            data = batch[0]
+            labels = batch[1].cpu().detach().numpy()
+            prota = batch[2].cpu().detach().numpy()
+            tpl = (labels, prota)
 
-            rest = np.array(batch[1:]).reshape(-1, len(batch[1:]))
+            rest = np.array(tpl).reshape(-1, len(tpl))
 
             labels_np = np.concatenate((labels_np, rest), axis=0)
             _ = model(data)

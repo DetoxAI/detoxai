@@ -20,7 +20,7 @@ class ModelCorrectionMethod(ABC):
         if "cuda" in self.device and ":" in self.device:
             self.devices_indices = [int(str(self.device).split(":")[1])]
         else:
-            self.devices_indices = None
+            self.devices_indices = "auto"
 
         self.requires_cav: bool = False
         self.requires_acts: bool = False
