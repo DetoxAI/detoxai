@@ -133,7 +133,7 @@ def extract_activations(
         for batch_idx, batch in enumerate(
             tqdm(dataloader, desc="Extracting Activations", file=sys.stdout)
         ):
-            data = batch[0]
+            data = batch[0].cpu().detach().numpy()
 
             rest = np.array(batch[1:]).reshape(-1, len(batch[1:]))
 
