@@ -13,7 +13,6 @@ from ..methods import (
     PCLARC,
     ACLARC,
     LEACE,
-    RejectOptionClassification,
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
@@ -34,7 +33,6 @@ SUPPORTED_METHODS = [
     "PCLARC",
     "ACLARC",
     "LEACE",
-    "RejectOptionClassification",
 ]
 
 
@@ -77,7 +75,7 @@ DEFAULT_METHODS_CONFIG = {
     "ZHANGM": {
         "frac_of_batches_to_use": 0.15,
     },
-    "RejectOptionClassification": {
+    "ROC": {
         "theta_range": (0.55, 0.95),
         "theta_steps": 20,
         "metrics_spec": {
@@ -208,6 +206,9 @@ def run_correction(
         method: Correction method to run
         kwargs: Arguments for the correction method
     """
+    metrics = {"pareto": {}, "all": {}}
+    failed = False
+
     match method.upper():
         case "SAVANIRP":
             corrector = SavaniRP(**method_kwargs)
@@ -225,61 +226,66 @@ def run_correction(
             corrector = ACLARC(**method_kwargs)
         case "LEACE":
             corrector = LEACE(**method_kwargs)
-        case "RejectOptionClassification":
-            corrector = RejectOptionClassification(**method_kwargs) 
         case _:
-            raise ValueError(f"Correction method {method} not found")
+            logger.error(ValueError(f"Correction method {method} not found"))
+            failed = True
 
-    # Parse intervention layers
-    if "intervention_layers" in method_kwargs:
-        method_kwargs["intervention_layers"] = infer_layers(
-            corrector, method_kwargs["intervention_layers"]
-        )
+    if not failed:
+        # Parse intervention layers
+        if "intervention_layers" in method_kwargs:
+            method_kwargs["intervention_layers"] = infer_layers(
+                corrector, method_kwargs["intervention_layers"]
+            )
 
-    # Parse cav layers
-    if "cav_layers" in method_kwargs:
-        method_kwargs["cav_layers"] = infer_layers(
-            corrector, method_kwargs["cav_layers"]
-        )
+        # Parse cav layers
+        if "cav_layers" in method_kwargs:
+            method_kwargs["cav_layers"] = infer_layers(
+                corrector, method_kwargs["cav_layers"]
+            )
 
-    # Parse last layer name
-    if "last_layer_name" in method_kwargs:
-        method_kwargs["last_layer_name"] = infer_layers(
-            corrector, method_kwargs["last_layer_name"]
-        )[0]
+        # Parse last layer name
+        if "last_layer_name" in method_kwargs:
+            method_kwargs["last_layer_name"] = infer_layers(
+                corrector, method_kwargs["last_layer_name"]
+            )[0]
 
-    # Precompute CAVs if required
-    if corrector.requires_acts:
-        if "intervention_layers" not in method_kwargs:
-            lays = method_kwargs["cav_layers"]
-        else:
-            lays = method_kwargs["intervention_layers"]
-        corrector.extract_activations(method_kwargs["dataloader"], lays)
+        # Precompute CAVs if required
+        if corrector.requires_acts:
+            if "intervention_layers" not in method_kwargs:
+                lays = method_kwargs["cav_layers"]
+            else:
+                lays = method_kwargs["intervention_layers"]
+            corrector.extract_activations(method_kwargs["dataloader"], lays)
 
-        logger.debug(f"Computing CAVs on layers: {lays}")
+            logger.debug(f"Computing CAVs on layers: {lays}")
 
-        if corrector.requires_cav:
-            corrector.compute_cavs(method_kwargs["cav_type"], lays)
+            if corrector.requires_cav:
+                corrector.compute_cavs(method_kwargs["cav_type"], lays)
 
-    logger.debug(f"Running correction method {method}")
+        logger.debug(f"Running correction method {method}")
 
-    # Here we finally run the correction method
-    try:
-        corrector.apply_model_correction(**method_kwargs)
-    except Exception as e:
-        logger.error(f"Error running correction method {method}: {e}")
-        logger.error(traceback.format_exc())
-        return None
+        # Here we finally run the correction method
+        try:
+            corrector.apply_model_correction(**method_kwargs)
 
-    logger.debug(f"Correction method {method} applied")
+            logger.debug(f"Correction method {method} applied")
 
-    method_kwargs["model"] = corrector.get_lightning_model()
-    metrics = evaluate_model(
-        method_kwargs["model"],
-        method_kwargs["dataloader"],
-        pareto_metrics,
-        device=method_kwargs["device"],
-    )
+            method_kwargs["model"] = corrector.get_lightning_model()
+
+            metrics = evaluate_model(
+                method_kwargs["model"],
+                method_kwargs["dataloader"],
+                pareto_metrics,
+                device=method_kwargs["device"],
+            )
+
+        except Exception as e:
+            logger.error(f"Error running correction method {method}: {e}")
+            logger.error(traceback.format_exc())
+            failed = True
+
+    else:
+        metrics = {"pareto": {}, "all": {}}
 
     return CorrectionResult(
         method=method, model=method_kwargs["model"], metrics=metrics
