@@ -62,6 +62,7 @@ def evaluate_model(
         logger=False,
         enable_model_summary=verbose,
         enable_progress_bar=verbose,
+        enable_checkpointing=False,
         devices=devices_id,
     )
     model.eval()
