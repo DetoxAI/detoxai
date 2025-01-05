@@ -23,7 +23,7 @@ CELEBA_DATASET_CONFIG = {
 DEFAULT_FAIRUNLEARN_DATASET_CONFIG = CELEBA_DATASET_CONFIG
 
 
-def get_fairunlearn_datasets(
+def get_detoxai_datasets(
     config: dict,
     transform: Optional[
         callable
@@ -111,7 +111,7 @@ class DetoxaiDataset(VisionDataset):
 
         self.labels = self._read_labels_from_file()
         self.labels_mapping = self._read_labels_mapping_from_file()
-        self._target_labels_translation = self.get_target_label_translation()
+        # self._target_labels_translation = self.get_target_label_translation()
         self.split_indices = split_indices
 
         if seed is not None:
@@ -177,25 +177,24 @@ class DetoxaiDataset(VisionDataset):
             for key, item in self.labels_mapping[self.config["target"]].items()
         ]
 
-    def get_target_label_translation(self) -> dict:
-        return {name: i for i, name in enumerate(self.get_class_names())}
+    # def get_target_label_translation(self) -> dict:
+    #     return {i: name for i, name in enumerate(self.get_class_names())}
 
     def get_num_classes(self) -> int:
         return len(self.labels_mapping[self.config["target"]])
 
-    def get_collate_fn(self):
+    def get_collate_fn(self, protected_attribute: str, protected_attribute_value: str):
         def collate_fn(
-            batch: List[Tuple[torch.Tensor, str]],
-        ) -> Tuple[torch.Tensor, torch.Tensor]:
+            batch: List[Tuple[torch.Tensor, str, Dict[str, Union[str, int]]]],
+        ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
             images = torch.stack([item[0] for item in batch])
-            labels = torch.tensor(
-                [self._target_labels_translation[item[1]] for item in batch]
+            labels = torch.tensor([item[1] for item in batch])
+            protected_attributes = torch.tensor(
+                [
+                    int(item[2].get(protected_attribute) == protected_attribute_value)
+                    for item in batch
+                ]
             )
-
-            if self.device is not None:
-                images = images.to(self.device)
-                labels = labels.to(self.device)
-
-            return images, labels
+            return images, labels, protected_attributes
 
         return collate_fn
