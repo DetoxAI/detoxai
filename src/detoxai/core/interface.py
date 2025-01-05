@@ -17,7 +17,7 @@ from ..methods import (
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
-from ..utils.dataloader import WrappedDataLoader
+from ..utils.dataloader import DetoxaiDataLoader
 from ..metrics.fairness_metrics import AllMetrics
 from .evaluation import evaluate_model
 from .mcda_helpers import filter_pareto_front, select_best_method
@@ -89,7 +89,7 @@ DEFAULT_METHODS_CONFIG = {
 
 def debias(
     model: nn.Module,
-    dataloader: WrappedDataLoader,  # bez concept labeli
+    dataloader: DetoxaiDataLoader,  # bez concept labeli
     # harmful_concept: str,
     methods: list[str] | str = "all",
     metrics: list[str] | str = "all",
@@ -103,7 +103,7 @@ def debias(
 
     Args:
         `model`: Model to run the correction methods on
-        `dataloader`: WrappedDataLoader object with the dataset
+        `dataloader`: DetoxaiDataLoader object with the dataset
         `harmful_concept`: Concept to debias -- this is the protected attribute # NOT SUPPORTED YET
         `methods`: List of correction methods to run
         `metrics`: List of metrics to include in the configuration
@@ -164,13 +164,13 @@ def debias(
 
     # pass
 
-    class_labels = dataloader.collator.get_class_names()
-    prot_attr_arity = len(dataloader.collator.get_group_label_names())
+    class_labels = dataloader.get_class_names()
+    prot_attr_arity = 2  # TODO only supported binary protected attributes
 
     # Create an AllMetrics object
     metrics_calculator = AllMetrics(
         construct_metrics_config(metrics),
-        class_labels=class_labels,  # TODO: what is this?
+        class_labels=class_labels,
         num_groups=prot_attr_arity,
     )
 

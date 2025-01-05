@@ -373,9 +373,9 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
                     group_name = str(group) + "_group"
                     out_metrics.update(
                         {
-                            metric + "_" + group_name: derived_metrics[
-                                metric + "_" + group_name
-                            ]
+                            metric
+                            + "_"
+                            + group_name: derived_metrics[metric + "_" + group_name]
                         }
                     )
             if "ratio" or "difference" in reduce_options:
