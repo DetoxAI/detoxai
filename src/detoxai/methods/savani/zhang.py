@@ -205,7 +205,6 @@ class ZhangM(SavaniBase):
             critic_layers += [
                 nn.Linear(critic_linear[i - 1], critic_linear[i]),
                 nn.ReLU(),
-                nn.MaxPool2d(2),
                 nn.Dropout(0.2),
             ]
 
