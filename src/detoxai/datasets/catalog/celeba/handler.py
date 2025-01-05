@@ -5,7 +5,7 @@ import zipfile
 import pandas as pd
 import yaml
 
-home = os.path.expanduser("~")
+home = os.environ.get("DETOXAI_DATASET_PATH", os.path.expanduser("~"))
 directory = os.path.join(home, ".detoxai", "celeba")
 
 tmp_directory = os.path.join(directory, "tmp")

@@ -69,8 +69,14 @@ def run_handler(folder, dir_path, tmp_dir):
     spec.loader.exec_module(handler)
 
 
-def download_datasets(datasets: List[str]):
+def download_datasets(datasets: List[str], dataset_path: str = "HOME") -> None:
+    """
+    Downloads datasets from the list and save them in directory specified by dataset_path.
 
+    Args:
+    - datasets: List of datasets to download e.g., ['celeba', 'fairface']
+    - dataset_path: Path to save the datasets. Default is "HOME" which will resolve to ~
+    """
     # Discover local folders in __file__ directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
     folders = [
@@ -82,7 +88,13 @@ def download_datasets(datasets: List[str]):
     folders = datasets
 
     # Home dir
-    home_dir = os.path.expanduser("~")
+    if dataset_path == "HOME":
+        home_dir = os.path.expanduser("~")
+    else:
+        home_dir = dataset_path
+        # Export environment variable
+        os.environ["DETOXAI_DATASET_PATH"] = home_dir
+
     detoxai_dir = os.path.join(home_dir, ".detoxai")
     try:
         os.makedirs(detoxai_dir, exist_ok=True)
