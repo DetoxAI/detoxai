@@ -11,7 +11,6 @@ import torch
 # from torch.utils.data import Dataset
 import yaml
 from torchvision.datasets.folder import VisionDataset
-from .collators import FairnessCollator
 
 # NOTE: transforms and the combination of transform and target_transform are mutually exclusive
 
@@ -38,7 +37,7 @@ def get_fairunlearn_datasets(
     download: bool = False,
     seed: Optional[int] = None,
     device: str = None,
-) -> Dict[str, "FairUnlearnDataset"]:
+) -> Dict[str, "DetoxaiDataset"]:
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
@@ -58,7 +57,7 @@ def get_fairunlearn_datasets(
 
     datasets = {}
     for split, indices in split_indices.items():
-        datasets[split] = FairUnlearnDataset(
+        datasets[split] = DetoxaiDataset(
             config,
             home_detoxai_dir,
             indices,
@@ -73,7 +72,7 @@ def get_fairunlearn_datasets(
     return datasets
 
 
-class FairUnlearnDataset(VisionDataset):
+class DetoxaiDataset(VisionDataset):
     def __init__(
         self,
         config: dict,
@@ -112,6 +111,7 @@ class FairUnlearnDataset(VisionDataset):
 
         self.labels = self._read_labels_from_file()
         self.labels_mapping = self._read_labels_mapping_from_file()
+        self._target_labels_translation = self.get_target_label_translation()
         self.split_indices = split_indices
 
         if seed is not None:
@@ -171,14 +171,31 @@ class FairUnlearnDataset(VisionDataset):
             fairness_attributes[key] = self.labels.iloc[idx][key]
         return fairness_attributes
 
-    def get_collator(
-        self,
-        class_names: list,
-        protected_attribute: str,
-        protected_attribute_value: str,
-    ):
-        c = FairnessCollator(
-            class_names, protected_attribute, protected_attribute_value, self.device
-        )
+    def get_class_names(self) -> List[str]:
+        return [
+            f"{self.config['target']}_{item.replace(' ', '_')}"
+            for key, item in self.labels_mapping[self.config["target"]].items()
+        ]
 
-        return c
+    def get_target_label_translation(self) -> dict:
+        return {name: i for i, name in enumerate(self.get_class_names())}
+
+    def get_num_classes(self) -> int:
+        return len(self.labels_mapping[self.config["target"]])
+
+    def get_collate_fn(self):
+        def collate_fn(
+            batch: List[Tuple[torch.Tensor, str]],
+        ) -> Tuple[torch.Tensor, torch.Tensor]:
+            images = torch.stack([item[0] for item in batch])
+            labels = torch.tensor(
+                [self._target_labels_translation[item[1]] for item in batch]
+            )
+
+            if self.device is not None:
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+
+            return images, labels
+
+        return collate_fn
