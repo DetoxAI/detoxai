@@ -7,7 +7,7 @@ import logging
 
 from .posthoc_base import PosthocBase 
 from ...utils.dataloader import WrappedDataLoader
-from ...metrics.fairness_metrics import FairnessMetrics
+from ...metrics.bias_metrics import calculate_bias_metric_torch
 from ...metrics.metrics import balanced_accuracy_torch
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class RejectOptionClassification(PosthocBase):
         theta_range (Tuple[float, float]): Range for threshold optimization, must be between 0.5 and 1.0
         theta_steps (int): Number of steps for threshold grid search
         hooks (List): Stores model forward hooks for prediction modification
-        metrics (FairnessMetrics): Fairness metrics calculator for evaluating group fairness
+        metric (str): Metric to optimize for, defaults to Equalized Odds
         objective_function (Callable): Function combining fairness and accuracy scores, defaults to their product
     
     Methods:
@@ -77,7 +77,7 @@ class RejectOptionClassification(PosthocBase):
         dataloader: WrappedDataLoader,
         theta_range: Tuple[float, float] = (0.55, 0.95),
         theta_steps: int = 20,
-        metrics_spec: Optional[Dict[str, Dict[str, List[str]]]] = None,
+        metric: str = "EO_GAP",
         objective_function: Optional[Callable[[float, float], float]] = None,
         **kwargs: Any
     ) -> None:
@@ -88,10 +88,9 @@ class RejectOptionClassification(PosthocBase):
         self.theta_steps = theta_steps
         self.hooks: List[Any] = []
         
-        assert metrics_spec is not None and len(metrics_spec) == 1
         assert theta_range[0] < theta_range[1] and theta_range[0] >= 0.5 and theta_range[1] <= 1.0
 
-        self.metrics = FairnessMetrics(num_groups=2, metrics_spec=metrics_spec)
+        self.metric = metric
         self.objective_function = objective_function
         if self.objective_function is None:
             self.objective_function = lambda fairness, accuracy: fairness * accuracy
@@ -101,17 +100,52 @@ class RejectOptionClassification(PosthocBase):
             'L_values': {0: None, 1: None}  # L values for each protected attribute
         }
 
+    def _evaluate_parameters(
+        self,
+        preds: torch.Tensor,
+        targets: torch.Tensor,
+        sensitive_features: torch.Tensor,
+        theta: float,
+        L_values: Dict[int, int]
+    ) -> float:
+        """Evaluates a specific parameter configuration."""
+        # Validate theta
+        if not (0.5 <= theta <= 1.0):
+            raise AssertionError(f"Theta must be between 0.5 and 1.0, got {theta}")
+        
+        # Validate L_values contains all protected attribute values
+        unique_protected = torch.unique(sensitive_features).tolist()
+        for protected_value in unique_protected:
+            if protected_value not in L_values:
+                raise KeyError(f"L_values missing value for protected attribute {protected_value}")
+        
+        modified_preds = self._modified_prediction(
+            theta,
+            preds,
+            sensitive_features,
+            L_values
+        )
+        
+        fairness_score = calculate_bias_metric_torch(
+            self.metric,
+            modified_preds,
+            targets, 
+            sensitive_features
+        )
+        accuracy_score = balanced_accuracy_torch(modified_preds, targets)
+        
+        # Convert tensors to floats and handle NaN
+        fairness_score = float(fairness_score.item())
+        accuracy_score = float(accuracy_score.item())
+        
+        if np.isnan(fairness_score) or np.isnan(accuracy_score):
+            return 0.0
+            
+        return float(self.objective_function(fairness_score, accuracy_score))
+
     def _optimize_parameters(self) -> Tuple[float, Dict[int, int]]:
         """
         Optimizes both theta and L values for each protected attribute value.
-        
-        Input shapes expected:
-            - Probabilities: (batch_size, 2)
-            - Targets: (batch_size,)
-            - Protected attributes: (batch_size,)
-        
-        Returns:
-            Tuple[float, Dict[int, int]]: Optimal theta and L values for each protected group
         """
         thetas = np.linspace(self.theta_range[0], self.theta_range[1], self.theta_steps)
         best_score = float('-inf')
@@ -120,7 +154,7 @@ class RejectOptionClassification(PosthocBase):
         
         # Validate shapes
         assert preds.shape[1] == 2, f"Expected binary classification, got {preds.shape[1]} classes"
-        assert targets.dim() == 1, f"Expected 1D targets, got {targets.dim()}D"
+        assert targets.dim() == 1, f"Expected 1D targets, got {targets.dim()}D" 
         assert sensitive_features.dim() == 1, f"Expected 1D protected features, got {sensitive_features.dim()}D"
         
         # Grid search over theta and L values
@@ -128,23 +162,16 @@ class RejectOptionClassification(PosthocBase):
             for L_protected_0 in [0, 1]:
                 for L_protected_1 in [0, 1]:
                     L_values = {0: L_protected_0, 1: L_protected_1}
-                    modified_preds = self._modified_prediction(
-                        theta, 
+                    score = self._evaluate_parameters(
                         preds,
+                        targets,
                         sensitive_features,
+                        theta,
                         L_values
                     )
                     
-                    fairness_score = next(iter(self.metrics(
-                        modified_preds, 
-                        targets, 
-                        sensitive_features
-                    ).values()))
-                    accuracy_score = balanced_accuracy_torch(modified_preds, targets)
-                    combined_score = self.objective_function(fairness_score, accuracy_score)
-                    
-                    if combined_score > best_score:
-                        best_score = combined_score
+                    if score > best_score:
+                        best_score = score
                         self.best_config['theta'] = theta
                         self.best_config['L_values'] = L_values
         

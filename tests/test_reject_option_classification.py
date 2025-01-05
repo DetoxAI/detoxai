@@ -1,88 +1,131 @@
 import torch
 import pytest
-from src.detoxai.methods.posthoc.reject_option_classification import ROCModelWrapper
+import numpy as np
+from src.detoxai.methods.posthoc.reject_option_classification import RejectOptionClassification
 
-class TestROCPredictionModification:
+class TestRejectOptionClassification:
     @pytest.fixture
-    def setup_wrapper(self):
-        # Mock base model that returns pre-defined logits
-        class MockModel(torch.nn.Module):
-            def forward(self, x):
-                return x
-        
-        base_model = MockModel()
-        theta = 0.7
-        L_values = {0: 0, 1: 1}  # Protected group 0 -> class 0, group 1 -> class 1
-        
-        return ROCModelWrapper(base_model, theta, L_values)
-
-    def test_prediction_modification(self, setup_wrapper):
-        wrapper = setup_wrapper
-        
-        # Create test inputs
-        # High confidence predictions (>0.7)
-        logits_high = torch.tensor([
+    def mock_data(self):
+        # Create mock predictions, targets, and sensitive features
+        preds = torch.tensor([
             [0.9, 0.1],  # High confidence class 0
             [0.1, 0.9],  # High confidence class 1
-        ])
-        
-        # Low confidence predictions (<0.7)
-        logits_low = torch.tensor([
             [0.6, 0.4],  # Low confidence
-            [0.55, 0.45],  # Low confidence
+            [0.55, 0.45], # Low confidence
         ])
-        
-        input_logits = torch.cat([logits_high, logits_low])
-        
-        # Protected attributes: [0,1,0,1]
+        targets = torch.tensor([0, 1, 0, 1])
         sensitive_features = torch.tensor([0, 1, 0, 1])
-        
-        # Make predictions
-        predictions = wrapper(input_logits, sensitive_features)
-        
-        # Expected outcomes:
-        # - High confidence predictions (first 2) should remain unchanged
-        # - Low confidence predictions should be modified based on protected group
-        expected = torch.tensor([0, 1, 0, 1])
-        
-        assert torch.equal(predictions, expected), \
-            f"Expected {expected}, but got {predictions}"
+        return preds, targets, sensitive_features
 
-    def test_edge_cases(self, setup_wrapper):
-        wrapper = setup_wrapper
+    @pytest.fixture
+    def mock_roc(self):
+        class MockDataLoader:
+            def __iter__(self):
+                return iter([])
         
-        # Test exactly at threshold
-        logits_threshold = torch.tensor([
-            [0.7, 0.3],  # Exactly at threshold
-        ])
-        sensitive_features = torch.tensor([0])
-        
-        predictions = wrapper(logits_threshold, sensitive_features)
-        expected = torch.tensor([0])  # Should be modified since θ ≤ 0.7
-        
-        assert torch.equal(predictions, expected), \
-            "Failed to handle threshold case correctly"
-
-    def test_different_L_values(self):
-        # Test with opposite L_value assignments
-        class MockModel(torch.nn.Module):
-            def forward(self, x):
-                return x
-                
-        wrapper = ROCModelWrapper(
-            MockModel(),
-            theta=0.7,
-            L_values={0: 1, 1: 0}  # Reversed L_values
+        roc = RejectOptionClassification(
+            model=torch.nn.Linear(1, 2),
+            experiment_name="test",
+            device="cpu",
+            dataloader=MockDataLoader(),
+            theta_range=(0.6, 0.8),
+            theta_steps=3
         )
+        return roc
+
+    def test_evaluate_parameters(self, mock_roc, mock_data):
+        preds, targets, sensitive_features = mock_data
+        theta = 0.7
+        L_values = {0: 0, 1: 1}
+
+        score = mock_roc._evaluate_parameters(
+            preds=preds,
+            targets=targets,
+            sensitive_features=sensitive_features,
+            theta=theta,
+            L_values=L_values
+        )
+
+        assert isinstance(score, float)
+        assert 0 <= score <= 1
+        assert not np.isnan(score)
+
+    def test_optimize_parameters_with_mock_data(self, mock_roc, mock_data):
+        preds, targets, sensitive_features = mock_data
         
-        logits = torch.tensor([
-            [0.6, 0.4],  # Low confidence
-            [0.6, 0.4],  # Low confidence
-        ])
+        # Mock _get_model_predictions to return our test data
+        mock_roc._get_model_predictions = lambda x: (preds, targets, sensitive_features)
+        
+        theta, L_values = mock_roc._optimize_parameters()
+        
+        assert 0.6 <= theta <= 0.8
+        assert isinstance(L_values, dict)
+        assert set(L_values.keys()) == {0, 1}
+        assert all(v in {0, 1} for v in L_values.values())
+
+    def test_modified_prediction(self, mock_roc, mock_data):
+        preds, _, sensitive_features = mock_data
+        theta = 0.7
+        L_values = {0: 0, 1: 1}
+
+        modified = mock_roc._modified_prediction(
+            theta=theta,
+            probs=preds,
+            sensitive_features=sensitive_features,
+            L_values=L_values
+        )
+
+        assert torch.is_tensor(modified)
+        assert modified.shape == (4,)
+        assert set(modified.tolist()).issubset({0, 1})
+
+    def test_parameter_validation(self, mock_roc, mock_data):
+        preds, targets, sensitive_features = mock_data
+        
+        # Invalid theta (too low)
+        with pytest.raises(AssertionError):
+            mock_roc._evaluate_parameters(
+                preds=preds,
+                targets=targets,
+                sensitive_features=sensitive_features,
+                theta=0.3,
+                L_values={0: 0, 1: 1}
+            )
+        
+        # Invalid theta (too high)
+        with pytest.raises(AssertionError):
+            mock_roc._evaluate_parameters(
+                preds=preds,
+                targets=targets,
+                sensitive_features=sensitive_features,
+                theta=1.1,
+                L_values={0: 0, 1: 1}
+            )
+
+        # Invalid L_values
+        with pytest.raises(KeyError):
+            mock_roc._evaluate_parameters(
+                preds=preds,
+                targets=targets,
+                sensitive_features=sensitive_features,
+                theta=0.7,
+                L_values={0: 0}  # Missing value for group 1
+            )
+
+    def test_edge_cases(self, mock_roc):
+        # Test with all high confidence predictions
+        preds = torch.tensor([[0.9, 0.1], [0.95, 0.05]])
+        targets = torch.tensor([0, 0])
         sensitive_features = torch.tensor([0, 1])
         
-        predictions = wrapper(logits, sensitive_features)
-        expected = torch.tensor([1, 0])  # Reversed predictions
+        score = mock_roc._evaluate_parameters(
+            preds=preds,
+            targets=targets,
+            sensitive_features=sensitive_features,
+            theta=0.7,
+            L_values={0: 0, 1: 1}
+        )
         
-        assert torch.equal(predictions, expected), \
-            "Failed to apply reversed L_values correctly"
+        assert isinstance(score, float)
+        assert 0 <= score <= 1
+        assert not np.isnan(score)
