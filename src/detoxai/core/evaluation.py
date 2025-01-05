@@ -54,7 +54,7 @@ def evaluate_model(
     if device is not None and "cuda" in device and ":" in device:
         devices_id = [int(device.split(":")[1])]
     else:
-        devices_id = None
+        devices_id = "auto"
 
     logger.debug(f"Evaluating model on device: {device}")
 
@@ -62,6 +62,7 @@ def evaluate_model(
         logger=False,
         enable_model_summary=verbose,
         enable_progress_bar=verbose,
+        enable_checkpointing=False,
         devices=devices_id,
     )
     model.eval()

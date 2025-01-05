@@ -112,6 +112,9 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             # Assuming binary classification
             output[:, 1] = sigmoid((output[:, 1] - tau) * 10)  # soft thresholding
             output[:, 0] = 1 - output[:, 1]
+
+            logger.debug(f"Savani hook fired in layer: {module}")
+
             return output
 
         hook_fn = hook
@@ -133,20 +136,46 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         return False
 
     def unpack_batches(
-        self, dataloader: DataLoader, frac: float
+        self, dataloader: DataLoader, frac: float | int
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        frac can be either an integer or a float
+        If frac is an integer, it will return that many samples
+        If frac is a float, it will return that fraction of the batches available in the dataloader
+        """
         X, Y_true, ProtAttr = [], [], []
         all_batches = len(dataloader)
-        n_batches = max(int(all_batches * frac), 1)
+
+        if isinstance(frac, int):
+            n_batches = frac
+        else:
+            n_batches = max(int(all_batches * frac), 1)
+
+        n = 0
+
         for i, batch in enumerate(dataloader):
             X.append(batch[0])
             Y_true.append(batch[1])
             ProtAttr.append(batch[2])
-            if i == n_batches:
+
+            n += len(batch[0])
+
+            if n >= n_batches:
                 break
+
+            if i == n_batches and isinstance(frac, float):
+                break
+
         X = torch.cat(X).to(self.device)
         Y_true = torch.cat(Y_true).to(self.device)
         ProtAttr = torch.cat(ProtAttr).to(self.device)
+
+        # Shave off the extra samples
+        if isinstance(frac, int):
+            X = X[:frac]
+            Y_true = Y_true[:frac]
+            ProtAttr = ProtAttr[:frac]
+
         return X, Y_true, ProtAttr
 
     def sample_minibatch(self, batch_size: int) -> tuple:

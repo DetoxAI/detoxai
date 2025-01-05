@@ -1,15 +1,17 @@
 from torch.utils.data import DataLoader
 
-from .collators import BaseCollator
+from .datasets import DetoxaiDataset
 
 
-class WrappedDataLoader(DataLoader):
-    def __init__(self, dataset, collator: BaseCollator, **kwargs):
-        self.collator = collator
-        collate_fn = self.collator.infer_best_collate_fn(dataset)
-        # filter out collator from kwargs, our collator has precedence
-        kwargs = {k: v for k, v in kwargs.items() if k != "collate_fn"}
-        super().__init__(dataset, collate_fn=collate_fn, **kwargs)
+class DetoxaiDataLoader(DataLoader):
+    def __init__(self, dataset: DetoxaiDataset, **kwargs):
+        super().__init__(dataset, **kwargs)
+
+    def get_class_names(self):
+        assert isinstance(
+            self.dataset, DetoxaiDataset
+        ), "Dataset must be an instance of DetoxaiDataset, as we rely on its internal structure"
+        return self.dataset.get_class_names()
 
     def get_nth_batch(self, n: int) -> tuple:
         for i, batch in enumerate(self):

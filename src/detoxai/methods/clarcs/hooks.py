@@ -76,6 +76,8 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
 
         adjusted_output = results.reshape(output_shapes)
 
+        logger.debug(f"CLARC hook fired in layer: {module}")
+
         return adjusted_output
 
     return hook

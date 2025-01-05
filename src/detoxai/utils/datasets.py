@@ -11,7 +11,6 @@ import torch
 # from torch.utils.data import Dataset
 import yaml
 from torchvision.datasets.folder import VisionDataset
-from .collators import FairnessCollator
 
 # NOTE: transforms and the combination of transform and target_transform are mutually exclusive
 
@@ -24,9 +23,8 @@ CELEBA_DATASET_CONFIG = {
 DEFAULT_FAIRUNLEARN_DATASET_CONFIG = CELEBA_DATASET_CONFIG
 
 
-def get_fairunlearn_datasets(
+def get_detoxai_datasets(
     config: dict,
-    root: Union[str, Path],
     transform: Optional[
         callable
     ] = None,  # takes in a PIL image and returns a transformed version
@@ -39,15 +37,15 @@ def get_fairunlearn_datasets(
     download: bool = False,
     seed: Optional[int] = None,
     device: str = None,
-) -> Dict[str, "FairUnlearnDataset"]:
+) -> Dict[str, "DetoxaiDataset"]:
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
 
     # generate indices for all the splits randomly
-    root = Path(root)
-    labels = pd.read_csv(root / "catalog" / config["name"] / "labels.csv")
+    home_detoxai_dir = Path.home() / ".detoxai"
+    labels = pd.read_csv(home_detoxai_dir / config["name"] / "labels.csv")
     all_indices = np.arange(len(labels))
     np.random.shuffle(all_indices)
     split_indices = {}
@@ -59,9 +57,9 @@ def get_fairunlearn_datasets(
 
     datasets = {}
     for split, indices in split_indices.items():
-        datasets[split] = FairUnlearnDataset(
+        datasets[split] = DetoxaiDataset(
             config,
-            root,
+            home_detoxai_dir,
             indices,
             transform=transform,
             transforms=transforms,
@@ -74,7 +72,7 @@ def get_fairunlearn_datasets(
     return datasets
 
 
-class FairUnlearnDataset(VisionDataset):
+class DetoxaiDataset(VisionDataset):
     def __init__(
         self,
         config: dict,
@@ -113,6 +111,7 @@ class FairUnlearnDataset(VisionDataset):
 
         self.labels = self._read_labels_from_file()
         self.labels_mapping = self._read_labels_mapping_from_file()
+        # self._target_labels_translation = self.get_target_label_translation()
         self.split_indices = split_indices
 
         if seed is not None:
@@ -121,12 +120,12 @@ class FairUnlearnDataset(VisionDataset):
             torch.manual_seed(seed)
 
     def _read_labels_from_file(self) -> pd.DataFrame:
-        df = pd.read_csv(self.root / "catalog" / self.config["name"] / "labels.csv")
+        df = pd.read_csv(self.root / self.config["name"] / "labels.csv")
         return df
 
     def _read_labels_mapping_from_file(self) -> pd.DataFrame:
         labels_mapping_from_yaml = yaml.safe_load(
-            (self.root / "catalog" / self.config["name"] / "labels_mapping.yaml").open()
+            (self.root / self.config["name"] / "labels_mapping.yaml").open()
         )
         return labels_mapping_from_yaml
 
@@ -134,7 +133,7 @@ class FairUnlearnDataset(VisionDataset):
         pass
 
     def _check_integrity(self) -> bool:
-        return (self.root / "catalog" / self.config["name"]).exists()
+        return (self.root / self.config["name"]).exists()
 
     def __len__(self) -> int:
         return len(self.split_indices)
@@ -156,11 +155,7 @@ class FairUnlearnDataset(VisionDataset):
 
     def _load_image(self, idx: int) -> PIL.Image.Image:
         img_path = (
-            self.root
-            / "catalog"
-            / self.config["name"]
-            / "data"
-            / self.labels.iloc[idx]["image_id"]
+            self.root / self.config["name"] / "data" / self.labels.iloc[idx]["image_id"]
         )
         img = PIL.Image.open(img_path)
         return img
@@ -176,14 +171,30 @@ class FairUnlearnDataset(VisionDataset):
             fairness_attributes[key] = self.labels.iloc[idx][key]
         return fairness_attributes
 
-    def get_collator(
-        self,
-        class_names: list,
-        protected_attribute: str,
-        protected_attribute_value: str,
-    ):
-        c = FairnessCollator(
-            class_names, protected_attribute, protected_attribute_value, self.device
-        )
+    def get_class_names(self) -> List[str]:
+        return [
+            f"{self.config['target']}_{item.replace(' ', '_')}"
+            for key, item in self.labels_mapping[self.config["target"]].items()
+        ]
 
-        return c
+    # def get_target_label_translation(self) -> dict:
+    #     return {i: name for i, name in enumerate(self.get_class_names())}
+
+    def get_num_classes(self) -> int:
+        return len(self.labels_mapping[self.config["target"]])
+
+    def get_collate_fn(self, protected_attribute: str, protected_attribute_value: str):
+        def collate_fn(
+            batch: List[Tuple[torch.Tensor, str, Dict[str, Union[str, int]]]],
+        ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+            images = torch.stack([item[0] for item in batch])
+            labels = torch.tensor([item[1] for item in batch])
+            protected_attributes = torch.tensor(
+                [
+                    int(item[2].get(protected_attribute) == protected_attribute_value)
+                    for item in batch
+                ]
+            )
+            return images, labels, protected_attributes
+
+        return collate_fn

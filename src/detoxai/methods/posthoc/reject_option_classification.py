@@ -228,7 +228,3 @@ class RejectOptionClassification(PosthocBase):
         """Returns a wrapped model that applies ROC correction during inference."""
         theta, L_values = self._optimize_parameters()
         return ROCModelWrapper(self.model, theta, L_values)
-
-    def remove_model_correction(self) -> None:
-        """No longer needed as correction is handled by wrapper."""
-        pass

@@ -2,6 +2,7 @@ import torch.nn as nn
 from copy import deepcopy
 import logging
 import traceback
+from datetime import datetime
 
 # Project imports
 from ..methods import (
@@ -16,7 +17,7 @@ from ..methods import (
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
-from ..utils.dataloader import WrappedDataLoader
+from ..utils.dataloader import DetoxaiDataLoader
 from ..metrics.fairness_metrics import AllMetrics
 from .evaluation import evaluate_model
 from .mcda_helpers import filter_pareto_front, select_best_method
@@ -63,17 +64,25 @@ DEFAULT_METHODS_CONFIG = {
         "use_cache": True,
     },
     "SAVANIRP": {
-        "frac_of_batches_to_use": 0.15,
+        "data_to_use": 0.15,
     },
     "SAVANILWO": {
-        "frac_of_batches_to_use": 0.15,
+        "data_to_use": 0.15,
         "n_layers_to_optimize": 4,
     },
     "SAVANIAFT": {
-        "frac_of_batches_to_use": 0.15,
+        "data_to_use": 0.15,
     },
     "ZHANGM": {
-        "frac_of_batches_to_use": 0.15,
+        "data_to_use": 0.15,
+    },
+    "ROC": {
+        "theta_range": (0.55, 0.95),
+        "theta_steps": 20,
+        "metrics_spec": {
+            "EqualizedOdds": {"reduce": ["difference"]},
+        },
+        "objective_function": lambda fairness, accuracy: fairness * accuracy,
     },
     "RejectOptionClassification": {
         "theta_range": (0.55, 0.95),
@@ -88,7 +97,7 @@ DEFAULT_METHODS_CONFIG = {
 
 def debias(
     model: nn.Module,
-    dataloader: WrappedDataLoader,  # bez concept labeli
+    dataloader: DetoxaiDataLoader,  # bez concept labeli
     # harmful_concept: str,
     methods: list[str] | str = "all",
     metrics: list[str] | str = "all",
@@ -96,13 +105,14 @@ def debias(
     pareto_metrics: list[str] = ["balanced_accuracy", "equalized_odds"],
     return_type: str = "pareto-front",
     device: str = "cpu",
+    include_vanila_in_results: bool = True,
 ) -> CorrectionResult | list[CorrectionResult]:
     """
     Run a suite of correction methods on the model and return the results
 
     Args:
         `model`: Model to run the correction methods on
-        `dataloader`: WrappedDataLoader object with the dataset
+        `dataloader`: DetoxaiDataLoader object with the dataset
         `harmful_concept`: Concept to debias -- this is the protected attribute # NOT SUPPORTED YET
         `methods`: List of correction methods to run
         `metrics`: List of metrics to include in the configuration
@@ -112,6 +122,8 @@ def debias(
             "pareto-front": Return the results CorrectionResult objects only for results on the pareto front
             "all": Return the results for all correction methods
             "best": Return the results for the best correction method, chosen with ideal point method from pareto front
+        `device` (optional): Device to run the correction methods on
+        `include_vanila_in_results` (optional): Include the vanilla model in the results
 
 
     ***
@@ -144,6 +156,11 @@ def debias(
 
     methods_config["global"]["device"] = device
 
+    # Append a timestamp to the experiment name
+    timestep = datetime.now().strftime("%Y%m%d-%H%M%S%f")
+    exp_name = f"{methods_config['global']['experiment_name']}_{timestep}"
+    methods_config["global"]["experiment_name"] = exp_name
+
     # # ------------------------------------------------
     # # DATASET HANDLING IS TODO HERE
     # # Load supported tags ie. protected attributes
@@ -158,13 +175,13 @@ def debias(
 
     # pass
 
-    class_labels = dataloader.collator.get_class_names()
-    prot_attr_arity = len(dataloader.collator.get_group_label_names())
+    class_labels = dataloader.get_class_names()
+    prot_attr_arity = 2  # TODO only supported binary protected attributes
 
     # Create an AllMetrics object
     metrics_calculator = AllMetrics(
         construct_metrics_config(metrics),
-        class_labels=class_labels,  # TODO: what is this?
+        class_labels=class_labels,
         num_groups=prot_attr_arity,
     )
 
@@ -183,6 +200,19 @@ def debias(
         method_kwargs["dataloader"] = dataloader
         result = run_correction(method, method_kwargs, pareto_metrics)
         results.append(result)
+
+    if include_vanila_in_results:
+        vanilla_result = CorrectionResult(
+            method="Vanilla",
+            model=model,
+            metrics=evaluate_model(
+                model,
+                dataloader,
+                pareto_metrics,
+                device=device,
+            ),
+        )
+        results.append(vanilla_result)
 
     if return_type == "pareto-front":
         return filter_pareto_front(results)
@@ -206,6 +236,9 @@ def run_correction(
         method: Correction method to run
         kwargs: Arguments for the correction method
     """
+    metrics = {"pareto": {}, "all": {}}
+    failed = False
+
     match method.upper():
         case "SAVANIRP":
             corrector = SavaniRP(**method_kwargs)
@@ -224,58 +257,79 @@ def run_correction(
         case "LEACE":
             corrector = LEACE(**method_kwargs)
         case _:
-            raise ValueError(f"Correction method {method} not found")
+            logger.error(ValueError(f"Correction method {method} not found"))
+            failed = True
 
-    # Parse intervention layers
-    if "intervention_layers" in method_kwargs:
-        method_kwargs["intervention_layers"] = infer_layers(
-            corrector, method_kwargs["intervention_layers"]
-        )
+    if not failed:
+        # Parse intervention layers
+        if "intervention_layers" in method_kwargs:
+            method_kwargs["intervention_layers"] = infer_layers(
+                corrector, method_kwargs["intervention_layers"]
+            )
+            logging.debug(
+                f'Resolved intervention layers: {method_kwargs["intervention_layers"]}'
+            )
 
-    # Parse cav layers
-    if "cav_layers" in method_kwargs:
-        method_kwargs["cav_layers"] = infer_layers(
-            corrector, method_kwargs["cav_layers"]
-        )
+        # Parse cav layers
+        if "cav_layers" in method_kwargs:
+            method_kwargs["cav_layers"] = infer_layers(
+                corrector, method_kwargs["cav_layers"]
+            )
+            logging.debug(f'Resolved CAV layers: {method_kwargs["cav_layers"]}')
 
-    # Parse last layer name
-    if "last_layer_name" in method_kwargs:
-        method_kwargs["last_layer_name"] = infer_layers(
-            corrector, method_kwargs["last_layer_name"]
-        )[0]
+        # Parse last layer name
+        if "last_layer_name" in method_kwargs:
+            method_kwargs["last_layer_name"] = infer_layers(
+                corrector, method_kwargs["last_layer_name"]
+            )[0]
+            logging.debug(
+                f'Resolved last layer name: {method_kwargs["last_layer_name"]}'
+            )
 
-    # Precompute CAVs if required
-    if corrector.requires_acts:
-        if "intervention_layers" not in method_kwargs:
-            lays = method_kwargs["cav_layers"]
-        else:
-            lays = method_kwargs["intervention_layers"]
-        corrector.extract_activations(method_kwargs["dataloader"], lays)
+        # Precompute CAVs if required
+        if corrector.requires_acts:
+            if "intervention_layers" not in method_kwargs:
+                lays = method_kwargs["cav_layers"]
+            else:
+                lays = method_kwargs["intervention_layers"]
+            corrector.extract_activations(method_kwargs["dataloader"], lays)
 
-        logger.debug(f"Computing CAVs on layers: {lays}")
+            logger.debug(f"Computing CAVs on layers: {lays}")
 
-        if corrector.requires_cav:
-            corrector.compute_cavs(method_kwargs["cav_type"], lays)
+            if corrector.requires_cav:
+                corrector.compute_cavs(method_kwargs["cav_type"], lays)
 
-    logger.debug(f"Running correction method {method}")
+        logger.debug(f"Running correction method {method}")
 
-    # Here we finally run the correction method
-    try:
-        corrector.apply_model_correction(**method_kwargs)
-    except Exception as e:
-        logger.error(f"Error running correction method {method}: {e}")
-        logger.error(traceback.format_exc())
-        return None
+        # Here we finally run the correction method
+        try:
+            corrector.apply_model_correction(**method_kwargs)
 
-    logger.debug(f"Correction method {method} applied")
+            logger.debug(f"Correction method {method} applied")
 
-    method_kwargs["model"] = corrector.get_lightning_model()
-    metrics = evaluate_model(
-        method_kwargs["model"],
-        method_kwargs["dataloader"],
-        pareto_metrics,
-        device=method_kwargs["device"],
-    )
+            method_kwargs["model"] = corrector.get_lightning_model()
+
+            # Remove gradients
+            for param in method_kwargs["model"].parameters():
+                param.requires_grad = False
+
+            # Move to CPU
+            method_kwargs["model"].to("cpu")
+
+            metrics = evaluate_model(
+                method_kwargs["model"],
+                method_kwargs["dataloader"],
+                pareto_metrics,
+                device=method_kwargs["device"],
+            )
+
+        except Exception as e:
+            logger.error(f"Error running correction method {method}: {e}")
+            logger.error(traceback.format_exc())
+            failed = True
+
+    else:
+        metrics = {"pareto": {}, "all": {}}
 
     return CorrectionResult(
         method=method, model=method_kwargs["model"], metrics=metrics
