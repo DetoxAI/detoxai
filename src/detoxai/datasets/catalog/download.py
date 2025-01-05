@@ -7,6 +7,11 @@ import logging
 import gdown
 import yaml
 
+from typing import Union
+from pathlib import Path
+
+from ....detoxai import DETOXAI_DATASET_PATH
+
 logger = logging.getLogger(__name__)
 
 SUPPORTED_DATASETS = ["cifar10", "cifar100", "caltech101", "celeba", "fairface"]
@@ -69,14 +74,18 @@ def run_handler(folder, dir_path, tmp_dir):
     spec.loader.exec_module(handler)
 
 
-def download_datasets(datasets: List[str], dataset_path: str = "HOME") -> None:
+def download_datasets(
+    datasets: List[str], dataset_path: Union[str, Path] = DETOXAI_DATASET_PATH
+) -> None:
     """
     Downloads datasets from the list and save them in directory specified by dataset_path.
 
     Args:
     - datasets: List of datasets to download e.g., ['celeba', 'fairface']
-    - dataset_path: Path to save the datasets. Default is "HOME" which will resolve to ~
+    - dataset_path: Path to save the datasets.
     """
+    os.environ["DETOXAI_DATASET_PATH"] = dataset_path
+
     # Discover local folders in __file__ directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
     folders = [
@@ -87,30 +96,21 @@ def download_datasets(datasets: List[str], dataset_path: str = "HOME") -> None:
     logger.debug(f"Discovered folders: {folders}")
     folders = datasets
 
-    # Home dir
-    if dataset_path == "HOME":
-        home_dir = os.path.expanduser("~")
-    else:
-        home_dir = dataset_path
-        # Export environment variable
-        os.environ["DETOXAI_DATASET_PATH"] = home_dir
-
-    detoxai_dir = os.path.join(home_dir, ".detoxai")
     try:
-        os.makedirs(detoxai_dir, exist_ok=True)
+        os.makedirs(dataset_path, exist_ok=True)
     except Exception as e:
         logger.debug(f"Error: {e}")
 
     for folder in folders:
         code_dirpath = os.path.join(current_dir, folder)
-        home_dirpath = os.path.join(detoxai_dir, folder)
-        tmp_dir = os.path.join(home_dirpath, "tmp")
+        target_dirpath = os.path.join(dataset_path, folder)
+        tmp_dir = os.path.join(target_dirpath, "tmp")
 
         # if labels.csv and label_mapping.yaml and data folder already exists then skip
         if (
-            os.path.exists(os.path.join(home_dirpath, "labels.csv"))
-            and os.path.exists(os.path.join(home_dirpath, "labels_mapping.yaml"))
-            and os.path.exists(os.path.join(home_dirpath, "data"))
+            os.path.exists(os.path.join(target_dirpath, "labels.csv"))
+            and os.path.exists(os.path.join(target_dirpath, "labels_mapping.yaml"))
+            and os.path.exists(os.path.join(target_dirpath, "data"))
         ):
             logger.info(f"{folder} already exists. Skipping...")
             continue

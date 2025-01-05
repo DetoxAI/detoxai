@@ -8,7 +8,7 @@ import yaml
 from sklearn.preprocessing import LabelEncoder
 
 home = os.environ.get("DETOXAI_DATASET_PATH", os.path.expanduser("~"))
-directory = os.path.join(home, ".detoxai", "fairface")
+directory = os.path.join(home, "fairface")
 
 tmp_directory = os.path.join(directory, "tmp")
 data_path = os.path.join(tmp_directory, "data.zip")
