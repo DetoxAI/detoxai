@@ -46,7 +46,7 @@ class SavaniLWO(SavaniBase):
         last_layer_name: str,
         epsilon: float = 0.1,
         bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
-        frac_of_batches_to_use: float = 1.0,
+        data_to_use: float | int = 128,
         n_layers_to_optimize: int | str = "all",
         optimizer_maxiter: int = 10,
         thresh_optimizer_maxiter: int = 100,
@@ -63,9 +63,9 @@ class SavaniLWO(SavaniBase):
         options = {'outputs_are_logits': False}
 
         """
-        assert (
-            0 <= frac_of_batches_to_use <= 1
-        ), "frac_of_batches_to_use must be in [0, 1]"
+        assert 0 <= data_to_use <= 1 or isinstance(
+            data_to_use, int
+        ), "frac_of_batches_to_use must be in [0, 1] or an integer"
         assert self.check_layer_name_exists(
             last_layer_name
         ), f"Layer name {last_layer_name} not found in the model"
@@ -83,7 +83,7 @@ class SavaniLWO(SavaniBase):
 
         # Unpack multiple batches of the dataloader
         self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
-            dataloader, frac_of_batches_to_use
+            dataloader, data_to_use
         )
 
         total_layers = len(list(self.model.parameters()))

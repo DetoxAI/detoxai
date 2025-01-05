@@ -38,7 +38,7 @@ class ZhangM(SavaniBase):
         last_layer_name: str,
         epsilon: float = 0.1,
         bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
-        frac_of_batches_to_use: float = 1.0,
+        data_to_use: float | int = 128,
         iterations: int = 10,
         critic_iterations: int = 15,
         model_iterations: int = 15,
@@ -59,9 +59,9 @@ class ZhangM(SavaniBase):
         options = {'outputs_are_logits': False}
 
         """
-        assert (
-            0 <= frac_of_batches_to_use <= 1
-        ), "frac_of_batches_to_use must be in [0, 1]"
+        assert 0 <= data_to_use <= 1 or isinstance(
+            data_to_use, int
+        ), "frac_of_batches_to_use must be in [0, 1] or an integer"
         assert self.check_layer_name_exists(
             last_layer_name
         ), f"Layer name {last_layer_name} not found in the model"
@@ -74,7 +74,7 @@ class ZhangM(SavaniBase):
 
         # Unpack multiple batches of the dataloader
         self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
-            dataloader, frac_of_batches_to_use
+            dataloader, data_to_use
         )
         self.ProtAttr_torch = self.ProtAttr_torch.to(dtype=torch.float32)
         self.Y_true_torch = self.ProtAttr_torch.to(dtype=torch.float32)
@@ -205,6 +205,7 @@ class ZhangM(SavaniBase):
             critic_layers += [
                 nn.Linear(critic_linear[i - 1], critic_linear[i]),
                 nn.ReLU(),
+                nn.MaxPool2d(2),
                 nn.Dropout(0.2),
             ]
 

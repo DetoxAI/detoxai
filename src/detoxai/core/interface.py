@@ -64,17 +64,17 @@ DEFAULT_METHODS_CONFIG = {
         "use_cache": True,
     },
     "SAVANIRP": {
-        "frac_of_batches_to_use": 0.15,
+        "data_to_use": 0.15,
     },
     "SAVANILWO": {
-        "frac_of_batches_to_use": 0.15,
+        "data_to_use": 0.15,
         "n_layers_to_optimize": 4,
     },
     "SAVANIAFT": {
-        "frac_of_batches_to_use": 0.15,
+        "data_to_use": 0.15,
     },
     "ZHANGM": {
-        "frac_of_batches_to_use": 0.15,
+        "data_to_use": 0.15,
     },
     "ROC": {
         "theta_range": (0.55, 0.95),
