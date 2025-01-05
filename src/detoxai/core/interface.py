@@ -2,7 +2,7 @@ import torch.nn as nn
 from copy import deepcopy
 import logging
 import traceback
-import time
+from datetime import datetime
 
 # Project imports
 from ..methods import (
@@ -97,6 +97,7 @@ def debias(
     pareto_metrics: list[str] = ["balanced_accuracy", "equalized_odds"],
     return_type: str = "pareto-front",
     device: str = "cpu",
+    include_vanila_in_results: bool = True,
 ) -> CorrectionResult | list[CorrectionResult]:
     """
     Run a suite of correction methods on the model and return the results
@@ -113,6 +114,8 @@ def debias(
             "pareto-front": Return the results CorrectionResult objects only for results on the pareto front
             "all": Return the results for all correction methods
             "best": Return the results for the best correction method, chosen with ideal point method from pareto front
+        `device` (optional): Device to run the correction methods on
+        `include_vanila_in_results` (optional): Include the vanilla model in the results
 
 
     ***
@@ -146,7 +149,7 @@ def debias(
     methods_config["global"]["device"] = device
 
     # Append a timestamp to the experiment name
-    timestep = time.strftime("%Y%m%d-%H%M%S-%f")
+    timestep = datetime.now().strftime("%Y%m%d-%H%M%S%f")
     exp_name = f"{methods_config['global']['experiment_name']}_{timestep}"
     methods_config["global"]["experiment_name"] = exp_name
 
@@ -189,6 +192,19 @@ def debias(
         method_kwargs["dataloader"] = dataloader
         result = run_correction(method, method_kwargs, pareto_metrics)
         results.append(result)
+
+    if include_vanila_in_results:
+        vanilla_result = CorrectionResult(
+            method="Vanilla",
+            model=model,
+            metrics=evaluate_model(
+                model,
+                dataloader,
+                pareto_metrics,
+                device=device,
+            ),
+        )
+        results.append(vanilla_result)
 
     if return_type == "pareto-front":
         return filter_pareto_front(results)
@@ -242,18 +258,25 @@ def run_correction(
             method_kwargs["intervention_layers"] = infer_layers(
                 corrector, method_kwargs["intervention_layers"]
             )
+            logging.debug(
+                f'Resolved intervention layers: {method_kwargs["intervention_layers"]}'
+            )
 
         # Parse cav layers
         if "cav_layers" in method_kwargs:
             method_kwargs["cav_layers"] = infer_layers(
                 corrector, method_kwargs["cav_layers"]
             )
+            logging.debug(f'Resolved CAV layers: {method_kwargs["cav_layers"]}')
 
         # Parse last layer name
         if "last_layer_name" in method_kwargs:
             method_kwargs["last_layer_name"] = infer_layers(
                 corrector, method_kwargs["last_layer_name"]
             )[0]
+            logging.debug(
+                f'Resolved last layer name: {method_kwargs["last_layer_name"]}'
+            )
 
         # Precompute CAVs if required
         if corrector.requires_acts:
