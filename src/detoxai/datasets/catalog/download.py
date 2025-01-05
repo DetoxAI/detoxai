@@ -84,7 +84,6 @@ def download_datasets(
     - datasets: List of datasets to download e.g., ['celeba', 'fairface']
     - dataset_path: Path to save the datasets.
     """
-    os.environ["DETOXAI_DATASET_PATH"] = dataset_path
 
     # Discover local folders in __file__ directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
