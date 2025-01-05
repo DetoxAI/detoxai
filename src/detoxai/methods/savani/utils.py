@@ -27,7 +27,7 @@ def phi_torch(
     ), f"Y_true {Y_true.shape}, Y_pred {Y_pred.shape}, ProtAttr {ProtAttr.shape} must have the same shape"
 
     # Compute the bias metric
-    bias = calculate_bias_metric_torch(bias_metric, Y_pred, ProtAttr)
+    bias = calculate_bias_metric_torch(bias_metric, Y_pred, Y_true, ProtAttr)
 
     # Compute phi
     phi = (

@@ -3,6 +3,7 @@ import lightning as L
 import logging
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from torch.nn.functional import softmax
 
 
 from scipy import optimize
@@ -91,7 +92,7 @@ class SavaniAFT(SavaniBase):
         model_optimizer = torch.optim.Adam(self.model.parameters(), lr=model_lr)
         self.model_loss = nn.CrossEntropyLoss()
 
-        for i in tqdm(range(iterations), desc="Adversarial Fine Tuning"):
+        for i in tqdm(range(iterations), desc="Savani: Adversarial Fine Tuning"):
             logger.debug(f"Minibatch no. {i}")
 
             # Train the critic
@@ -104,7 +105,21 @@ class SavaniAFT(SavaniBase):
                 with torch.no_grad():
                     y_pred = self.model(x)
 
-                bias = calculate_bias_metric_torch(self.bias_metric, y_pred, prot_attr)
+                    # Assuming binary classification and logits
+                    y_raw_preds = self.model(self.X_torch)
+                    if self.options.get("outputs_are_logits", True):
+                        y_probs = softmax(y_raw_preds, dim=1)
+                    else:
+                        y_probs = y_raw_preds
+                    y_pred = y_probs[:, 1]
+
+                print(y_pred.shape, y_true.shape, prot_attr.shape)
+                logger.info(
+                    f"y_pred: {y_pred.shape}, y_true: {y_true.shape}, prot_attr: {prot_attr.shape}"
+                )
+                bias = calculate_bias_metric_torch(
+                    self.bias_metric, y_pred, y_true, prot_attr
+                )
 
                 c_loss = critic_criterion(self.critic(x)[0], bias)
                 critic_optimizer.zero_grad()

@@ -133,7 +133,7 @@ def extract_activations(
         for batch_idx, batch in enumerate(
             tqdm(dataloader, desc="Extracting Activations", file=sys.stdout)
         ):
-            data = batch[0]
+            data = batch[0].to(device)
             labels = batch[1].cpu().detach().numpy()
             prota = batch[2].cpu().detach().numpy()
             tpl = (labels, prota)

@@ -7,25 +7,68 @@ import logging
 
 from .posthoc_base import PosthocBase
 from ...utils.dataloader import DetoxaiDataLoader
-from ...metrics.fairness_metrics import FairnessMetrics
+from ...metrics.bias_metrics import calculate_bias_metric_torch
 from ...metrics.metrics import balanced_accuracy_torch
 
 logger = logging.getLogger(__name__)
+
+
+class ROCModelWrapper(nn.Module):
+    def __init__(self, base_model: nn.Module, theta: float, L_values: Dict[int, int]):
+        super().__init__()
+        self.base_model = base_model
+        self.theta = theta
+        self.L_values = L_values
+
+    def _is_in_critical_region(self, probs: torch.Tensor) -> torch.Tensor:
+        max_probs, _ = torch.max(probs, dim=1)
+        return max_probs <= self.theta
+
+    def forward(self, input, sensitive_features):
+        # Get base model predictions
+        output = self.base_model(input)
+        if isinstance(output, tuple):
+            output = output[0]
+
+        # Apply ROC correction
+        probs = F.softmax(output, dim=1)
+        critical_mask = self._is_in_critical_region(probs)
+        predictions = torch.argmax(probs, dim=1)
+
+        # Modify predictions based on protected attributes
+        for prot_value, L in self.L_values.items():
+            mask = (sensitive_features == prot_value) & critical_mask
+            predictions[mask] = L
+
+        return predictions
 
 
 class RejectOptionClassification(PosthocBase):
     """
     Implements Reject Option Classification (ROC) for fairness optimization.
 
-    ROC modifies model predictions in critical regions where prediction confidence
-    is below a threshold (theta), replacing predictions with protected attributes.
+    This class implements a post-hoc fairness optimization method that modifies model predictions
+    based on a confidence threshold (theta). Predictions with confidence below theta are flipped
+    to optimize for both accuracy and fairness.
 
     Attributes:
         dataloader (DetoxaiDataLoader): Dataloader containing the dataset
-        theta_range (Tuple[float, float]): Range for threshold optimization
+        theta_range (Tuple[float, float]): Range for threshold optimization, must be between 0.5 and 1.0
         theta_steps (int): Number of steps for threshold grid search
-        hooks (List): Stores model forward hooks
-        metrics (FairnessMetrics): Fairness metrics calculator
+        hooks (List): Stores model forward hooks for prediction modification
+        metric (str): Metric to optimize for, defaults to Equalized Odds
+        objective_function (Callable): Function combining fairness and accuracy scores, defaults to their product
+
+    Methods:
+        _optimize_theta(): Finds optimal threshold by grid search
+        _is_in_critical_region(): Identifies predictions below confidence threshold
+        _modified_prediction(): Applies ROC algorithm to modify predictions
+        apply_model_correction(): Implements prediction modification via model hook
+
+    Input Shapes:
+        - Probabilities: (batch_size, 2) - Binary classification probabilities
+        - Targets: (batch_size,) - Binary targets (0 or 1)
+        - Protected attributes: (batch_size,) - Binary protected features (0 or 1)
     """
 
     def __init__(
@@ -36,7 +79,7 @@ class RejectOptionClassification(PosthocBase):
         dataloader: DetoxaiDataLoader,
         theta_range: Tuple[float, float] = (0.55, 0.95),
         theta_steps: int = 20,
-        metrics_spec: Optional[Dict[str, Dict[str, List[str]]]] = None,
+        metric: str = "EO_GAP",
         objective_function: Optional[Callable[[float, float], float]] = None,
         **kwargs: Any,
     ) -> None:
@@ -47,46 +90,96 @@ class RejectOptionClassification(PosthocBase):
         self.theta_steps = theta_steps
         self.hooks: List[Any] = []
 
-        assert metrics_spec is not None and len(metrics_spec) == 1
         assert (
             theta_range[0] < theta_range[1]
             and theta_range[0] >= 0.5
             and theta_range[1] <= 1.0
         )
 
-        self.metrics = FairnessMetrics(num_groups=2, metrics_spec=metrics_spec)
+        self.metric = metric
+        self.objective_function = objective_function
         if self.objective_function is None:
             self.objective_function = lambda fairness, accuracy: fairness * accuracy
 
-    def _optimize_theta(self) -> float:
-        """
-        Optimizes the threshold parameter theta for best fairness-accuracy trade-off.
+        self.best_config = {
+            "theta": None,
+            "L_values": {0: None, 1: None},  # L values for each protected attribute
+        }
 
-        Returns:
-            float: Optimal theta value maximizing combined fairness and accuracy score
+    def _evaluate_parameters(
+        self,
+        preds: torch.Tensor,
+        targets: torch.Tensor,
+        sensitive_features: torch.Tensor,
+        theta: float,
+        L_values: Dict[int, int],
+    ) -> float:
+        """Evaluates a specific parameter configuration."""
+        # Validate theta
+        if not (0.5 <= theta <= 1.0):
+            raise AssertionError(f"Theta must be between 0.5 and 1.0, got {theta}")
+
+        # Validate L_values contains all protected attribute values
+        unique_protected = torch.unique(sensitive_features).tolist()
+        for protected_value in unique_protected:
+            if protected_value not in L_values:
+                raise KeyError(
+                    f"L_values missing value for protected attribute {protected_value}"
+                )
+
+        modified_preds = self._modified_prediction(
+            theta, preds, sensitive_features, L_values
+        )
+
+        fairness_score = calculate_bias_metric_torch(
+            self.metric, modified_preds, targets, sensitive_features
+        )
+        accuracy_score = balanced_accuracy_torch(modified_preds, targets)
+
+        # Convert tensors to floats and handle NaN
+        fairness_score = float(fairness_score.item())
+        accuracy_score = float(accuracy_score.item())
+
+        if np.isnan(fairness_score) or np.isnan(accuracy_score):
+            return 0.0
+
+        return float(self.objective_function(fairness_score, accuracy_score))
+
+    def _optimize_parameters(self) -> Tuple[float, Dict[int, int]]:
+        """
+        Optimizes both theta and L values for each protected attribute value.
         """
         thetas = np.linspace(self.theta_range[0], self.theta_range[1], self.theta_steps)
         best_score = float("-inf")
-        best_theta = thetas[0]
 
-        # TODO: Verify if this is the correct way to get the target labels
-        targets: torch.Tensor = self.dataloader.collator.get_target_labels()
-        preds: torch.Tensor = self._get_model_predictions(self.dataloader)
-        sensitive_features: torch.Tensor = self.dataloader.collator.get_group_labels()
+        preds, targets, sensitive_features = self._get_model_predictions(
+            self.dataloader
+        )
 
+        # Validate shapes
+        assert (
+            preds.shape[1] == 2
+        ), f"Expected binary classification, got {preds.shape[1]} classes"
+        assert targets.dim() == 1, f"Expected 1D targets, got {targets.dim()}D"
+        assert (
+            sensitive_features.dim() == 1
+        ), f"Expected 1D protected features, got {sensitive_features.dim()}D"
+
+        # Grid search over theta and L values
         for theta in thetas:
-            modified_preds = self._modified_prediction(preds, sensitive_features)
-            fairness_score = next(
-                iter(self.metrics(modified_preds, targets, sensitive_features).values())
-            )
-            accuracy_score = balanced_accuracy_torch(modified_preds, targets)
-            combined_score = self.objective_function(fairness_score, accuracy_score)
+            for L_protected_0 in [0, 1]:
+                for L_protected_1 in [0, 1]:
+                    L_values = {0: L_protected_0, 1: L_protected_1}
+                    score = self._evaluate_parameters(
+                        preds, targets, sensitive_features, theta, L_values
+                    )
 
-            if combined_score > best_score:
-                best_score = combined_score
-                best_theta = theta
+                    if score > best_score:
+                        best_score = score
+                        self.best_config["theta"] = theta
+                        self.best_config["L_values"] = L_values
 
-        return best_theta
+        return self.best_config["theta"], self.best_config["L_values"]
 
     def _is_in_critical_region(self, theta: float, probs: torch.Tensor) -> torch.Tensor:
         """
@@ -94,51 +187,50 @@ class RejectOptionClassification(PosthocBase):
 
         Args:
             theta: Confidence threshold
-            probs: Prediction probabilities
+            probs: Prediction probabilities (batch_size, 2)
 
         Returns:
-            torch.Tensor: Boolean mask indicating critical region predictions
+            torch.Tensor: Boolean mask (batch_size,) indicating critical region predictions
         """
+        assert (
+            probs.shape[1] == 2
+        ), f"Expected binary classification, got {probs.shape[1]} classes"
         max_probs, _ = torch.max(probs, dim=1)
         return max_probs <= theta
 
     def _modified_prediction(
-        self, theta: float, probs: torch.Tensor, protected_attrs: torch.Tensor
+        self,
+        theta: float,
+        probs: torch.Tensor,
+        sensitive_features: torch.Tensor,
+        L_values: Dict[int, int],
     ) -> torch.Tensor:
         """
-        Modifies predictions based on the ROC algorithm.
+        Modifies predictions based on critical region and protected attributes.
 
         Args:
             theta: Confidence threshold
-            probs: Model prediction probabilities
-            protected_attrs: Protected attribute values
+            probs: Prediction probabilities (batch_size, 2)
+            sensitive_features: Protected attributes (batch_size,)
+            L_values: Dictionary mapping protected attribute values to labels
 
         Returns:
-            torch.Tensor: Modified predictions
+            torch.Tensor: Modified predictions (batch_size,)
         """
+        assert probs.shape[1] == 2, "Expected binary classification"
+        assert sensitive_features.dim() == 1, "Expected 1D protected features"
+
         critical_mask = self._is_in_critical_region(theta, probs)
         predictions = torch.argmax(probs, dim=1)
 
-        predictions[critical_mask] = protected_attrs[critical_mask]  # TODO: discuss
+        # Apply different L values based on protected attribute
+        for prot_value, L in L_values.items():
+            mask = (sensitive_features == prot_value) & critical_mask
+            predictions[mask] = L
 
         return predictions
 
-    def apply_model_correction(self) -> None:
-        theta = self._optimize_theta()
-
-        def forward_hook(module, input, output):
-            if isinstance(output, tuple):
-                output = output[0]
-
-            protected_attrs = self.dataloader.collator.get_group_labels(
-                self.dataloader._current_batch
-            ).to(output.device)
-
-            probs = F.softmax(output, dim=1)
-            predictions = self._modified_prediction(theta, probs, protected_attrs)
-
-            return predictions
-
-        final_layer = list(self.model.modules())[-1]
-        hook = final_layer.register_forward_hook(forward_hook)
-        self.hooks.append(hook)
+    def apply_model_correction(self, **kwargs) -> nn.Module:
+        """Returns a wrapped model that applies ROC correction during inference."""
+        theta, L_values = self._optimize_parameters()
+        return ROCModelWrapper(self.model, theta, L_values)
