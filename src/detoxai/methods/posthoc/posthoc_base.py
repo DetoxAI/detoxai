@@ -35,8 +35,10 @@ class PosthocBase(ModelCorrectionMethod, ABC):
         predictions, labels, protected_attribute = [], [], []
         with torch.no_grad():
             for batch in dataloader:
-                inputs, labels, protected_attribute = batch
+                inputs, _labels, _protected_attribute = batch
                 inputs = inputs.to(self.device)
                 outputs = self.model(inputs)
                 predictions.append(outputs)
+                labels.append(_labels)
+                protected_attribute.append(_protected_attribute)
         return torch.cat(predictions), torch.cat(labels), torch.cat(protected_attribute)
