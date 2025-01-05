@@ -10,7 +10,7 @@ from torchvision_utils import create_structure2
 
 
 home = os.environ.get("DETOXAI_DATASET_PATH", os.path.expanduser("~"))
-directory = os.path.join(home, ".detoxai", "cifar100")
+directory = os.path.join(home, "cifar100")
 
 BASE_DIR = directory
 TMP_DIR = os.path.join(BASE_DIR, "tmp")

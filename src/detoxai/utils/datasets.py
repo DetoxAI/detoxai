@@ -2,6 +2,7 @@ import random
 from typing import Optional, Tuple, Union, Dict, List
 from pathlib import Path
 
+import os
 import PIL
 import PIL.Image
 import numpy as np
@@ -12,15 +13,58 @@ import torch
 import yaml
 from torchvision.datasets.folder import VisionDataset
 
+from ...detoxai import DETOXAI_DATASET_PATH
+
 # NOTE: transforms and the combination of transform and target_transform are mutually exclusive
 
 CELEBA_DATASET_CONFIG = {
     "name": "celeba",
+    "variant": "default",  # or None
     "target": "Male",  # target attribute that should be predicted
     "splits": {"train": 0.6, "test": 0.2, "unlearn": 0.2},
 }
 
-DEFAULT_FAIRUNLEARN_DATASET_CONFIG = CELEBA_DATASET_CONFIG
+CELEBA_VARIANT_CONFIG = {
+    "dataset": "celeba",
+    "variant": "default",
+    "splits": {
+        "train": {
+            "fraction": 0.6,
+        },
+        "test": {
+            "fraction": 0.2,
+        },
+        "unlearn": {
+            "fraction": 0.2,
+        },
+    },
+}
+
+
+def make_detoxai_datasets_variant(config, name="default_variant"):
+    """
+    variants/
+        celeba/
+            variants/
+                variant1/
+                    splits/
+                        train.npy
+                        test.npy
+                        unlearn.npy
+                    variant_config.yaml
+                variant2/
+                    splits/
+                        train.npy
+                        test.npy
+                        unlearn.npy
+    """
+
+    variant_path = (
+        Path(DETOXAI_DATASET_PATH) / config["name"] / "variants" / name / "splits"
+    )
+    os.makedirs(variant_path, exist_ok=True)
+
+    labels = pd.read_csv(Path(DETOXAI_DATASET_PATH) / config["name"] / "labels.csv")
 
 
 def get_detoxai_datasets(
@@ -37,6 +81,7 @@ def get_detoxai_datasets(
     download: bool = False,
     seed: Optional[int] = None,
     device: str = None,
+    saved_variant: Optional[str] = None,
 ) -> Dict[str, "DetoxaiDataset"]:
     if seed is not None:
         random.seed(seed)
