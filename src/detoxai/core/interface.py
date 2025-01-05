@@ -2,6 +2,7 @@ import torch.nn as nn
 from copy import deepcopy
 import logging
 import traceback
+import time
 
 # Project imports
 from ..methods import (
@@ -144,6 +145,11 @@ def debias(
 
     methods_config["global"]["device"] = device
 
+    # Append a timestamp to the experiment name
+    timestep = time.strftime("%Y%m%d-%H%M%S-%f")
+    exp_name = f"{methods_config['global']['experiment_name']}_{timestep}"
+    methods_config["global"]["experiment_name"] = exp_name
+
     # # ------------------------------------------------
     # # DATASET HANDLING IS TODO HERE
     # # Load supported tags ie. protected attributes
@@ -271,6 +277,13 @@ def run_correction(
             logger.debug(f"Correction method {method} applied")
 
             method_kwargs["model"] = corrector.get_lightning_model()
+
+            # Remove gradients
+            for param in method_kwargs["model"].parameters():
+                param.requires_grad = False
+
+            # Move to CPU
+            method_kwargs["model"].to("cpu")
 
             metrics = evaluate_model(
                 method_kwargs["model"],
