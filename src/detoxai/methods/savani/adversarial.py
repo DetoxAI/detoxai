@@ -104,7 +104,7 @@ class SavaniAFT(SavaniBase):
                 with torch.no_grad():
                     y_pred = self.model(x)
 
-                bias = calculate_bias_metric_torch(self.bias_metric, y_pred, prot_attr)
+                bias = calculate_bias_metric_torch(self.bias_metric, y_pred, y_true, prot_attr)
 
                 c_loss = critic_criterion(self.critic(x)[0], bias)
                 critic_optimizer.zero_grad()

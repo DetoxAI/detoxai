@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import logging
 from abc import ABC, abstractmethod
 from torch import nn
@@ -8,16 +9,15 @@ from ..model_correction import ModelCorrectionMethod
 
 logger = logging.getLogger(__name__)
 
-
 class PosthocBase(ModelCorrectionMethod, ABC):
     """Abstract base class for binary post-hoc debiasing methods."""
-
+    
     def __init__(
         self,
         model: nn.Module | L.LightningModule,
-        experiment_name: str,
+        experiment_name: str, 
         device: str,
-        **kwargs,
+        **kwargs
     ) -> None:
         super().__init__(model, experiment_name, device)
         self.hooks = []
@@ -26,16 +26,14 @@ class PosthocBase(ModelCorrectionMethod, ABC):
     def apply_model_correction(self) -> None:
         raise NotImplementedError
 
-    def _get_model_predictions(
-        self, dataloader: torch.utils.data.DataLoader
-    ) -> torch.Tensor:
+    def _get_model_predictions(self, dataloader: torch.utils.data.DataLoader) -> torch.Tensor:
         """Get model predictions on dataloader"""
         self.model.eval()
-        predictions = []
+        predictions, labels, protected_attribute = [], [], []
         with torch.no_grad():
             for batch in dataloader:
-                inputs, _ = batch
+                inputs, labels, protected_attribute = batch
                 inputs = inputs.to(self.device)
                 outputs = self.model(inputs)
                 predictions.append(outputs)
-        return torch.cat(predictions)
+        return torch.cat(predictions), torch.cat(labels), torch.cat(protected_attribute)
