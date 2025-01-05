@@ -2,7 +2,7 @@ from typing import Optional
 
 import lightning as L
 import torch
-from torch import optim
+import torch.optim
 from torchmetrics import MetricCollection
 
 
@@ -12,6 +12,8 @@ class BaseLightningWrapper(L.LightningModule):
         model: torch.nn.Module,
         criterion: Optional[torch.nn.Module] = torch.nn.CrossEntropyLoss(),
         performance_metrics: Optional[MetricCollection] = None,
+        learning_rate: Optional[float] = 1e-3,
+        optimizer: Optional[torch.optim.Optimizer] = torch.optim.Adam,
     ):
         super().__init__()
         self.model = model
@@ -25,6 +27,8 @@ class BaseLightningWrapper(L.LightningModule):
         self.valid_performance_metrics = (
             performance_metrics.clone(prefix="valid_") if performance_metrics else None
         )
+        self.learning_rate = learning_rate
+        self.optimizer = optimizer
 
     def training_step(self, batch, batch_idx):
         super().training_step(batch, batch_idx)
@@ -72,7 +76,7 @@ class BaseLightningWrapper(L.LightningModule):
             self.test_performance_metrics.reset()
 
     def configure_optimizers(self):
-        optimizer = optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = self.optimizer(self.parameters(), lr=self.learning_rate)
         return optimizer
 
     def forward(self, x):
@@ -91,8 +95,12 @@ class FairnessLightningWrapper(BaseLightningWrapper):
         criterion: Optional[torch.nn.Module] = torch.nn.CrossEntropyLoss(),
         performance_metrics: Optional[MetricCollection] = None,
         fairness_metrics: Optional[MetricCollection] = None,
+        learning_rate: Optional[float] = 1e-3,
+        optimizer: Optional[torch.optim.Optimizer] = torch.optim.Adam,
     ):
-        super().__init__(model, criterion, performance_metrics)
+        super().__init__(
+            model, criterion, performance_metrics, learning_rate, optimizer
+        )
         self.save_hyperparameters()
         self.train_fairness_metrics = (
             fairness_metrics.clone(prefix="train_") if fairness_metrics else None
