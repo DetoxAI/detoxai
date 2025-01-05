@@ -75,6 +75,14 @@ DEFAULT_METHODS_CONFIG = {
     "ZHANGM": {
         "frac_of_batches_to_use": 0.15,
     },
+    "RejectOptionClassification": {
+        "theta_range": (0.55, 0.95),
+        "theta_steps": 20,
+        "metrics_spec": {
+            "EqualizedOdds": {"reduce": ["difference"]},
+        },
+        "objective_function": lambda fairness, accuracy: fairness * accuracy, # TODO: consider as a string in case problems with Hydra
+    },
 }
 
 
