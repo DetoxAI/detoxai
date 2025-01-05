@@ -87,7 +87,7 @@ class ZhangM(SavaniBase):
         model_optimizer = torch.optim.Adam(self.model.parameters(), lr=model_lr)
         model_loss = nn.BCELoss()
 
-        for i in tqdm(range(iterations), desc="Adversarial Fine Tuning"):
+        for i in tqdm(range(iterations), desc="Zhang: Adversarial Fine Tuning"):
             logger.debug(f"Minibatch no. {i}")
 
             for param in self.critic.parameters():
