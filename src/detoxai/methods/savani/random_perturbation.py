@@ -65,6 +65,7 @@ class SavaniRP(SavaniBase):
         best_tau = tau_init
         best_model = deepcopy(self.model)
         best_phi = -1
+        best_bias = -1
 
         # Unpack multiple batches of the dataloader
         self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
