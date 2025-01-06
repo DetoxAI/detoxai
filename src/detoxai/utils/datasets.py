@@ -27,44 +27,116 @@ CELEBA_DATASET_CONFIG = {
 CELEBA_VARIANT_CONFIG = {
     "dataset": "celeba",
     "variant": "default",
+    "fraction": 1.0,
     "splits": {
         "train": {
-            "fraction": 0.6,
+            "fraction": 0.3,
+            "balancing": [
+                {
+                    "attribute_combination": [
+                        {"attribute": "Male", "label": 0},
+                        {"attribute": "Smiling", "label": 1},
+                    ],
+                    "percentage": 0.95,
+                }
+            ],
         },
         "test": {
-            "fraction": 0.2,
+            "fraction": 0.5,
+            "balancing": [
+                {
+                    "attribute_combination": [
+                        {"attribute": "Male", "label": 1},
+                        {"attribute": "Smiling", "label": 1},
+                    ],
+                    "percentage": 0.5,
+                }
+            ],
         },
         "unlearn": {
             "fraction": 0.2,
+            "balancing": [
+                {
+                    "attribute_combination": [
+                        {"attribute": "Male", "label": 1},
+                        {"attribute": "Smiling", "label": 1},
+                    ],
+                    "percentage": 0.5,
+                }
+            ],
         },
     },
 }
 
 
-def make_detoxai_datasets_variant(config, name="default_variant"):
-    """
-    variants/
-        celeba/
-            variants/
-                variant1/
-                    splits/
-                        train.npy
-                        test.npy
-                        unlearn.npy
-                    variant_config.yaml
-                variant2/
-                    splits/
-                        train.npy
-                        test.npy
-                        unlearn.npy
-    """
-
+def make_detoxai_datasets_variant(variant_config):
     variant_path = (
-        Path(DETOXAI_DATASET_PATH) / config["name"] / "variants" / name / "splits"
+        Path(DETOXAI_DATASET_PATH)
+        / variant_config["dataset"]
+        / "variants"
+        / variant_config["variant"]
+        / "splits"
     )
     os.makedirs(variant_path, exist_ok=True)
 
-    labels = pd.read_csv(Path(DETOXAI_DATASET_PATH) / config["name"] / "labels.csv")
+    labels = pd.read_csv(
+        Path(DETOXAI_DATASET_PATH) / variant_config["dataset"] / "labels.csv"
+    )
+    labels_fraction = labels.iloc[: int(variant_config["fraction"] * len(labels))]
+
+    assert (
+        variant_config["fraction"] <= 1.0
+    ), "Fraction should be less than or equal to 1.0"
+    assert (
+        sum(
+            [
+                split_config["fraction"]
+                for split_name, split_config in variant_config["splits"].items()
+            ]
+        )
+        <= 1.0
+    ), "Fractions should add up to less than or equal to 1.0"
+
+    for split_name, split_config in variant_config["splits"].items():
+        split_path = variant_path / f"{split_name}.txt"
+        split_indices_stop_index = int(split_config["fraction"] * len(labels_fraction))
+        df_split = labels_fraction.iloc[:split_indices_stop_index]
+
+        final_split_indices = []
+        for balancing_config in split_config["balancing"]:
+            attribute_combination = balancing_config["attribute_combination"]
+            percentage = balancing_config["percentage"]
+            all_indices = df_split.index.to_numpy()
+
+            # filter the split_indices based on the attribute_combination
+            filtered_df = df_split
+            for attribute in attribute_combination:
+                filtered_df = filtered_df[
+                    filtered_df[attribute["attribute"]] == attribute["label"]
+                ]
+            attribute_combination_indices = filtered_df.index.to_numpy()
+            rest_indices = np.setdiff1d(all_indices, attribute_combination_indices)
+
+            final_num_samples = len(attribute_combination_indices) / percentage
+            if final_num_samples > len(all_indices):
+                raise ValueError("final_num_samples is greater than len(all_indices)")
+
+            final_rest_num_samples = final_num_samples - len(
+                attribute_combination_indices
+            )
+            np.random.shuffle(rest_indices)
+            rest_indices = rest_indices[: int(final_rest_num_samples)]
+
+            final_split_indices.extend(attribute_combination_indices)
+            final_split_indices.extend(rest_indices)
+
+        final_split_df = df_split.loc[final_split_indices]
+        np.savetxt(split_path, final_split_df.index.to_numpy(), fmt="%d", delimiter=",")
+
+    with open(str(variant_path / "variant_config.yaml"), "w") as f:
+        yaml.dump(variant_config, f)
+
+    return variant_path
 
 
 def get_detoxai_datasets(
@@ -83,28 +155,41 @@ def get_detoxai_datasets(
     device: str = None,
     saved_variant: Optional[str] = None,
 ) -> Dict[str, "DetoxaiDataset"]:
-    if seed is not None:
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
+    detoxai_dataset_path = Path(DETOXAI_DATASET_PATH)
 
-    # generate indices for all the splits randomly
-    home_detoxai_dir = Path.home() / ".detoxai"
-    labels = pd.read_csv(home_detoxai_dir / config["name"] / "labels.csv")
-    all_indices = np.arange(len(labels))
-    np.random.shuffle(all_indices)
-    split_indices = {}
-    start = 0
-    for split_name, frac in config["splits"].items():
-        end = start + int(frac * len(all_indices))
-        split_indices[split_name] = all_indices[start:end]
-        start = end
+    if saved_variant is not None:
+        variant_path = (
+            Path(DETOXAI_DATASET_PATH) / config["name"] / "variants" / saved_variant
+        )
+        split_files = list(variant_path.glob("splits/*.txt"))
+        split_indices = {}
+        for split_file in split_files:
+            split_name = split_file.stem
+            split_indices[split_name] = np.loadtxt(split_file, dtype=int, delimiter=",")
+    else:
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
+
+        # generate indices for all the splits randomly
+
+        labels = pd.read_csv(detoxai_dataset_path / config["name"] / "labels.csv")
+        all_indices = np.arange(len(labels))
+        np.random.shuffle(all_indices)
+
+        split_indices = {}
+        start = 0
+        for split_name, frac in config["splits"].items():
+            end = start + int(frac * len(all_indices))
+            split_indices[split_name] = all_indices[start:end]
+            start = end
 
     datasets = {}
     for split, indices in split_indices.items():
         datasets[split] = DetoxaiDataset(
             config,
-            home_detoxai_dir,
+            detoxai_dataset_path,
             indices,
             transform=transform,
             transforms=transforms,
