@@ -11,7 +11,7 @@ def balanced_accuracy_torch(y_true: torch.Tensor, y_pred: torch.Tensor) -> torch
     y_pred = y_pred.int()
 
     # Compute confusion matrix
-    n_classes = len(torch.unique(y_true))
+    n_classes = 2 # Assuming binary
     confusion_matrix = torch.zeros(n_classes, n_classes)
     for t, p in zip(y_true, y_pred):
         confusion_matrix[t, p] += 1
