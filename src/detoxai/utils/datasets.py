@@ -13,7 +13,7 @@ import torch
 import yaml
 from torchvision.datasets.folder import VisionDataset
 
-from ...detoxai import DETOXAI_DATASET_PATH
+DETOXAI_DATASET_PATH = os.environ.get("DETOXAI_DATASET_PATH", Path.home() / ".detoxai")
 
 # NOTE: transforms and the combination of transform and target_transform are mutually exclusive
 
