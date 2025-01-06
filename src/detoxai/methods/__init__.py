@@ -12,4 +12,4 @@ from .clarcs import (  # noqa
     add_clarc_hook,
     add_mass_mean_probe_hook,
 )
-from .posthoc import RejectOptionClassification  # noqa
+from .posthoc import RejectOptionClassification, NaiveThresholdOptimizer  # noqa
