@@ -15,6 +15,7 @@ from ..methods import (
     ACLARC,
     LEACE,
     RejectOptionClassification,
+    NaiveThresholdOptimizer,
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
@@ -36,6 +37,7 @@ SUPPORTED_METHODS = [
     "ACLARC",
     "LEACE",
     "ROC",
+    "NT",
 ]
 
 
@@ -81,6 +83,12 @@ DEFAULT_METHODS_CONFIG = {
     "ROC": {
         "theta_range": (0.55, 0.95),
         "theta_steps": 20,
+        "metric": "EO_GAP",
+        "objective_function": lambda fairness, accuracy: fairness * accuracy,  # ruff: noqa TODO: consider as a string in case problems with Hydra
+    },
+    "NT": {
+        "threshold_range": (0.1, 0.9),
+        "threshold_steps": 20,
         "metric": "EO_GAP",
         "objective_function": lambda fairness, accuracy: fairness * accuracy,  # ruff: noqa TODO: consider as a string in case problems with Hydra
     },
@@ -250,6 +258,8 @@ def run_correction(
             corrector = LEACE(**method_kwargs)
         case "ROC":
             corrector = RejectOptionClassification(**method_kwargs)
+        case "NT":
+            corrector = NaiveThresholdOptimizer(**method_kwargs)
         case _:
             logger.error(ValueError(f"Correction method {method} not found"))
             failed = True
