@@ -47,6 +47,7 @@ DEFAULT_METHODS_CONFIG = {
         "experiment_name": "default",
         "device": "cpu",
         "dataloader": None,
+        "test_dataloader": None,
     },
     "PCLARC": {
         "cav_type": "signal",
@@ -106,6 +107,7 @@ def debias(
     return_type: str = "pareto-front",
     device: str = "cpu",
     include_vanila_in_results: bool = True,
+    test_dataloader: DetoxaiDataLoader = None,
 ) -> CorrectionResult | list[CorrectionResult]:
     """
     Run a suite of correction methods on the model and return the results
@@ -124,6 +126,7 @@ def debias(
             "best": Return the results for the best correction method, chosen with ideal point method from pareto front
         `device` (optional): Device to run the correction methods on
         `include_vanila_in_results` (optional): Include the vanilla model in the results
+        `test_dataloader` (optional): DataLoader for the test dataset. If not provided, the original dataloader is used
 
 
     ***
@@ -142,6 +145,8 @@ def debias(
         },
     }
     """
+    methods_config["global"]["test_dataloader"] = test_dataloader
+
     # Parse methods
     if methods == "all":
         methods = SUPPORTED_METHODS
@@ -207,7 +212,7 @@ def debias(
             model=model,
             metrics=evaluate_model(
                 model,
-                dataloader,
+                dataloader if test_dataloader is None else test_dataloader,
                 pareto_metrics,
                 device=device,
             ),
@@ -225,9 +230,7 @@ def debias(
 
 
 def run_correction(
-    method: str,
-    method_kwargs: dict,
-    pareto_metrics: list[str] | None = None,
+    method: str, method_kwargs: dict, pareto_metrics: list[str] | None = None
 ) -> CorrectionResult:
     """
     Run the specified correction method
@@ -320,9 +323,10 @@ def run_correction(
             # Move to CPU
             method_kwargs["model"].to("cpu")
 
+            test_dl = method_kwargs["test_dataloader"]
             metrics = evaluate_model(
                 method_kwargs["model"],
-                method_kwargs["dataloader"],
+                method_kwargs["dataloader"] if test_dl is None else test_dl,
                 pareto_metrics,
                 device=method_kwargs["device"],
             )
