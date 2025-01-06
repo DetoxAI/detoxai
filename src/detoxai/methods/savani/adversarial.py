@@ -103,17 +103,13 @@ class SavaniAFT(SavaniBase):
                 x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
 
                 with torch.no_grad():
-                    y_pred = self.model(x)
-
                     # Assuming binary classification and logits
-                    y_raw_preds = self.model(self.X_torch)
+                    y_pred = self.model(x)
                     if self.options.get("outputs_are_logits", True):
-                        y_probs = softmax(y_raw_preds, dim=1)
-                    else:
-                        y_probs = y_raw_preds
-                    y_pred = y_probs[:, 1]
+                        y_pred = softmax(y_pred, dim=1)
+                    y_pred = y_pred[:, 1]
 
-                print(y_pred.shape, y_true.shape, prot_attr.shape)
+                logging.debug(y_pred.shape, y_true.shape, prot_attr.shape)
                 logger.info(
                     f"y_pred: {y_pred.shape}, y_true: {y_true.shape}, prot_attr: {prot_attr.shape}"
                 )

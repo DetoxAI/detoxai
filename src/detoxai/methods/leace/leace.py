@@ -91,7 +91,7 @@ class LEACE(ModelCorrectionMethod):
 
                 output = eraser(output.flatten(start_dim=1)).reshape(output.shape)
 
-                logger.debug(f"LEACE hook fired in layer: {module}")
+                # logger.debug(f"LEACE hook fired in layer: {module}")
 
                 return output
 
