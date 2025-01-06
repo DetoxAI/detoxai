@@ -25,11 +25,22 @@ def calculate_bias_metric_torch(
     if isinstance(metric, BiasMetrics):
         metric = metric.value
 
+    # Make sure proper data types are used
+    protected_attribute = protected_attribute.to(dtype=torch.bool)
+
     # Calculate confusion matrix for group A (protected_attribute == 1)
-    tp_a = ((y_pred[protected_attribute] == 1) & (y_true[protected_attribute] == 1)).sum()
-    fp_a = ((y_pred[protected_attribute] == 1) & (y_true[protected_attribute] == 0)).sum()
-    tn_a = ((y_pred[protected_attribute] == 0) & (y_true[protected_attribute] == 0)).sum()
-    fn_a = ((y_pred[protected_attribute] == 0) & (y_true[protected_attribute] == 1)).sum()
+    tp_a = (
+        (y_pred[protected_attribute] == 1) & (y_true[protected_attribute] == 1)
+    ).sum()
+    fp_a = (
+        (y_pred[protected_attribute] == 1) & (y_true[protected_attribute] == 0)
+    ).sum()
+    tn_a = (
+        (y_pred[protected_attribute] == 0) & (y_true[protected_attribute] == 0)
+    ).sum()
+    fn_a = (
+        (y_pred[protected_attribute] == 0) & (y_true[protected_attribute] == 1)
+    ).sum()
 
     # Calculate rates for group A
     tpr_a = tp_a / stabilize(tp_a + fn_a)
@@ -38,10 +49,18 @@ def calculate_bias_metric_torch(
     fnr_a = fn_a / stabilize(fn_a + tp_a)
 
     # Calculate confusion matrix for group B (protected_attribute == 0)
-    tp_b = ((y_pred[~protected_attribute] == 1) & (y_true[~protected_attribute] == 1)).sum()
-    fp_b = ((y_pred[~protected_attribute] == 1) & (y_true[~protected_attribute] == 0)).sum()
-    tn_b = ((y_pred[~protected_attribute] == 0) & (y_true[~protected_attribute] == 0)).sum()
-    fn_b = ((y_pred[~protected_attribute] == 0) & (y_true[~protected_attribute] == 1)).sum()
+    tp_b = (
+        (y_pred[~protected_attribute] == 1) & (y_true[~protected_attribute] == 1)
+    ).sum()
+    fp_b = (
+        (y_pred[~protected_attribute] == 1) & (y_true[~protected_attribute] == 0)
+    ).sum()
+    tn_b = (
+        (y_pred[~protected_attribute] == 0) & (y_true[~protected_attribute] == 0)
+    ).sum()
+    fn_b = (
+        (y_pred[~protected_attribute] == 0) & (y_true[~protected_attribute] == 1)
+    ).sum()
 
     tpr_b = tp_b / stabilize(tp_b + fn_b)
     fpr_b = fp_b / stabilize(fp_b + tn_b)
@@ -76,10 +95,18 @@ def calculate_bias_metric_np(
         metric = metric.value
 
     # Calculate confusion matrix for group A (protected_attribute == 1)
-    tp_a = ((y_pred[protected_attribute] == 1) & (y_true[protected_attribute] == 1)).sum()
-    fp_a = ((y_pred[protected_attribute] == 1) & (y_true[protected_attribute] == 0)).sum()
-    tn_a = ((y_pred[protected_attribute] == 0) & (y_true[protected_attribute] == 0)).sum()
-    fn_a = ((y_pred[protected_attribute] == 0) & (y_true[protected_attribute] == 1)).sum()
+    tp_a = (
+        (y_pred[protected_attribute] == 1) & (y_true[protected_attribute] == 1)
+    ).sum()
+    fp_a = (
+        (y_pred[protected_attribute] == 1) & (y_true[protected_attribute] == 0)
+    ).sum()
+    tn_a = (
+        (y_pred[protected_attribute] == 0) & (y_true[protected_attribute] == 0)
+    ).sum()
+    fn_a = (
+        (y_pred[protected_attribute] == 0) & (y_true[protected_attribute] == 1)
+    ).sum()
 
     # Calculate rates for group A
     tpr_a = tp_a / stabilize(tp_a + fn_a)
@@ -88,10 +115,18 @@ def calculate_bias_metric_np(
     fnr_a = fn_a / stabilize(fn_a + tp_a)
 
     # Calculate confusion matrix for group B (protected_attribute == 0)
-    tp_b = ((y_pred[~protected_attribute] == 1) & (y_true[~protected_attribute] == 1)).sum()
-    fp_b = ((y_pred[~protected_attribute] == 1) & (y_true[~protected_attribute] == 0)).sum()
-    tn_b = ((y_pred[~protected_attribute] == 0) & (y_true[~protected_attribute] == 0)).sum()
-    fn_b = ((y_pred[~protected_attribute] == 0) & (y_true[~protected_attribute] == 1)).sum()
+    tp_b = (
+        (y_pred[~protected_attribute] == 1) & (y_true[~protected_attribute] == 1)
+    ).sum()
+    fp_b = (
+        (y_pred[~protected_attribute] == 1) & (y_true[~protected_attribute] == 0)
+    ).sum()
+    tn_b = (
+        (y_pred[~protected_attribute] == 0) & (y_true[~protected_attribute] == 0)
+    ).sum()
+    fn_b = (
+        (y_pred[~protected_attribute] == 0) & (y_true[~protected_attribute] == 1)
+    ).sum()
 
     # Calculate rates for group B
     tpr_b = tp_b / stabilize(tp_b + fn_b)
