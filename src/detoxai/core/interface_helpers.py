@@ -69,7 +69,7 @@ def construct_metrics_config(
     # Default to all metrics
     if metrics == "all":
         fair_metrics = ["ACC", "EO", "DP", "EOO"]
-        perf_metrics = ["GMean", "F1", "Accuracy", "Precision", "Recall"]
+        perf_metrics = ["GMean", "F1Score", "Accuracy", "Precision", "Recall"]
     else:
         raise NotImplementedError("Custom metrics not yet supported")
 

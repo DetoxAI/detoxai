@@ -144,6 +144,10 @@ class NaiveThresholdOptimizer(PosthocBase):
                 best_score = score
                 best_threshold = threshold
 
+        probs = probs.to(self.device)
+        targets = targets.to(self.device)
+        sensitive_features = sensitive_features.to(self.device)
+
         # get balanced accuracy for best threshold
         balanced_acc = balanced_accuracy_torch(
             (probs > best_threshold).float(), targets
