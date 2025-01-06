@@ -96,13 +96,29 @@ DEFAULT_METHODS_CONFIG = {
 }
 
 
+def parse_methods_config(methods_config: dict) -> dict:
+    """
+    Here we compare what was passed and overwrite the default configuration
+    """
+    for key, dic in DEFAULT_METHODS_CONFIG.items():
+        if key not in methods_config:
+            methods_config[key] = dic
+        else:
+            # Else we overwrite common values with the passed ones
+            # And add the missing ones
+            for pk in dic:
+                if pk not in methods_config[key]:
+                    methods_config[key][pk] = dic[pk]
+
+    return methods_config
+
+
 def debias(
     model: nn.Module,
-    dataloader: DetoxaiDataLoader,  # bez concept labeli
-    # harmful_concept: str,
+    dataloader: DetoxaiDataLoader,
     methods: list[str] | str = "all",
     metrics: list[str] | str = "all",
-    methods_config: dict = DEFAULT_METHODS_CONFIG,
+    methods_config: dict = {},
     pareto_metrics: list[str] = ["balanced_accuracy", "equalized_odds"],
     return_type: str = "pareto-front",
     device: str = "cpu",
@@ -145,7 +161,9 @@ def debias(
         },
     }
     """
-    methods_config["global"]["test_dataloader"] = test_dataloader
+
+    # Parse methods config
+    methods_config = parse_methods_config(methods_config)
 
     # Parse methods
     if methods == "all":
@@ -203,6 +221,7 @@ def debias(
         method_kwargs = methods_config[method] | methods_config["global"]
         method_kwargs["model"] = deepcopy(model)
         method_kwargs["dataloader"] = dataloader
+        method_kwargs["test_dataloader"] = test_dataloader
         result = run_correction(method, method_kwargs, pareto_metrics)
         results.append(result)
 
