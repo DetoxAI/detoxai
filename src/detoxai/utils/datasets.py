@@ -1,5 +1,5 @@
 import random
-from typing import Optional, Tuple, Union, Dict, List
+from typing import Optional, Set, Tuple, Union, Dict, List
 from pathlib import Path
 
 import os
@@ -37,8 +37,15 @@ CELEBA_VARIANT_CONFIG = {
                         {"attribute": "Male", "label": 0},
                         {"attribute": "Smiling", "label": 1},
                     ],
-                    "percentage": 0.95,
-                }
+                    "percentage": 0.1,
+                },
+                {
+                    "attribute_combination": [
+                        {"attribute": "Male", "label": 1},
+                        {"attribute": "Smiling", "label": 0},
+                    ],
+                    "percentage": 0.9,
+                },
             ],
         },
         "test": {
@@ -67,6 +74,77 @@ CELEBA_VARIANT_CONFIG = {
         },
     },
 }
+
+
+def calculate_max_samples(df: pd.DataFrame, config: dict) -> int:
+    """
+    Calculate the maximum number of total samples possible given the constraints
+    to avoid duplicates and maintain percentages.
+    """
+    max_possible_samples = []
+
+    for balance_rule in config["balancing"]:
+        mask = pd.Series([True] * len(df), index=df.index)
+        for condition in balance_rule["attribute_combination"]:
+            mask &= df[condition["attribute"]] == condition["label"]
+
+        available_samples = mask.sum()
+
+        # Calculate maximum total samples possible for this rule
+        # Example: if we need 30% and have 100 samples, max total is 100/0.3 = 333
+        if balance_rule["percentage"] > 0:
+            max_total = int(available_samples / balance_rule["percentage"])
+            max_possible_samples.append(max_total)
+
+    return min(max_possible_samples) if max_possible_samples else len(df)
+
+
+def balance_dataset(df: pd.DataFrame, config: dict) -> Tuple[np.ndarray, int]:
+    total_samples = calculate_max_samples(df, config)
+
+    selected_indices: Set[int] = set()
+    remaining_indices = set(range(len(df)))
+
+    for balance_rule in config["balancing"]:
+        n_samples = int(balance_rule["percentage"] * total_samples)
+
+        mask = pd.Series([True] * len(df), index=df.index)
+        for condition in balance_rule["attribute_combination"]:
+            attr = condition["attribute"]
+            label = condition["label"]
+            mask &= df[attr] == label
+
+        matching_indices = df[mask].index.tolist()
+
+        available_indices = list(set(matching_indices) - selected_indices)
+
+        if len(available_indices) < n_samples:
+            print(
+                f"Warning: Reducing total samples. Not enough samples for combination "
+                f"{balance_rule['attribute_combination']}. "
+                f"Requested {n_samples}, but only {len(available_indices)} available."
+            )
+            total_samples = int(len(available_indices) / balance_rule["percentage"])
+            n_samples = int(balance_rule["percentage"] * total_samples)
+
+        if available_indices:
+            selected = np.random.choice(
+                available_indices, size=n_samples, replace=False
+            )
+            selected_indices.update(selected)
+            remaining_indices -= set(selected)
+
+    total_percentage = sum(rule["percentage"] for rule in config["balancing"])
+
+    if total_percentage < 1 and remaining_indices:
+        remaining_samples = int((1 - total_percentage) * total_samples)
+        remaining_to_sample = min(remaining_samples, len(remaining_indices))
+        remaining_selected = np.random.choice(
+            list(remaining_indices), size=remaining_to_sample, replace=False
+        )
+        selected_indices.update(remaining_selected)
+
+    return np.array(list(selected_indices)), total_samples
 
 
 def make_detoxai_datasets_variant(variant_config):
@@ -102,33 +180,7 @@ def make_detoxai_datasets_variant(variant_config):
         split_indices_stop_index = int(split_config["fraction"] * len(labels_fraction))
         df_split = labels_fraction.iloc[:split_indices_stop_index]
 
-        final_split_indices = []
-        for balancing_config in split_config["balancing"]:
-            attribute_combination = balancing_config["attribute_combination"]
-            percentage = balancing_config["percentage"]
-            all_indices = df_split.index.to_numpy()
-
-            # filter the split_indices based on the attribute_combination
-            filtered_df = df_split
-            for attribute in attribute_combination:
-                filtered_df = filtered_df[
-                    filtered_df[attribute["attribute"]] == attribute["label"]
-                ]
-            attribute_combination_indices = filtered_df.index.to_numpy()
-            rest_indices = np.setdiff1d(all_indices, attribute_combination_indices)
-
-            final_num_samples = len(attribute_combination_indices) / percentage
-            if final_num_samples > len(all_indices):
-                raise ValueError("final_num_samples is greater than len(all_indices)")
-
-            final_rest_num_samples = final_num_samples - len(
-                attribute_combination_indices
-            )
-            np.random.shuffle(rest_indices)
-            rest_indices = rest_indices[: int(final_rest_num_samples)]
-
-            final_split_indices.extend(attribute_combination_indices)
-            final_split_indices.extend(rest_indices)
+        final_split_indices, total_samples = balance_dataset(df_split, split_config)
 
         final_split_df = df_split.loc[final_split_indices]
         np.savetxt(split_path, final_split_df.index.to_numpy(), fmt="%d", delimiter=",")
