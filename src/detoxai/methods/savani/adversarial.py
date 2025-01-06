@@ -109,7 +109,6 @@ class SavaniAFT(SavaniBase):
                         y_pred = softmax(y_pred, dim=1)
                     y_pred = y_pred[:, 1]
 
-                logging.debug(y_pred.shape, y_true.shape, prot_attr.shape)
                 logger.info(
                     f"y_pred: {y_pred.shape}, y_true: {y_true.shape}, prot_attr: {prot_attr.shape}"
                 )

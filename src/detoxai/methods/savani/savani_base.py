@@ -113,7 +113,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             output[:, 1] = sigmoid((output[:, 1] - tau) * 10)  # soft thresholding
             output[:, 0] = 1 - output[:, 1]
 
-            logger.debug(f"Savani hook fired in layer: {module}")
+            # logger.debug(f"Savani hook fired in layer: {module}")
 
             return output
 

@@ -90,7 +90,7 @@ DEFAULT_METHODS_CONFIG = {
         "threshold_range": (0.1, 0.9),
         "threshold_steps": 20,
         "metric": "EO_GAP",
-        "objective_function": lambda fairness, accuracy: fairness * accuracy,  # ruff: noqa TODO: consider as a string in case problems with Hydra
+        "objective_function": lambda fairness, accuracy: (1 - fairness) * accuracy,  # ruff: noqa TODO: consider as a string in case problems with Hydra
     },
 }
 
