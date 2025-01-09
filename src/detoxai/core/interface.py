@@ -301,7 +301,7 @@ def run_correction(
             method_kwargs["intervention_layers"] = infer_layers(
                 corrector, method_kwargs["intervention_layers"]
             )
-            logging.debug(
+            logging.info(
                 f'Resolved intervention layers: {method_kwargs["intervention_layers"]}'
             )
 
@@ -310,14 +310,14 @@ def run_correction(
             method_kwargs["cav_layers"] = infer_layers(
                 corrector, method_kwargs["cav_layers"]
             )
-            logging.debug(f'Resolved CAV layers: {method_kwargs["cav_layers"]}')
+            logging.info(f'Resolved CAV layers: {method_kwargs["cav_layers"]}')
 
         # Parse last layer name
         if "last_layer_name" in method_kwargs:
             method_kwargs["last_layer_name"] = infer_layers(
                 corrector, method_kwargs["last_layer_name"]
             )[0]
-            logging.debug(
+            logging.info(
                 f'Resolved last layer name: {method_kwargs["last_layer_name"]}'
             )
 
