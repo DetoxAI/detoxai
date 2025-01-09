@@ -174,8 +174,10 @@ class NaiveThresholdOptimizer(PosthocBase):
         
         if objective_function is None:
             objective_function = lambda fairness, accuracy: -fairness
+            logger.info("No objective function provided. Using default fairness maximization.")
         else:
             try:
+                logger.info(f"Using custom objective function: {objective_function}")
                 objective_function = eval(objective_function)
             except:
                 raise ValueError("Objective function must be a valid lambda function.")
