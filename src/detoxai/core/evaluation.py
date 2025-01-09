@@ -1,16 +1,16 @@
-from torch.utils.data import DataLoader
-import lightning as L
+import torch
+import torch.nn as nn
 import logging
+from torch.utils.data import DataLoader
 
+from ..metrics.metrics import comprehensive_metrics_torch
 
-# Project imports
-from .model_wrappers import FairnessLightningWrapper
 
 logger = logging.getLogger(__name__)
 
 
 def evaluate_model(
-    model: FairnessLightningWrapper,
+    model: nn.Module,
     dataloader: DataLoader,
     pareto_metrics: list[str] | None = None,
     verbose: bool = False,
@@ -51,47 +51,39 @@ def evaluate_model(
     """
 
     device = str(device)
-    if device is not None and "cuda" in device and ":" in device:
-        devices_id = [int(device.split(":")[1])]
-    else:
-        devices_id = "auto"
 
     logger.debug(f"Evaluating model on device: {device}")
 
-    trainer = L.Trainer(
-        logger=False,
-        enable_model_summary=verbose,
-        enable_progress_bar=verbose,
-        enable_checkpointing=False,
-        devices=devices_id,
-    )
     model.eval()
-    raw_results = trainer.test(model, dataloader, verbose=verbose)[0]
+    preds = []
+    targets = []
+    protected_attributes = []
+    for batch in dataloader:
+        x, y, prot_attr = batch
+        x = x.to(device)
+        y = y.to(device)
+        prot_attr = prot_attr.to(device)
+        with torch.no_grad():
+            pred = model(x).argmax(dim=1)
+        preds.append(pred)
+        targets.append(y)
+        protected_attributes.append(prot_attr)
+
+    preds = torch.cat(preds).to(device)
+    targets = torch.cat(targets).to(device)
+    protected_attributes = torch.cat(protected_attributes).to(device)
+
+    raw_results = comprehensive_metrics_torch(targets, preds, protected_attributes)
 
     logger.debug(f"Raw results: {raw_results}")
 
     metrics = {"pareto": {}, "all": {}}
 
-    if pareto_metrics:
-        # Options
-        # test_{metric}_macro for performance metrics
-        # test_{metric}_difference for fairness metrics
-        # test_{metric}_ratio for fairness metrics
-        for metric in raw_results.keys():
-            accept = (
-                metric.endswith("macro")
-                or metric.endswith("difference")
-                or metric.endswith("ratio")
-            )
-            # We only collect the metrics we care about
-            if accept:
-                cleaned_metric = metric.split("_")[1]
+    for metric in raw_results:
+        if pareto_metrics and metric in pareto_metrics:
+            metrics["pareto"][metric] = raw_results[metric].cpu().detach().numpy()
 
-                for pareto_metric in pareto_metrics:
-                    if pareto_metric in metric:
-                        metrics["pareto"][cleaned_metric] = raw_results[metric]
-
-                # Collect all metrics
-                metrics["all"][cleaned_metric] = raw_results[metric]
+        # Collect all metrics
+        metrics["all"][metric] = raw_results[metric].cpu().detach().numpy()
 
     return metrics
