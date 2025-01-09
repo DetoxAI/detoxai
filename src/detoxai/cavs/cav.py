@@ -88,6 +88,11 @@ def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm") ->
         vary = np.sum((y - mean_y) ** 2, axis=0) / (y.shape[0] - 1)
         w = covar / vary
         w = torch.tensor(w)[None]
+    elif "mean-mass" in cav_type:
+        mean_act_nonartif = torch.tensor(X[targets == 0].mean(0), dtype=torch.float32)
+        mean_act_artif = torch.tensor(X[targets == 1].mean(0), dtype=torch.float32)
+
+        cav = mean_act_nonartif - mean_act_artif
 
     else:
         raise NotImplementedError()

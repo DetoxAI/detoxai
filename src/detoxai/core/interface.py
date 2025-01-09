@@ -24,6 +24,7 @@ from ..metrics.fairness_metrics import AllMetrics
 from .evaluation import evaluate_model
 from .mcda_helpers import filter_pareto_front, select_best_method
 from .interface_helpers import construct_metrics_config
+from ..cavs.extract_activations import get_layer_by_name
 
 logger = logging.getLogger(__name__)
 
@@ -377,19 +378,29 @@ def infer_layers(corrector, layers: list[str] | str) -> list[str]:
 
     Otherwise, a list of *actual* layer names can be passed
     """
+    llist = list()
     if layers == "last":
         last_layer = list(corrector.model.named_modules())[-1][0]
-        return [last_layer]
+        llist.append(last_layer)
     elif layers == "penultimate":
         penultimate_layer = list(corrector.model.named_modules())[-2][0]
-        return [penultimate_layer]
+        llist.append(penultimate_layer)
     elif isinstance(layers, list):
-        # Verify that all layers exist in the model
-        all_layers = set([layer[0] for layer in corrector.model.named_modules()])
-        if set(layers).issubset(all_layers):
-            return layers
-        else:
-            not_found = set(layers) - all_layers
-            raise ValueError(f"Layers {not_found} not found in the model")
+        for layer in layers:
+            llist.append(_resolve_layer(corrector.model, layer))
+    elif isinstance(layers, str):
+        llist.append(_resolve_layer(corrector.model, layers))
     else:
         raise ValueError(f"Invalid layer specification {layers}")
+
+    return llist
+
+
+def _resolve_layer(model, layer) -> nn.Module | None:
+    """
+    Resolve a layer name to a layer in the model
+    """
+    ret = get_layer_by_name(model, layer)
+    if ret == model:
+        raise ValueError(f"Layer {layer} not found in the model")
+    return ret
