@@ -132,15 +132,14 @@ def comprehensive_metrics_torch(
         tnr_0 = tn_0 / _stabilize(fp_0 + tn_0)
         fpr_0 = fp_0 / _stabilize(fp_0 + tn_0)
         fnr_0 = fn_0 / _stabilize(tp_0 + fn_0)
-        all_pos_0 = _stabilize(tp_0 + fn_0)
-        all_neg_0 = _stabilize(fp_0 + tn_0)
 
         tpr_1 = tp_1 / _stabilize(tp_1 + fn_1)
         tnr_1 = tn_1 / _stabilize(fp_1 + tn_1)
         fpr_1 = fp_1 / _stabilize(fp_1 + tn_1)
         fnr_1 = fn_1 / _stabilize(tp_1 + fn_1)
-        all_pos_1 = _stabilize(tp_1 + fn_1)
-        all_neg_1 = _stabilize(fp_1 + tn_1)
+
+        ppr_0 = (tp_0 + fp_0) / (tp_0 + fp_0 + tn_0 + fn_0)
+        ppr_1 = (tp_1 + fp_1) / (tp_1 + fp_1 + tn_1 + fn_1)
 
         accuracy_0 = (tp_0 + tn_0) / (tp_0 + tn_0 + fp_0 + fn_0)
         accuracy_1 = (tp_1 + tn_1) / (tp_1 + tn_1 + fp_1 + fn_1)
@@ -148,7 +147,7 @@ def comprehensive_metrics_torch(
         # Fairness
         equal_opportunity = torch.abs(tpr_0 - tpr_1)
         equalized_odds = torch.max(torch.abs(tpr_0 - tpr_1), torch.abs(fpr_0 - fpr_1))
-        demographic_parity = torch.abs(all_pos_0 - all_pos_1) / (all_pos_0 + all_pos_1)
+        demographic_parity = torch.abs(ppr_0 - ppr_1)
         accuracy_gap = torch.abs(accuracy_0 - accuracy_1)
 
         metrics["Equal_opportunity"] = equal_opportunity

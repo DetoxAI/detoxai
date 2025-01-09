@@ -13,8 +13,6 @@ def evaluate_model(
     model: nn.Module,
     dataloader: DataLoader,
     pareto_metrics: list[str] | None = None,
-    verbose: bool = False,
-    device: str = None,
 ) -> dict:
     """
     Evaluate the model on various metrics
@@ -22,9 +20,7 @@ def evaluate_model(
     Args:
         - model: Model to evaluate
         - dataloader: DataLoader for the dataset
-        - class_labels: List of class labels (usually taken from your collator to ensure consistency)
-        - prot_attr_arity: Arity of the protected attribute (e.g. 2 for binary)
-
+        - pareto_metrics: List of metrics to include in the pareto front
     ***
     `TEMPLATE FOR METRICS DICT`
     ***
@@ -50,9 +46,9 @@ def evaluate_model(
         model: Model to evaluate
     """
 
-    device = str(device)
+    model_device = next(model.parameters()).device
 
-    logger.debug(f"Evaluating model on device: {device}")
+    logger.debug(f"Evaluating model on device: {model_device}")
 
     model.eval()
     preds = []
@@ -60,18 +56,18 @@ def evaluate_model(
     protected_attributes = []
     for batch in dataloader:
         x, y, prot_attr = batch
-        x = x.to(device)
-        y = y.to(device)
-        prot_attr = prot_attr.to(device)
+        x = x.to(model_device)
+        y = y.to(model_device)
+        prot_attr = prot_attr.to(model_device)
         with torch.no_grad():
             pred = model(x).argmax(dim=1)
         preds.append(pred)
         targets.append(y)
         protected_attributes.append(prot_attr)
 
-    preds = torch.cat(preds).to(device)
-    targets = torch.cat(targets).to(device)
-    protected_attributes = torch.cat(protected_attributes).to(device)
+    preds = torch.cat(preds).to(model_device)
+    targets = torch.cat(targets).to(model_device)
+    protected_attributes = torch.cat(protected_attributes).to(model_device)
 
     raw_results = comprehensive_metrics_torch(targets, preds, protected_attributes)
 

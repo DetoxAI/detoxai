@@ -240,7 +240,6 @@ def debias(
                 model,
                 dataloader if test_dataloader is None else test_dataloader,
                 pareto_metrics,
-                device=device,
             ),
         )
         results.append(vanilla_result)
@@ -348,16 +347,15 @@ def run_correction(
             for param in method_kwargs["model"].parameters():
                 param.requires_grad = False
 
-            # Move to CPU
-            method_kwargs["model"].to("cpu")
-
             test_dl = method_kwargs["test_dataloader"]
             metrics = evaluate_model(
                 method_kwargs["model"],
                 method_kwargs["dataloader"] if test_dl is None else test_dl,
                 pareto_metrics,
-                device=method_kwargs["device"],
             )
+
+            # Move to CPU
+            method_kwargs["model"].to("cpu")
 
         except Exception as e:
             logger.error(f"Error running correction method {method}: {e}")

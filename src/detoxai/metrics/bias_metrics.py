@@ -67,6 +67,9 @@ def calculate_bias_metric_torch(
     tnr_b = tn_b / stabilize(tn_b + fp_b)
     fnr_b = fn_b / stabilize(fn_b + tp_b)
 
+    ppr_a = (y_pred[protected_attribute] == 1).sum() / protected_attribute.sum()
+    ppr_b = (y_pred[~protected_attribute] == 1).sum() / (~protected_attribute).sum()
+
     if metric == BiasMetrics.TPR_GAP.value:
         bias = torch.abs(tpr_a - tpr_b)
     elif metric == BiasMetrics.FPR_GAP.value:
@@ -76,9 +79,9 @@ def calculate_bias_metric_torch(
     elif metric == BiasMetrics.FNR_GAP.value:
         bias = torch.abs(fnr_a - fnr_b)
     elif metric == BiasMetrics.EO_GAP.value:
-        bias = 0.5 * (torch.abs(tpr_a - tpr_b) + torch.abs(fpr_a - fpr_b))
+        bias = torch.max(torch.abs(tpr_a - tpr_b), torch.abs(fpr_a - fpr_b))
     elif metric == BiasMetrics.DP_GAP.value:
-        bias = torch.abs(tpr_a - tpr_b)
+        bias = torch.abs(ppr_a - ppr_b)
     else:
         raise ValueError(f"Unknown bias metric: {metric}")
 
@@ -143,7 +146,7 @@ def calculate_bias_metric_np(
     elif metric == BiasMetrics.FNR_GAP.value:
         bias = abs(fnr_a - fnr_b)
     elif metric == BiasMetrics.EO_GAP.value:
-        bias = 0.5 * (abs(tpr_a - tpr_b) + abs(fpr_a - fpr_b))
+        bias = max(abs(tpr_a - tpr_b), abs(fpr_a - fpr_b))
     elif metric == BiasMetrics.DP_GAP.value:
         ppr_a = (y_pred[protected_attribute] == 1).sum() / protected_attribute.sum()
         ppr_b = (y_pred[~protected_attribute] == 1).sum() / (~protected_attribute).sum()
