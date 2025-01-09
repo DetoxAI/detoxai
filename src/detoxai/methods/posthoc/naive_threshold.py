@@ -173,7 +173,7 @@ class NaiveThresholdOptimizer(PosthocBase):
         """Applies threshold modification hook to model."""
         
         if objective_function is None:
-            objective_function = lambda fairness, accuracy: (1 - fairness) * accuracy
+            objective_function = lambda fairness, accuracy: -fairness
         else:
             try:
                 objective_function = eval(objective_function)
