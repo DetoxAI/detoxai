@@ -171,8 +171,15 @@ class NaiveThresholdOptimizer(PosthocBase):
         **kwargs: Any,
     ) -> None:
         """Applies threshold modification hook to model."""
+        
         if objective_function is None:
             objective_function = lambda fairness, accuracy: (1 - fairness) * accuracy
+        else:
+            try:
+                objective_function = eval(objective_function)
+            except:
+                raise ValueError("Objective function must be a valid lambda function.")
+        
         threshold = self._optimize_threshold(
             threshold_range, threshold_steps, objective_function, metric
         )
