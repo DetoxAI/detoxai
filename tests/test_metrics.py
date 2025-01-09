@@ -1,7 +1,6 @@
 import pytest
 import torch
 import numpy as np
-import fairlearn.metrics as flm
 from src.detoxai.metrics.metrics import comprehensive_metrics_torch
 
 
@@ -63,7 +62,7 @@ class TestBiasMetrics:
         assert np.isclose(res["Equal_opportunity"], expected_EOO)
         assert np.isclose(res["Equalized_odds"], expected_EO)
         assert np.isclose(res["Demographic_parity"], expected_DP)
-        assert np.isclose(res["Accuracy_partiy"], expected_ACC_PAR)
+        assert np.isclose(res["Accuracy_parity"], expected_ACC_PAR)
 
     def test_fairness_metrics_torch_edgecase(self, edge_case_data_torch):
         y_pred, y_true, protected_attribute = edge_case_data_torch
@@ -78,7 +77,7 @@ class TestBiasMetrics:
         assert np.isclose(res["Equal_opportunity"], expected_EOO)
         assert np.isclose(res["Equalized_odds"], expected_EO)
         assert np.isclose(res["Demographic_parity"], expected_DP)
-        assert np.isclose(res["Accuracy_partiy"], expected_ACC_PAR)
+        assert np.isclose(res["Accuracy_parity"], expected_ACC_PAR)
 
     def test_return_torch_type(self, sample_data_torch):
         y_pred, y_true, protected_attribute = sample_data_torch

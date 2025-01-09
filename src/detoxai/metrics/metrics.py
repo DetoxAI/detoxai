@@ -154,7 +154,7 @@ def comprehensive_metrics_torch(
         metrics["Equal_opportunity"] = equal_opportunity
         metrics["Equalized_odds"] = equalized_odds
         metrics["Demographic_parity"] = demographic_parity
-        metrics["Accuracy_partiy"] = accuracy_gap
+        metrics["Accuracy_parity"] = accuracy_gap
 
     if not return_torch:
         metrics = {k: v.cpu().detach().item() for k, v in metrics.items()}

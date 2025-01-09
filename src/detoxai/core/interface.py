@@ -16,6 +16,7 @@ from ..methods import (
     LEACE,
     RejectOptionClassification,
     NaiveThresholdOptimizer,
+    FineTune,
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
@@ -39,6 +40,7 @@ SUPPORTED_METHODS = [
     "LEACE",
     "ROC",
     "NT",
+    "FINETUNE",
 ]
 
 
@@ -93,6 +95,10 @@ DEFAULT_METHODS_CONFIG = {
         "threshold_steps": 20,
         "metric": "EO_GAP",
         "objective_function": "lambda fairness, accuracy: -fairness",  # ruff: noqa
+    },
+    "FINETUNE": {
+        "fine_tune_epochs": 1,
+        "lr": 1e-4,
     },
 }
 
@@ -283,6 +289,8 @@ def run_correction(
             corrector = RejectOptionClassification(**method_kwargs)
         case "NT":
             corrector = NaiveThresholdOptimizer(**method_kwargs)
+        case "FINETUNE":
+            corrector = FineTune(**method_kwargs)
         case _:
             logger.error(ValueError(f"Correction method {method} not found"))
             failed = True

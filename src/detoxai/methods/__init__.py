@@ -13,3 +13,5 @@ from .clarcs import (  # noqa
     add_mass_mean_probe_hook,
 )
 from .posthoc import RejectOptionClassification, NaiveThresholdOptimizer  # noqa
+
+from .other import FineTune  # noqa
