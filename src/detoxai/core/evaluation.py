@@ -49,6 +49,7 @@ def evaluate_model(
 
     if device is not None:
         model_device = device
+        model.to(device)
     else:
         model_device = next(model.parameters()).device
 
