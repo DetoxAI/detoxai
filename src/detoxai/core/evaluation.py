@@ -13,6 +13,7 @@ def evaluate_model(
     model: nn.Module,
     dataloader: DataLoader,
     pareto_metrics: list[str] | None = None,
+    device: str | None = None,
 ) -> dict:
     """
     Evaluate the model on various metrics
@@ -46,7 +47,10 @@ def evaluate_model(
         model: Model to evaluate
     """
 
-    model_device = next(model.parameters()).device
+    if device is not None:
+        model_device = device
+    else:
+        model_device = next(model.parameters()).device
 
     logger.debug(f"Evaluating model on device: {model_device}")
 

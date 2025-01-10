@@ -240,6 +240,7 @@ def debias(
                 model,
                 dataloader if test_dataloader is None else test_dataloader,
                 pareto_metrics,
+                device=device,
             ),
         )
         results.append(vanilla_result)
@@ -301,7 +302,7 @@ def run_correction(
                 corrector, method_kwargs["intervention_layers"]
             )
             logging.info(
-                f'Resolved intervention layers: {method_kwargs["intervention_layers"]}'
+                f"Resolved intervention layers: {method_kwargs['intervention_layers']}"
             )
 
         # Parse cav layers
@@ -309,7 +310,7 @@ def run_correction(
             method_kwargs["cav_layers"] = infer_layers(
                 corrector, method_kwargs["cav_layers"]
             )
-            logging.info(f'Resolved CAV layers: {method_kwargs["cav_layers"]}')
+            logging.info(f"Resolved CAV layers: {method_kwargs['cav_layers']}")
 
         # Parse last layer name
         if "last_layer_name" in method_kwargs:
@@ -317,7 +318,7 @@ def run_correction(
                 corrector, method_kwargs["last_layer_name"]
             )[0]
             logging.info(
-                f'Resolved last layer name: {method_kwargs["last_layer_name"]}'
+                f"Resolved last layer name: {method_kwargs['last_layer_name']}"
             )
 
         # Precompute CAVs if required
@@ -352,6 +353,7 @@ def run_correction(
                 method_kwargs["model"],
                 method_kwargs["dataloader"] if test_dl is None else test_dl,
                 pareto_metrics,
+                device=method_kwargs["device"],
             )
 
             # Move to CPU
