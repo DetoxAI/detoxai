@@ -10,7 +10,7 @@ import yaml
 from typing import Union
 from pathlib import Path
 
-from ... import DETOXAI_DATASET_PATH
+DETOXAI_DATASET_PATH = os.environ.get("DETOXAI_DATASET_PATH", os.path.expanduser("~"))
 
 logger = logging.getLogger(__name__)
 
