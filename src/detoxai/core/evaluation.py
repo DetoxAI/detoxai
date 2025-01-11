@@ -82,9 +82,9 @@ def evaluate_model(
 
     for metric in raw_results:
         if pareto_metrics and metric in pareto_metrics:
-            metrics["pareto"][metric] = raw_results[metric].cpu().detach().numpy()
+            metrics["pareto"][metric] = raw_results[metric].cpu().detach().item()
 
         # Collect all metrics
-        metrics["all"][metric] = raw_results[metric].cpu().detach().numpy()
+        metrics["all"][metric] = raw_results[metric].cpu().detach().item()
 
     return metrics
