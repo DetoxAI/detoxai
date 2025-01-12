@@ -99,7 +99,7 @@ def comprehensive_metrics_torch(
     precision = tp / _stabilize(tp + fp)
     recall = tpr
     specificity = tn / _stabilize(tn + fp)
-    f1 = 2 * (precision * recall) / (precision + recall)
+    f1 = 2 * (precision * recall) / _stabilize(precision + recall)
     geometric_mean = (recall * specificity) ** 0.5
     balanced_accuracy = (recall + specificity) / 2
 
