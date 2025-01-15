@@ -1,5 +1,5 @@
 import random
-from typing import Optional, Set, Tuple, Union, Dict, List
+from typing import Optional, Set, Tuple, Union, Dict, List, Callable
 from pathlib import Path
 
 import os
@@ -194,17 +194,17 @@ def make_detoxai_datasets_variant(variant_config):
 def get_detoxai_datasets(
     config: dict,
     transform: Optional[
-        callable
+        Callable
     ] = None,  # takes in a PIL image and returns a transformed version
     transforms: Optional[
-        callable
+        Callable
     ] = None,  # takes in an image and a label and returns the transformed versions of both
     target_transform: Optional[
-        callable
+        Callable
     ] = None,  # A function/transform that takes in the target and transforms it.
     download: bool = False,
     seed: Optional[int] = None,
-    device: str = None,
+    device: Union[str, None] = None,
     saved_variant: Optional[str] = None,
 ) -> Dict[str, "DetoxaiDataset"]:
     detoxai_dataset_path = Path(DETOXAI_DATASET_PATH)
@@ -261,13 +261,13 @@ class DetoxaiDataset(VisionDataset):
         root: Union[str, Path],
         split_indices: np.ndarray,
         transform: Optional[
-            callable
+            Callable
         ] = None,  # takes in a PIL image and returns a transformed version
         transforms: Optional[
-            callable
+            Callable
         ] = None,  # takes in an image and a label and returns the transformed versions of both
         target_transform: Optional[
-            callable
+            Callable
         ] = None,  # A function/transform that takes in the target and transforms it.
         download: bool = False,
         seed: Optional[int] = None,
