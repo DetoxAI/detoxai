@@ -169,8 +169,12 @@ def debias(
     }
     """
 
+    logging.debug(f"Received configuration:\n  {methods_config}")
+
     # Parse methods config
-    methods_config = parse_methods_config(methods_config)
+    config = parse_methods_config(methods_config)
+
+    logging.debug(f"Resolved configuration to:\n {config}")
 
     # Parse methods
     if methods == "all":
@@ -184,13 +188,13 @@ def debias(
         # Capitalize all methods
         methods = [method.upper() for method in methods]
 
-    methods_config["global"]["device"] = device
+    config["global"]["device"] = device
 
     # Append a timestamp to the experiment name
     timestep = datetime.now().strftime("%Y%m%d-%H%M%S%f")
-    exp_name = f"{methods_config['global']['experiment_name']}_{timestep}"
-    methods_config["global"]["experiment_name"] = exp_name
-    logging.info(f"Experiment name: {methods_config['global']['experiment_name']}")
+    exp_name = f"{config['global']['experiment_name']}_{timestep}"
+    config["global"]["experiment_name"] = exp_name
+    logging.info(f"Experiment name: {config['global']['experiment_name']}")
 
     # # ------------------------------------------------
     # # DATASET HANDLING IS TODO HERE
@@ -226,7 +230,7 @@ def debias(
     results = []
     for method in methods:
         logger.info("=" * 50 + f" Running method {method} " + "=" * 50)
-        method_kwargs = methods_config[method] | methods_config["global"]
+        method_kwargs = config[method] | config["global"]
         method_kwargs["model"] = deepcopy(model)
         method_kwargs["dataloader"] = dataloader
         method_kwargs["test_dataloader"] = test_dataloader
@@ -268,8 +272,11 @@ def run_correction(
     """
     metrics = {"pareto": {}, "all": {}}
     failed = False
-    
-    logging.debug(f"Running correction method {method} with kwargs: \n {method_kwargs}")
+
+    # Copy and remove model from kwargs used for debug printing
+    __cfg_copy = deepcopy(method_kwargs)
+    __cfg_copy.pop("model")
+    logging.debug(f"Running correction method {method} with kwargs: \n {__cfg_copy}")
 
     match method.upper():
         case "SAVANIRP":
