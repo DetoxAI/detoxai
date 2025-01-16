@@ -5,6 +5,7 @@ import torch
 import lightning as L
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from torch.nn.functional import softmax, sigmoid
 
@@ -35,7 +36,26 @@ class SavaniBase(ModelCorrectionMethod, ABC):
     def apply_model_correction(self) -> None:
         raise NotImplementedError
 
-    def objective_thresh(self, backend: str, cache_preds: bool = True) -> callable:
+    def optimize_tau(
+        self, tau_init: float, thresh_optimizer_maxiter: int
+    ) -> tuple[float, float]:
+        objective_fn = self.objective_thresh("torch", True, "max")
+
+        best_phi = 1e-6
+        tau = tau_init
+
+        for _tau in torch.linspace(0, 1, thresh_optimizer_maxiter):
+            phi = objective_fn(_tau)
+
+            if phi > best_phi:
+                best_phi = phi
+                tau = _tau
+
+        return tau, best_phi
+
+    def objective_thresh(
+        self, backend: str, cache_preds: bool = True, direction: str = "min"
+    ) -> callable:
         if cache_preds:
             with torch.no_grad():
                 # Assuming binary classification and logits
@@ -47,22 +67,31 @@ class SavaniBase(ModelCorrectionMethod, ABC):
                 y_preds = y_probs[:, 1]
                 y_preds_np = y_preds.detach().cpu().numpy()
 
+        if direction == "min":
+            d_mul = -1
+        elif direction == "max":
+            d_mul = 1
+        else:
+            raise ValueError(f"Direction {direction} not supported")
+
         if backend == "torch":
 
             def objective(tau):
                 phi, _ = self.phi_torch(tau, y_preds)
-                return -phi.detach().cpu().numpy()
+                return phi.detach().cpu().numpy() * d_mul
         elif backend == "np":
 
             def objective(tau):
-                phi, _ = self.phi_np(tau, y_preds_np)
-                return -phi
+                phi, _ = self.phi_np(tau, y_preds_np) * d_mul
+                return phi * d_mul
         else:
             raise ValueError(f"Backend {backend} not supported")
 
         return objective
 
-    def phi_torch(self, tau, preds=None) -> tuple[torch.Tensor, torch.Tensor]:
+    def phi_torch(
+        self, tau: torch.Tensor, preds: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             if preds is None:
                 # Assuming binary classification and logits
@@ -75,11 +104,9 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             else:
                 y_preds = preds
 
-            _tau = torch.tensor(tau, device=self.device)
-
             return phi_torch(
                 self.Y_true_torch,
-                y_preds > _tau,
+                y_preds > tau.to(self.device),
                 self.ProtAttr_torch,
                 self.epsilon,
                 self.bias_metric,

@@ -47,6 +47,8 @@ def evaluate_model(
         model: Model to evaluate
     """
 
+    logger.debug("Evaluating model")
+
     if device is not None:
         model_device = device
         model.to(device)

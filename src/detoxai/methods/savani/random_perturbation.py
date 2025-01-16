@@ -49,13 +49,13 @@ class SavaniRP(SavaniBase):
         To change perturbation parameters, you can pass the mean and std of the Gaussian noise
         options = {'mean': 1.0, 'std': 0.1}
         """
-        assert 0 <= data_to_use <= 1 or isinstance(
-            data_to_use, int
-        ), "frac_of_batches_to_use must be in [0, 1] or an integer"
+        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
+            "frac_of_batches_to_use must be in [0, 1] or an integer"
+        )
         assert T_iters > 0, "T_iters must be a positive integer"
-        assert self.check_layer_name_exists(
-            last_layer_name
-        ), f"Layer name {last_layer_name} not found in the model"
+        assert self.check_layer_name_exists(last_layer_name), (
+            f"Layer name {last_layer_name} not found in the model"
+        )
 
         self.last_layer_name = last_layer_name
         self.epsilon = epsilon
@@ -65,7 +65,6 @@ class SavaniRP(SavaniBase):
         best_tau = tau_init
         best_model = deepcopy(self.model)
         best_phi = -1
-        best_bias = -1
 
         # Unpack multiple batches of the dataloader
         self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
@@ -76,7 +75,7 @@ class SavaniRP(SavaniBase):
         self.ProtAttr_np = self.ProtAttr_torch.detach().cpu().numpy()
 
         with tqdm(
-            desc=f"Random Perturbation iterations (phi: {best_phi}, tau: {best_tau})",
+            desc=f"Random Perturbation iterations (phi: {best_phi:.3f}, tau: {best_tau:.3f})",
             total=T_iters,
             file=sys.stdout,
         ) as pbar:
@@ -84,32 +83,15 @@ class SavaniRP(SavaniBase):
             for i in range(T_iters):
                 self._perturb_weights(self.model, **options)
 
-                # Optimize the threshold tau
-                res: OptimizeResult = optimize.minimize_scalar(
-                    self.objective_thresh("np", True),
-                    bounds=(0, 1),
-                    method="bounded",
-                    options={"maxiter": optimizer_maxiter},
-                )
+                tau, phi = self.optimize_tau(tau_init, optimizer_maxiter)
 
-                if res.success:
-                    tau = res.x
-                    phi = -res.fun
-                    bias = self.phi_np(tau)[1]
-
-                    logger.debug(f"tau: {tau:.3f}, phi: {phi:.3f}, bias: {bias:.3f}")
-
-                    if phi > best_phi:
-                        best_tau = tau
-                        best_model = deepcopy(self.model)
-                        best_phi = phi
-                        best_bias = bias
-
-                else:
-                    logger.warning(f"Optimization failed: {res.message}")
+                if phi > best_phi:
+                    best_tau = tau
+                    best_phi = phi
+                    best_model = deepcopy(self.model)
 
                 pbar.set_description(
-                    f"Random Perturbation iterations (phi: {best_phi:.3f}, tau: {best_tau:.3f}, bias: {best_bias:.3f})"
+                    f"Random Perturbation iterations (phi: {best_phi:.3f}, tau: {best_tau:.3f})"
                 )
                 pbar.update(1)
 

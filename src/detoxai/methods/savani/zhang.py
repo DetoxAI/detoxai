@@ -4,10 +4,6 @@ import logging
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch import autograd
-
-
-from scipy import optimize
-from scipy.optimize import OptimizeResult
 from tqdm import tqdm
 
 # Project imports
@@ -59,12 +55,12 @@ class ZhangM(SavaniBase):
         options = {'outputs_are_logits': False}
 
         """
-        assert 0 <= data_to_use <= 1 or isinstance(
-            data_to_use, int
-        ), "frac_of_batches_to_use must be in [0, 1] or an integer"
-        assert self.check_layer_name_exists(
-            last_layer_name
-        ), f"Layer name {last_layer_name} not found in the model"
+        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
+            "frac_of_batches_to_use must be in [0, 1] or an integer"
+        )
+        assert self.check_layer_name_exists(last_layer_name), (
+            f"Layer name {last_layer_name} not found in the model"
+        )
 
         self.last_layer_name = last_layer_name
         self.tau_init = tau_init
@@ -167,22 +163,8 @@ class ZhangM(SavaniBase):
 
                 logger.debug(f"[{j}] Model loss: {m_loss.item()}")
 
-        # Optimize the threshold tau
-        res: OptimizeResult = optimize.minimize_scalar(
-            self.objective_thresh("torch", True),
-            bounds=(0, 1),
-            method="bounded",
-            options={"maxiter": thresh_optimizer_maxiter},
-        )
-
-        if res.success:
-            tau = res.x
-            _phi = -res.fun
-            bias = self.phi_torch(tau)[1].detach().cpu().numpy()
-            logger.debug(f"tau: {tau:.3f}, phi: {_phi:.3f}, bias: {bias:.3f}")
-        else:
-            tau = tau_init
-            logger.debug(f"Optimization failed: {res.message}")
+        tau, phi = self.optimize_tau(tau_init, thresh_optimizer_maxiter)
+        logger.info(f"Best tau: {tau}, Best phi: {phi}")
 
         if hasattr(self, "lightning_model"):
             self.lightning_model.model = self.model
