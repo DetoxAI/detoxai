@@ -60,12 +60,12 @@ class SavaniAFT(SavaniBase):
         options = {'outputs_are_logits': False}
 
         """
-        assert 0 <= data_to_use <= 1 or isinstance(
-            data_to_use, int
-        ), "frac_of_batches_to_use must be in [0, 1] or an integer"
-        assert self.check_layer_name_exists(
-            last_layer_name
-        ), f"Layer name {last_layer_name} not found in the model"
+        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
+            "frac_of_batches_to_use must be in [0, 1] or an integer"
+        )
+        assert self.check_layer_name_exists(last_layer_name), (
+            f"Layer name {last_layer_name} not found in the model"
+        )
 
         self.last_layer_name = last_layer_name
         self.tau_init = tau_init
@@ -109,9 +109,6 @@ class SavaniAFT(SavaniBase):
                         y_pred = softmax(y_pred, dim=1)
                     y_pred = y_pred[:, 1]
 
-                logger.info(
-                    f"y_pred: {y_pred.shape}, y_true: {y_true.shape}, prot_attr: {prot_attr.shape}"
-                )
                 bias = calculate_bias_metric_torch(
                     self.bias_metric, y_pred, y_true, prot_attr
                 )
