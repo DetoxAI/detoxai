@@ -1,10 +1,10 @@
-from abc import ABC, abstractmethod
 import torch
-from torch import nn
 import lightning as L
+from abc import ABC, abstractmethod
 
 from ...cavs import extract_activations, compute_mass_mean_probe, compute_cav
 from ..model_correction import ModelCorrectionMethod
+from ..utils import ACTIVATIONS_DIR
 
 
 # Wrapper for requiring activations and CAVs to be computed before applying model correction
@@ -45,7 +45,7 @@ class CLARC(ModelCorrectionMethod, ABC):
         dataloader: torch.utils.data.DataLoader,
         layers: list,
         use_cache: bool = True,
-        save_dir: str = "./activations",
+        save_dir: str = ACTIVATIONS_DIR,
     ) -> None:
         # Freeze the model
         self.model.eval()
@@ -54,10 +54,10 @@ class CLARC(ModelCorrectionMethod, ABC):
             self.model,
             dataloader,
             self.experiment_name,
+            save_dir,
             layers,
             self.device,
             use_cache,
-            save_dir,
         )
 
     def compute_cavs(self, cav_type: str, cav_layers: list[str]) -> None:

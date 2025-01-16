@@ -190,7 +190,7 @@ def debias(
     timestep = datetime.now().strftime("%Y%m%d-%H%M%S%f")
     exp_name = f"{methods_config['global']['experiment_name']}_{timestep}"
     methods_config["global"]["experiment_name"] = exp_name
-    logging.info(f"Experiment name: {exp_name}")
+    logging.info(f"Experiment name: {methods_config['global']['experiment_name']}")
 
     # # ------------------------------------------------
     # # DATASET HANDLING IS TODO HERE
@@ -268,6 +268,8 @@ def run_correction(
     """
     metrics = {"pareto": {}, "all": {}}
     failed = False
+    
+    logging.debug(f"Running correction method {method} with kwargs: \n {method_kwargs}")
 
     match method.upper():
         case "SAVANIRP":

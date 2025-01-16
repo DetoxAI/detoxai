@@ -53,7 +53,7 @@ def load_activations(save_path: str) -> dict[str, np.ndarray]:
     activations = {}
     for key in activations_np:
         activations[key] = activations_np[key]
-    print(f"Loaded activations from '{save_path}'")
+    logger.info(f"Loaded activations from '{save_path}'")
     return activations
 
 
@@ -61,23 +61,22 @@ def extract_activations(
     model: nn.Module,
     dataloader: DataLoader,
     experiment_name: str,
+    save_dir: str,
     layers: list | None = None,
     device: str = "cuda",
     use_cache: bool = True,
-    save_dir: str = "./activations",
 ) -> dict[str, np.ndarray]:
     """
     Extract activations from all layers of a model for data from a dataloader.
 
     Args:
         model (nn.Module): The PyTorch model.
-        dataloader (DataLoader): DataLoader providing the input data.
-        save_path (str): Directory path to save the activations.
-        layers (list or dict, optional): Layers to extract activations from.
-                                         If None, all layers are used.
-                                         Can be a list of layer names or a dict of {name: module}.
-        device (str, optional): Device to run the model on ('cuda' or 'cpu').
-        use_cache (bool, optional): Whether to use cached activations if available.
+        dataloader (DataLoader): The PyTorch DataLoader.
+        experiment_name (str): Name of the experiment.
+        save_dir (str): Directory to save the activations.
+        layers (list): List of layer names to extract activations from.
+        device (str): Device to run the model on.
+        use_cache (bool): Whether to use cached activations.
 
     Returns:
         dict: Dictionary mapping layer names to activations.

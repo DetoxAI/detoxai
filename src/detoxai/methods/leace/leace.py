@@ -6,6 +6,7 @@ from concept_erasure import LeaceEraser
 
 from ...cavs import extract_activations
 from ..model_correction import ModelCorrectionMethod
+from ..utils import ACTIVATIONS_DIR
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class LEACE(ModelCorrectionMethod):
         dataloader: torch.utils.data.DataLoader,
         intervention_layers: list[str],
         use_cache: bool = True,
-        save_dir: str = "./activations",
+        save_dir: str = ACTIVATIONS_DIR,
     ) -> None:
         # Freeze the model
         self.model.eval()
@@ -38,10 +39,10 @@ class LEACE(ModelCorrectionMethod):
             self.model,
             dataloader,
             self.experiment_name,
+            save_dir,
             intervention_layers,
             self.device,
             use_cache,
-            save_dir,
         )
 
     def apply_model_correction(self, intervention_layers: list[str], **kwargs) -> None:
