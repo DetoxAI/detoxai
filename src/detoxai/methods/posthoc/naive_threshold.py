@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from typing import Tuple, Optional, Dict, List, Any, Callable
+from typing import Tuple, Optional, List, Any, Callable
 import logging
 
 from .posthoc_base import PosthocBase
@@ -171,17 +171,19 @@ class NaiveThresholdOptimizer(PosthocBase):
         **kwargs: Any,
     ) -> None:
         """Applies threshold modification hook to model."""
-        
+
         if objective_function is None:
             objective_function = lambda fairness, accuracy: -fairness
-            logger.info("No objective function provided. Using default fairness maximization.")
+            logger.info(
+                "No objective function provided. Using default fairness maximization."
+            )
         else:
             try:
                 logger.info(f"Using custom objective function: {objective_function}")
                 objective_function = eval(objective_function)
             except:
                 raise ValueError("Objective function must be a valid lambda function.")
-        
+
         threshold = self._optimize_threshold(
             threshold_range, threshold_steps, objective_function, metric
         )

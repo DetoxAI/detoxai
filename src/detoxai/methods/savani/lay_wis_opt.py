@@ -6,9 +6,6 @@ import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
 from copy import deepcopy
-
-from scipy import optimize
-from scipy.optimize import OptimizeResult
 from tqdm import tqdm
 from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize
 from skopt.space import Real
@@ -63,12 +60,12 @@ class SavaniLWO(SavaniBase):
         options = {'outputs_are_logits': False}
 
         """
-        assert 0 <= data_to_use <= 1 or isinstance(
-            data_to_use, int
-        ), "frac_of_batches_to_use must be in [0, 1] or an integer"
-        assert self.check_layer_name_exists(
-            last_layer_name
-        ), f"Layer name {last_layer_name} not found in the model"
+        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
+            "frac_of_batches_to_use must be in [0, 1] or an integer"
+        )
+        assert self.check_layer_name_exists(last_layer_name), (
+            f"Layer name {last_layer_name} not found in the model"
+        )
 
         self.last_layer_name = last_layer_name
         self.tau_init = tau_init
@@ -79,7 +76,6 @@ class SavaniLWO(SavaniBase):
         best_tau = tau_init
         best_model = deepcopy(self.model)
         best_phi = -1
-        best_bias = 1
 
         # Unpack multiple batches of the dataloader
         self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
@@ -89,12 +85,12 @@ class SavaniLWO(SavaniBase):
         total_layers = len(list(self.model.parameters()))
         if n_layers_to_optimize == "all":
             n_layers_to_optimize = total_layers
-        assert (
-            n_layers_to_optimize <= total_layers
-        ), "n_layers_to_optimize must be less than the total number of layers"
+        assert n_layers_to_optimize <= total_layers, (
+            "n_layers_to_optimize must be less than the total number of layers"
+        )
 
         with tqdm(
-            desc=f"LWO layer -1 (global phi: {best_phi:.3f}, tau: {best_tau:.3f}, bias: {best_bias:.3f})",
+            desc=f"LWO layer -1 (global phi: {best_phi:.3f}, tau: {best_tau:.3f})",
             total=n_layers_to_optimize,
             file=sys.stdout,
         ) as pbar:
@@ -143,34 +139,17 @@ class SavaniLWO(SavaniBase):
                             device=self.device,
                         )
 
-                    # Optimize the threshold tau
-                    res: OptimizeResult = optimize.minimize_scalar(
-                        self.objective_thresh("torch", True),
-                        bounds=(0, 1),
-                        method="bounded",
-                        options={"maxiter": thresh_optimizer_maxiter},
-                    )
+                    tau, phi = self.optimize_tau(tau_init, thresh_optimizer_maxiter)
 
-                    if res.success:
-                        tau = res.x
-                        _phi = -res.fun
-                        bias = self.phi_torch(tau)[1].detach().cpu().numpy()
-                        logger.debug(
-                            f"tau: {tau:.3f}, phi: {_phi:.3f}, bias: {bias:.3f}"
-                        )
-
-                        if _phi > best_phi:
-                            best_tau = tau
-                            best_model = deepcopy(self.model)
-                            best_phi = _phi
-                            best_bias = bias
-
-                    else:
-                        logger.info(f"Optimization failed: {res.message}")
+                    if phi > best_phi:
+                        best_phi = phi
+                        best_tau = tau
+                        best_model = deepcopy(self.model)
+                        logger.debug(f"New best phi: {best_phi}, best tau: {best_tau}")
 
                 pbar.update(1)
                 pbar.set_description(
-                    f"LWO layer {i} (global phi: {best_phi:.3f}, tau: {best_tau:.3f}, bias: {best_bias:.3f})"
+                    f"LWO layer {i} (global phi: {best_phi:.3f}, tau: {best_tau:.3f})"
                 )
 
         self.model = best_model
@@ -183,6 +162,9 @@ class SavaniLWO(SavaniBase):
         self.apply_hook(best_tau)
 
     def objective_LWO(self, parameters, tau):
+        if isinstance(tau, float):
+            tau = torch.tensor(tau, device=self.device)
+
         def objective(new_parameters) -> float:
             nonlocal tau
             ps = unflatten_with_map(

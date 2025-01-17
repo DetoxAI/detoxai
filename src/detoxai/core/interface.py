@@ -171,8 +171,8 @@ def debias(
 
     logging.debug(f"Received configuration:\n  {methods_config}")
 
-    # Parse methods config
-    config = parse_methods_config(methods_config)
+    # Parse methods config (deepcopy to avoid modifying the original)
+    config = parse_methods_config(deepcopy(methods_config))
 
     logging.debug(f"Resolved configuration to:\n {config}")
 

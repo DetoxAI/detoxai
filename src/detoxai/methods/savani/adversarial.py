@@ -4,10 +4,6 @@ import logging
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.nn.functional import softmax
-
-
-from scipy import optimize
-from scipy.optimize import OptimizeResult
 from tqdm import tqdm
 
 # Project imports
@@ -104,10 +100,14 @@ class SavaniAFT(SavaniBase):
 
                 with torch.no_grad():
                     # Assuming binary classification and logits
-                    y_pred = self.model(x)
+                    raw_pred = self.model(x)
+
                     if self.options.get("outputs_are_logits", True):
-                        y_pred = softmax(y_pred, dim=1)
-                    y_pred = y_pred[:, 1]
+                        y_pred = softmax(raw_pred, dim=1)
+                    else:  # probabilties
+                        y_pred = raw_pred
+
+                    y_pred = torch.argmax(y_pred, dim=1)
 
                 bias = calculate_bias_metric_torch(
                     self.bias_metric, y_pred, y_true, prot_attr
@@ -136,22 +136,8 @@ class SavaniAFT(SavaniBase):
 
                 logger.debug(f"[{j}] Model loss: {m_loss.item()}")
 
-        # Optimize the threshold tau
-        res: OptimizeResult = optimize.minimize_scalar(
-            self.objective_thresh("torch", True),
-            bounds=(0, 1),
-            method="bounded",
-            options={"maxiter": thresh_optimizer_maxiter},
-        )
-
-        if res.success:
-            tau = res.x
-            _phi = -res.fun
-            bias = self.phi_torch(tau)[1].detach().cpu().numpy()
-            logger.debug(f"tau: {tau:.3f}, phi: {_phi:.3f}, bias: {bias:.3f}")
-        else:
-            tau = tau_init
-            logger.debug(f"Optimization failed: {res.message}")
+        tau, phi = self.optimize_tau(tau_init, thresh_optimizer_maxiter)
+        logger.info(f"Best tau: {tau}, Best phi: {phi}")
 
         if hasattr(self, "lightning_model"):
             self.lightning_model.model = self.model
