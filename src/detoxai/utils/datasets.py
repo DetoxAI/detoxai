@@ -8,10 +8,13 @@ import PIL.Image
 import numpy as np
 import pandas as pd
 import torch
+import logging
 
 # from torch.utils.data import Dataset
 import yaml
 from torchvision.datasets.folder import VisionDataset
+
+logger = logging.getLogger(__name__)
 
 DETOXAI_DATASET_PATH = os.environ.get("DETOXAI_DATASET_PATH", Path.home() / ".detoxai")
 
@@ -119,7 +122,7 @@ def balance_dataset(df: pd.DataFrame, config: dict) -> Tuple[np.ndarray, int]:
         available_indices = list(set(matching_indices) - selected_indices)
 
         if len(available_indices) < n_samples:
-            print(
+            logger.warning(
                 f"Warning: Reducing total samples. Not enough samples for combination "
                 f"{balance_rule['attribute_combination']}. "
                 f"Requested {n_samples}, but only {len(available_indices)} available."
@@ -162,9 +165,9 @@ def make_detoxai_datasets_variant(variant_config):
     )
     labels_fraction = labels.iloc[: int(variant_config["fraction"] * len(labels))]
 
-    assert (
-        variant_config["fraction"] <= 1.0
-    ), "Fraction should be less than or equal to 1.0"
+    assert variant_config["fraction"] <= 1.0, (
+        "Fraction should be less than or equal to 1.0"
+    )
     assert (
         sum(
             [

@@ -4,8 +4,6 @@ import lightning as L
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from copy import deepcopy
-from scipy import optimize
-from scipy.optimize import OptimizeResult
 from tqdm import tqdm
 import logging
 

@@ -100,24 +100,18 @@ class SavaniAFT(SavaniBase):
 
                 with torch.no_grad():
                     # Assuming binary classification and logits
-                    y_pred = self.model(x)
-                    if self.options.get("outputs_are_logits", True):
-                        y_pred = softmax(y_pred, dim=1)
-                    y_pred = y_pred[:, 1]
+                    raw_pred = self.model(x)
 
-                print(
-                    self.bias_metric,
-                    y_pred.mean(),
-                    y_true.float().mean(),
-                    prot_attr.float().mean(),
-                )
+                    if self.options.get("outputs_are_logits", True):
+                        y_pred = softmax(raw_pred, dim=1)
+                    else:  # probabilties
+                        y_pred = raw_pred
+
+                    y_pred = torch.argmax(y_pred, dim=1)
 
                 bias = calculate_bias_metric_torch(
                     self.bias_metric, y_pred, y_true, prot_attr
                 )
-
-                print(bias)
-                print(self.critic(x)[0])
 
                 c_loss = critic_criterion(self.critic(x)[0], bias)
                 critic_optimizer.zero_grad()

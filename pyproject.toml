@@ -1,6 +1,6 @@
 [project]
 name = "detoxai"
-version = "0.0.31"
+version = "0.1.0"
 description = "todo"
 readme = "README_pypi.md"
 requires-python = ">=3.11"
@@ -13,7 +13,6 @@ dependencies = [
     "gdown>=5.2.0",
     "lightning>=2.4.0",
     "torchvision>=0.20.1",
-    "easymcdm>=0.5.13",
     "pillow>=11.0.0",
     "tqdm>=4.67.1",
     "concept-erasure>=0.2.4",

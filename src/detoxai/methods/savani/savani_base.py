@@ -5,7 +5,6 @@ import torch
 import lightning as L
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from torch.nn.functional import softmax, sigmoid
 
@@ -13,7 +12,7 @@ from abc import ABC, abstractmethod
 
 # Project imports
 from ..model_correction import ModelCorrectionMethod
-from .utils import phi_torch, phi_np
+from .utils import phi_torch
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,6 @@ class SavaniBase(ModelCorrectionMethod, ABC):
                 else:
                     y_probs = y_raw_preds
                 y_preds = y_probs[:, 1]
-                y_preds_np = y_preds.detach().cpu().numpy()
 
         if direction == "min":
             d_mul = -1
@@ -80,10 +78,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
                 phi, _ = self.phi_torch(tau, y_preds)
                 return phi.detach().cpu().numpy() * d_mul
         elif backend == "np":
-
-            def objective(tau):
-                phi, _ = self.phi_np(tau, y_preds_np) * d_mul
-                return phi * d_mul
+            raise NotImplementedError("Numpy backend not implemented")
         else:
             raise ValueError(f"Backend {backend} not supported")
 
@@ -108,27 +103,6 @@ class SavaniBase(ModelCorrectionMethod, ABC):
                 self.Y_true_torch,
                 y_preds > tau.to(self.device),
                 self.ProtAttr_torch,
-                self.epsilon,
-                self.bias_metric,
-            )
-
-    def phi_np(self, tau, preds=None) -> tuple[np.ndarray, np.ndarray]:
-        with torch.no_grad():
-            if preds is None:
-                # Assuming binary classification and logits
-                y_raw_preds = self.model(self.X_torch)
-                if self.options.get("outputs_are_logits", True):
-                    y_probs = softmax(y_raw_preds, dim=1)
-                else:
-                    y_probs = y_raw_preds
-                y_preds_np = y_probs[:, 1].detach().cpu().numpy()
-            else:
-                y_preds_np = preds
-
-            return phi_np(
-                self.Y_true_np,
-                y_preds_np > tau,
-                self.ProtAttr_np,
                 self.epsilon,
                 self.bias_metric,
             )

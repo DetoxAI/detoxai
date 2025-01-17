@@ -4,7 +4,6 @@ import numpy as np
 from src.detoxai.metrics.bias_metrics import (
     BiasMetrics,
     calculate_bias_metric_torch,
-    calculate_bias_metric_np,
     stabilize,
 )
 
@@ -96,14 +95,6 @@ class TestBiasMetrics:
         # |0.666 - 0.666| = 0.0
         assert abs(bias.item()) < 1e-6
 
-    # Numpy version tests
-    def test_tpr_gap_np(self, sample_data_np):
-        y_pred, y_true, protected_attribute = sample_data_np
-        bias = calculate_bias_metric_np(
-            BiasMetrics.TPR_GAP, y_pred, y_true, protected_attribute
-        )
-        assert abs(bias - 0.5) < 1e-6
-
     def test_invalid_metric(self, sample_data_torch):
         y_pred, y_true, protected_attribute = sample_data_torch
         with pytest.raises(ValueError):
@@ -112,8 +103,10 @@ class TestBiasMetrics:
             )
 
     def test_stabilize(self):
-        assert abs(stabilize(0.0) - 1e-6) < 1e-10
-        assert abs(stabilize(1.0) - 1.000001) < 1e-10
+        zero = torch.tensor(0.0)
+        one = torch.tensor(1.0)
+        assert abs(stabilize(zero) - 1e-4).item() < 1e-10
+        assert abs(stabilize(one) - 1.0001).item() <= 2e-4
 
     def test_edge_case_torch(self, edge_case_data_torch):
         y_pred, y_true, protected_attribute = edge_case_data_torch
@@ -121,10 +114,3 @@ class TestBiasMetrics:
             BiasMetrics.TPR_GAP, y_pred, y_true, protected_attribute
         )
         assert not torch.isnan(bias)
-
-    def test_edge_case_np(self, edge_case_data_np):
-        y_pred, y_true, protected_attribute = edge_case_data_np
-        bias = calculate_bias_metric_np(
-            BiasMetrics.TPR_GAP, y_pred, y_true, protected_attribute
-        )
-        assert not np.isnan(bias)

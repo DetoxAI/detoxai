@@ -6,9 +6,6 @@ import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader
 from copy import deepcopy
-
-from scipy import optimize
-from scipy.optimize import OptimizeResult
 from tqdm import tqdm
 from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize
 from skopt.space import Real
