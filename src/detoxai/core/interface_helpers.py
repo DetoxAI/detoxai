@@ -1,5 +1,8 @@
 import os
 import yaml
+import torch.nn as nn
+
+from ..cavs.extract_activations import get_layer_by_name
 
 
 def load_supported_tags() -> dict:
@@ -81,3 +84,45 @@ def construct_metrics_config(
         dl_metrics_config["performance"]["metrics"][metric] = a
 
     return dl_metrics_config
+
+
+def resolve_layer(model, layer) -> nn.Module | None:
+    """
+    Resolve a layer name to a layer in the model
+    """
+    ret = get_layer_by_name(model, layer)
+    if ret == model:
+        raise ValueError(f"Layer {layer} not found in the model")
+    return ret
+
+
+def infer_layers(corrector, layers: list[str] | str) -> list[str]:
+    """
+    Infer the layers to use for the correction method
+
+    Args:
+        corrector: Correction method object
+        layers: Layer specification
+
+    There are wildcards available:
+    - "last": Use the last layer
+    - "penultimate": Use the penultimate layer
+
+    Otherwise, a list of *actual* layer names can be passed
+    """
+    llist = list()
+    if layers == "last":
+        last_layer = list(corrector.model.named_modules())[-1][0]
+        llist.append(last_layer)
+    elif layers == "penultimate":
+        penultimate_layer = list(corrector.model.named_modules())[-2][0]
+        llist.append(penultimate_layer)
+    elif isinstance(layers, list):
+        for layer in layers:
+            llist.append(resolve_layer(corrector.model, layer))
+    elif isinstance(layers, str):
+        llist.append(resolve_layer(corrector.model, layers))
+    else:
+        raise ValueError(f"Invalid layer specification {layers}")
+
+    return llist
