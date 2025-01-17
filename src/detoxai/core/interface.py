@@ -398,6 +398,10 @@ def _apply_model_correction_w_timeout(
 
     try:
         corrector.apply_model_correction(**method_kwargs)
+
+        # Disable the alarm
+        signal.alarm(0)
+
         return True
     except Exception as e:
         logger.error(f"Correction method {corrector.__class__.__name__} timed out")
