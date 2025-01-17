@@ -337,13 +337,13 @@ def run_correction(
         try:
             timeout = method_kwargs.pop("method_timeout", None)
             if timeout is not None and timeout > 0:
-                logger.debug(f"Running correction method {method} with timeout")
+                logger.debug(f"Running correction method {method} with timeout set")
                 success = _apply_model_correction_w_timeout(
                     corrector, method_kwargs, timeout
                 )
                 if not success:
                     failed = True
-                    logger.error(f"Correction method {method} failed due to timeout")
+                    logger.error(f"Correction method {method} failed")
             else:
                 corrector.apply_model_correction(**method_kwargs)
 
@@ -403,7 +403,14 @@ def _apply_model_correction_w_timeout(
         signal.alarm(0)
 
         return True
+
     except Exception as e:
-        logger.error(f"Correction method {corrector.__class__.__name__} timed out")
-        logger.error(e)
-        return False
+        if "Timeout" not in str(e):
+            logger.error(
+                f"Error running correction method {corrector.__class__.__name__}: {e}"
+            )
+            logger.error(traceback.format_exc())
+            return False
+        else:
+            logger.error(f"Correction method {corrector.__class__.__name__} timed out")
+            return False
