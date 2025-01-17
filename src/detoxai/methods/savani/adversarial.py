@@ -12,6 +12,7 @@ from ...metrics.bias_metrics import (
     BiasMetrics,
     calculate_bias_metric_torch,
 )
+from ...utils.dataloader import copy_data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,10 @@ class SavaniAFT(SavaniBase):
         last_layer_name: str,
         epsilon: float = 0.1,
         bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
-        data_to_use: float | int = 128,
         iterations: int = 10,
         critic_iterations: int = 5,
         model_iterations: int = 5,
-        train_batch_size: int = 16,
+        train_batch_size: int = 128,
         thresh_optimizer_maxiter: int = 100,
         tau_init: float = 0.5,
         lam: float = 1.0,
@@ -47,6 +47,7 @@ class SavaniAFT(SavaniBase):
         critic_filters: list[int] = [8, 16, 32],
         critic_linear: list[int] = [32],
         outputs_are_logits: bool = True,
+        max_batches_eval: int = 5,
         **kwargs,
     ) -> None:
         """backward
@@ -54,9 +55,6 @@ class SavaniAFT(SavaniBase):
 
 
         """
-        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
-            "frac_of_batches_to_use must be in [0, 1] or an integer"
-        )
         assert self.check_layer_name_exists(last_layer_name), (
             f"Layer name {last_layer_name} not found in the model"
         )
@@ -68,13 +66,12 @@ class SavaniAFT(SavaniBase):
         self.outputs_are_logits = outputs_are_logits
         self.lam = lam
         self.delta = delta
+        self.max_batches_eval = max_batches_eval
 
-        # Unpack multiple batches of the dataloader
-        self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
-            dataloader, data_to_use
-        )
+        self.internal_dl = copy_data_loader(dataloader, batch_size=train_batch_size)
+        _x, _, _ = self.sample_batch()
 
-        channels = self.X_torch.shape[1]
+        channels = _x.shape[1]
 
         self.critic = self.get_critic(
             channels, critic_filters, critic_linear, train_batch_size
@@ -94,7 +91,7 @@ class SavaniAFT(SavaniBase):
                 self.model.eval()
                 self.critic.train()
 
-                x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
+                x, y_true, prot_attr = self.sample_batch()
 
                 with torch.no_grad():
                     # Assuming binary classification and logits
@@ -123,7 +120,7 @@ class SavaniAFT(SavaniBase):
                 self.model.train()
                 self.critic.eval()
 
-                x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
+                x, y_true, prot_attr = self.sample_batch()
 
                 y_logits = self.model(x)
 
@@ -169,6 +166,11 @@ class SavaniAFT(SavaniBase):
                 nn.ReLU(),
                 nn.MaxPool2d(2),
             ]
+
+        # Add adaptive pooling layer
+
+        encoder_layers.append(nn.AdaptiveAvgPool2d(3))
+
         encoder_layers.append(nn.Flatten(start_dim=0))
 
         encoder = nn.Sequential(*encoder_layers).to(self.device)

@@ -12,6 +12,8 @@ from ...metrics.bias_metrics import (
     BiasMetrics,
 )
 
+from ...utils.dataloader import copy_data_loader
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,19 +36,18 @@ class ZhangM(SavaniBase):
         last_layer_name: str,
         epsilon: float = 0.1,
         bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
-        data_to_use: float | int = 128,
-        iterations: int = 15,
+        iterations: int = 5,
         critic_iterations: int = 5,
         model_iterations: int = 2,
-        train_batch_size: int = 64,
+        train_batch_size: int = 128,
         thresh_optimizer_maxiter: int = 100,
         tau_init: float = 0.5,
         # alpha: float = 5.0,
         critic_lr: float = 2e-4,
         model_lr: float = 1e-4,
         critic_linear: list[int] = [256, 256, 256],
-        options: dict = {},
         outputs_are_logits: bool = True,
+        max_batches_eval: int = 5,
         **kwargs,
     ) -> None:
         """backward
@@ -56,9 +57,6 @@ class ZhangM(SavaniBase):
         options = {'outputs_are_logits': False}
 
         """
-        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
-            "frac_of_batches_to_use must be in [0, 1] or an integer"
-        )
         assert self.check_layer_name_exists(last_layer_name), (
             f"Layer name {last_layer_name} not found in the model"
         )
@@ -70,13 +68,9 @@ class ZhangM(SavaniBase):
         self.epsilon = epsilon
         self.bias_metric = bias_metric
         self.outputs_are_logits = outputs_are_logits
+        self.max_batches_eval = max_batches_eval
 
-        # Unpack multiple batches of the dataloader
-        self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
-            dataloader, data_to_use
-        )
-        self.ProtAttr_torch = self.ProtAttr_torch.to(dtype=torch.float32)
-        self.Y_true_torch = self.ProtAttr_torch.to(dtype=torch.float32)
+        self.internal_dl = copy_data_loader(dataloader, batch_size=train_batch_size)
 
         if bias_metric.value == BiasMetrics.DP_GAP.value:
             # 2 because wepass only the predictions as input
@@ -114,9 +108,10 @@ class ZhangM(SavaniBase):
             self.critic.train()
             # Train the critic
             for j in range(critic_iterations):
-                x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
+                x, y_true, prot_attr = self.sample_batch()
 
-                y_logits = self.model(x)
+                with torch.no_grad():
+                    y_logits = self.model(x)
 
                 if bias_metric.value == BiasMetrics.DP_GAP.value:
                     c_pred = self.critic(y_logits)
@@ -145,7 +140,7 @@ class ZhangM(SavaniBase):
             if i > 0:  # Skip the first iteration
                 # Train the model
                 for j in range(model_iterations):
-                    x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
+                    x, y_true, prot_attr = self.sample_batch()
 
                     y_logits = self.model(x)
 

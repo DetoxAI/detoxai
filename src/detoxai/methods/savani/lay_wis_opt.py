@@ -13,6 +13,7 @@ from skopt.space import Real
 # Project imports
 from .savani_base import SavaniBase
 from ...metrics.bias_metrics import BiasMetrics
+from ...utils.dataloader import copy_data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,6 @@ class SavaniLWO(SavaniBase):
         last_layer_name: str,
         epsilon: float = 0.1,
         bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
-        data_to_use: float | int = 128,
         n_layers_to_optimize: int | str = "all",
         optimizer_maxiter: int = 10,
         thresh_optimizer_maxiter: int = 100,
@@ -52,6 +52,8 @@ class SavaniLWO(SavaniBase):
         tau_init: float = 0.5,
         outputs_are_logits: bool = True,
         options: dict = {},
+        max_batches_eval: int = 5,
+        eval_batch_size: int = 128,
         **kwargs,
     ) -> None:
         """
@@ -59,9 +61,6 @@ class SavaniLWO(SavaniBase):
 
 
         """
-        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
-            "frac_of_batches_to_use must be in [0, 1] or an integer"
-        )
         assert self.check_layer_name_exists(last_layer_name), (
             f"Layer name {last_layer_name} not found in the model"
         )
@@ -71,15 +70,13 @@ class SavaniLWO(SavaniBase):
         self.epsilon = epsilon
         self.bias_metric = bias_metric
         self.outputs_are_logits = outputs_are_logits
+        self.max_batches_eval = max_batches_eval
 
         best_tau = tau_init
         best_model = deepcopy(self.model)
         best_phi = -1
 
-        # Unpack multiple batches of the dataloader
-        self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
-            dataloader, data_to_use
-        )
+        self.internal_dl = copy_data_loader(dataloader, batch_size=eval_batch_size)
 
         total_layers = len(list(self.model.parameters()))
         if n_layers_to_optimize == "all":
