@@ -7,7 +7,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from copy import deepcopy
 from tqdm import tqdm
-from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize
+from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize  # noqa
 from skopt.space import Real
 
 # Project imports
@@ -42,7 +42,7 @@ class SavaniLWO(SavaniBase):
         dataloader: DataLoader,
         last_layer_name: str,
         epsilon: float = 0.1,
-        bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
+        bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
         data_to_use: float | int = 128,
         n_layers_to_optimize: int | str = "all",
         optimizer_maxiter: int = 10,
@@ -50,14 +50,13 @@ class SavaniLWO(SavaniBase):
         beta: float = 2.2,
         neuron_frac: float = 0.1,
         tau_init: float = 0.5,
+        outputs_are_logits: bool = True,
         options: dict = {},
         **kwargs,
     ) -> None:
         """
         Do layer-wise optimization to find the best weights for each layer and the best threshold tau
 
-        In options you can specify that your model already outputs probabilities, in which case the model will not apply the softmax function
-        options = {'outputs_are_logits': False}
 
         """
         assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
@@ -71,7 +70,7 @@ class SavaniLWO(SavaniBase):
         self.tau_init = tau_init
         self.epsilon = epsilon
         self.bias_metric = bias_metric
-        self.options = options
+        self.outputs_are_logits = outputs_are_logits
 
         best_tau = tau_init
         best_model = deepcopy(self.model)

@@ -33,19 +33,20 @@ class ZhangM(SavaniBase):
         dataloader: DataLoader,
         last_layer_name: str,
         epsilon: float = 0.1,
-        bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
+        bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
         data_to_use: float | int = 128,
         iterations: int = 10,
         critic_iterations: int = 15,
-        model_iterations: int = 15,
+        model_iterations: int = 5,
         train_batch_size: int = 16,
         thresh_optimizer_maxiter: int = 100,
         tau_init: float = 0.5,
         alpha: float = 5.0,
-        critic_lr: float = 1e-4,
+        critic_lr: float = 2e-4,
         model_lr: float = 1e-4,
         critic_linear: list[int] = [64, 32, 16],
         options: dict = {},
+        outputs_are_logits: bool = True,
         **kwargs,
     ) -> None:
         """backward
@@ -62,11 +63,13 @@ class ZhangM(SavaniBase):
             f"Layer name {last_layer_name} not found in the model"
         )
 
+        assert outputs_are_logits, "Only logits are supported at the moment"
+
         self.last_layer_name = last_layer_name
         self.tau_init = tau_init
         self.epsilon = epsilon
         self.bias_metric = bias_metric
-        self.options = options
+        self.outputs_are_logits = outputs_are_logits
 
         # Unpack multiple batches of the dataloader
         self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
@@ -75,13 +78,20 @@ class ZhangM(SavaniBase):
         self.ProtAttr_torch = self.ProtAttr_torch.to(dtype=torch.float32)
         self.Y_true_torch = self.ProtAttr_torch.to(dtype=torch.float32)
 
-        self.critic = self.get_critic(2, critic_linear)  # Binary classification
+        if bias_metric.value == BiasMetrics.DP_GAP.value:
+            # 2 because wepass only the predictions as input
+            self.critic = self.get_critic(2, critic_linear)
+        elif bias_metric.value == BiasMetrics.EO_GAP.value:
+            # 4 because we pass the predictions and the true labels as input
+            self.critic = self.get_critic(3, critic_linear)
+        else:
+            raise ValueError(f"Not supported: {bias_metric.value}")
 
-        critic_criterion = nn.BCELoss()
+        critic_criterion = nn.BCEWithLogitsLoss()
         critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
         model_optimizer = torch.optim.Adam(self.model.parameters(), lr=model_lr)
-        model_loss = nn.BCELoss()
+        model_loss = nn.CrossEntropyLoss()
 
         for i in tqdm(range(iterations), desc="Zhang: Adversarial Fine Tuning"):
             logger.debug(f"Minibatch no. {i}")
@@ -97,14 +107,21 @@ class ZhangM(SavaniBase):
             for j in range(critic_iterations):
                 x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
 
-                y_pred = self.model(x)
-                c_pred = self.critic(y_pred)[:, 0]
+                y_logits = self.model(x)
+
+                if outputs_are_logits:
+                    y_pred = torch.softmax(y_logits, dim=1)
+
                 if bias_metric.value == BiasMetrics.DP_GAP.value:
-                    c_loss = critic_criterion(c_pred, prot_attr)
+                    c_pred = self.critic(y_pred).squeeze()
                 elif bias_metric.value == BiasMetrics.EO_GAP.value:
-                    c_loss = critic_criterion(c_pred, y_true)
+                    combined = torch.cat([y_pred, y_true.unsqueeze(1)], dim=1)
+                    c_pred = self.critic(combined).squeeze()
                 else:
                     raise ValueError(f"Not supported: {bias_metric.value}")
+
+                c_loss = critic_criterion(c_pred, prot_attr)
+
                 c_loss.backward()
                 critic_optimizer.step()
                 critic_optimizer.zero_grad()
@@ -123,21 +140,22 @@ class ZhangM(SavaniBase):
             for j in range(model_iterations):
                 x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
 
-                y_pred = self.model(x)
+                y_logits = self.model(x)
 
-                c_pred = self.critic(y_pred)[:, 0]
+                if outputs_are_logits:
+                    y_pred = torch.softmax(y_logits, dim=1)
 
                 if bias_metric.value == BiasMetrics.DP_GAP.value:
-                    c_loss = critic_criterion(c_pred, prot_attr)
+                    c_pred = self.critic(y_pred).squeeze()
                 elif bias_metric.value == BiasMetrics.EO_GAP.value:
-                    c_loss = critic_criterion(c_pred, y_true)
+                    combined = torch.cat([y_pred, y_true.unsqueeze(1)], dim=1)
+                    c_pred = self.critic(combined).squeeze()
                 else:
                     raise ValueError(f"Not supported: {bias_metric.value}")
 
-                if self.options.get("outputs_are_logits", True):
-                    y_pred = torch.softmax(y_pred, dim=1)[:, 0]
+                c_loss = critic_criterion(c_pred, prot_attr)
 
-                m_loss = model_loss(y_pred, y_true)
+                m_loss = model_loss(y_logits, y_true.long())
 
                 for name, param in self.model.named_parameters():
                     try:
@@ -190,7 +208,6 @@ class ZhangM(SavaniBase):
                 nn.Dropout(0.2),
             ]
 
-        critic_layers.append(nn.Linear(critic_linear[-1], 2))
-        critic_layers.append(nn.Softmax(dim=1))
+        critic_layers.append(nn.Linear(critic_linear[-1], 1))
 
         return nn.Sequential(*critic_layers).to(self.device)

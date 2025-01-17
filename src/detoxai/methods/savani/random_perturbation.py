@@ -31,18 +31,16 @@ class SavaniRP(SavaniBase):
         last_layer_name: str,
         epsilon: float = 0.1,
         T_iters: int = 10,
-        bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
+        bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
         data_to_use: float | int = 128,
         optimizer_maxiter: int = 50,
         tau_init: float = 0.5,
+        outputs_are_logits: bool = True,
         options: dict = {},
         **kwargs,
     ) -> None:
         """
         Apply random weights perturbation to the model, then select threshold 'tau' that maximizes phi
-
-        In options you can specify that your model already outputs probabilities, in which case the model will not apply the softmax function
-        options = {'outputs_are_logits': False}
 
         To change perturbation parameters, you can pass the mean and std of the Gaussian noise
         options = {'mean': 1.0, 'std': 0.1}
@@ -57,8 +55,8 @@ class SavaniRP(SavaniBase):
 
         self.last_layer_name = last_layer_name
         self.epsilon = epsilon
-        self.options = options
         self.bias_metric = bias_metric
+        self.outputs_are_logits = outputs_are_logits
 
         best_tau = tau_init
         best_model = deepcopy(self.model)

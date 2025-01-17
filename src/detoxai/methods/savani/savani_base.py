@@ -59,7 +59,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             with torch.no_grad():
                 # Assuming binary classification and logits
                 y_raw_preds = self.model(self.X_torch)
-                if self.options.get("outputs_are_logits", True):
+                if self.outputs_are_logits:
                     y_probs = softmax(y_raw_preds, dim=1)
                 else:
                     y_probs = y_raw_preds
@@ -91,7 +91,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             if preds is None:
                 # Assuming binary classification and logits
                 y_raw_preds = self.model(self.X_torch)
-                if self.options.get("outputs_are_logits", True):
+                if self.outputs_are_logits:
                     y_probs = softmax(y_raw_preds, dim=1)
                 else:
                     y_probs = y_raw_preds
@@ -112,7 +112,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             # output = (output > tau).int() # doesn't allow gradients to flow
             # Assuming binary classification
 
-            if self.options.get("outputs_are_logits", True):
+            if self.outputs_are_logits:
                 probs = softmax(output, dim=1)
                 output[:, 1] = sigmoid((probs[:, 1] - tau) * 10)  # soft thresholding
                 output[:, 0] = 1 - output[:, 1]
@@ -185,6 +185,8 @@ class SavaniBase(ModelCorrectionMethod, ABC):
 
         return X, Y_true, ProtAttr
 
-    def sample_minibatch(self, batch_size: int) -> tuple:
+    def sample_minibatch(
+        self, batch_size: int
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         idx = torch.randperm(self.X_torch.shape[0])[:batch_size]
         return self.X_torch[idx], self.Y_true_torch[idx], self.ProtAttr_torch[idx]

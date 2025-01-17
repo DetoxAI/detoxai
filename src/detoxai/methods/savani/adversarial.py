@@ -32,7 +32,7 @@ class SavaniAFT(SavaniBase):
         dataloader: DataLoader,
         last_layer_name: str,
         epsilon: float = 0.1,
-        bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
+        bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
         data_to_use: float | int = 128,
         iterations: int = 10,
         critic_iterations: int = 5,
@@ -46,14 +46,12 @@ class SavaniAFT(SavaniBase):
         model_lr: float = 1e-4,
         critic_filters: list[int] = [8, 16, 32],
         critic_linear: list[int] = [32],
-        options: dict = {},
+        outputs_are_logits: bool = True,
         **kwargs,
     ) -> None:
         """backward
         Do layer-wise optimization to find the best weights for each layer and the best threshold tau
 
-        In options you can specify that your model already outputs probabilities, in which case the model will not apply the softmax function
-        options = {'outputs_are_logits': False}
 
         """
         assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
@@ -67,7 +65,7 @@ class SavaniAFT(SavaniBase):
         self.tau_init = tau_init
         self.epsilon = epsilon
         self.bias_metric = bias_metric
-        self.options = options
+        self.outputs_are_logits = outputs_are_logits
         self.lam = lam
         self.delta = delta
 
@@ -100,12 +98,12 @@ class SavaniAFT(SavaniBase):
 
                 with torch.no_grad():
                     # Assuming binary classification and logits
-                    raw_pred = self.model(x)
+                    y_logits = self.model(x)
 
-                    if self.options.get("outputs_are_logits", True):
-                        y_pred = softmax(raw_pred, dim=1)
+                    if self.outputs_are_logits:
+                        y_pred = softmax(y_logits, dim=1)
                     else:  # probabilties
-                        y_pred = raw_pred
+                        y_pred = y_logits
 
                     y_pred = torch.argmax(y_pred, dim=1)
 
@@ -127,8 +125,9 @@ class SavaniAFT(SavaniBase):
 
                 x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
 
-                y_pred = self.model(x)
-                m_loss = self.fair_loss(y_pred, y_true, x)
+                y_logits = self.model(x)
+
+                m_loss = self.fair_loss(y_logits, y_true, x)
 
                 model_optimizer.zero_grad()
                 m_loss.backward()
@@ -145,12 +144,12 @@ class SavaniAFT(SavaniBase):
         # Add a hook with the best transformation
         self.apply_hook(tau)
 
-    def fair_loss(self, y_pred, y_true, input):
+    def fair_loss(self, y_logits, y_true, input):
         fair = torch.max(
             torch.tensor(1, dtype=torch.float32, device=self.device),
             self.lam * (self.critic(input).squeeze() - self.epsilon + self.delta) + 1,
         )
-        return self.model_loss(y_pred, y_true) * fair
+        return self.model_loss(y_logits, y_true) * fair
 
     def get_critic(
         self,
