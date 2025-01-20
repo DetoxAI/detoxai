@@ -75,7 +75,7 @@ DEFAULT_METHODS_CONFIG = {
     },
     "SAVANIRP": {},
     "SAVANILWO": {
-        "n_layers_to_optimize": 4,
+        "n_layers_to_optimize": 2,
     },
     "SAVANIAFT": {},
     "ZHANGM": {},

@@ -10,7 +10,6 @@ import logging
 # Project imports
 from .savani_base import SavaniBase
 from ...metrics.bias_metrics import BiasMetrics
-from ...utils.dataloader import copy_data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ class SavaniRP(SavaniBase):
         self.outputs_are_logits = outputs_are_logits
         self.n_eval_batches = n_eval_batches
 
-        self.internal_dl = copy_data_loader(dataloader, eval_batch_size)
+        self.initialize_dataloader(dataloader, eval_batch_size)
 
         best_tau = tau_init
         best_model = deepcopy(self.model)

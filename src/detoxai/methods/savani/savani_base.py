@@ -14,6 +14,7 @@ from abc import ABC, abstractmethod
 from ..model_correction import ModelCorrectionMethod
 from ...utils.dataloader import DetoxaiDataLoader
 from .utils import phi_torch
+from ...utils.dataloader import copy_data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -171,11 +172,14 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             self.dl_iter = iter(self.internal_dl)
             batch: Batch = next(self.dl_iter)
 
-        print("Sampled batch")
-
         x, y, p = batch
         x = x.to(self.device)
         y = y.to(self.device)
         p = p.to(self.device)
 
         return x, y, p
+
+    def initialize_dataloader(self, dataloader: DataLoader, batch_size: int) -> None:
+        self.internal_dl = copy_data_loader(
+            dataloader, batch_size=batch_size, shuffle=True, drop_last=True
+        )

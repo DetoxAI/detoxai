@@ -70,7 +70,7 @@ class ZhangM(SavaniBase):
         self.outputs_are_logits = outputs_are_logits
         self.n_eval_batches = n_eval_batches
 
-        self.internal_dl = copy_data_loader(dataloader, batch_size=train_batch_size)
+        self.initialize_dataloader(dataloader, train_batch_size)
 
         if bias_metric.value == BiasMetrics.DP_GAP.value:
             # 2 because wepass only the predictions as input

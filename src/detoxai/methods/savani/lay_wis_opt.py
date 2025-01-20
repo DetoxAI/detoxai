@@ -13,7 +13,6 @@ from skopt.space import Real
 # Project imports
 from .savani_base import SavaniBase
 from ...metrics.bias_metrics import BiasMetrics
-from ...utils.dataloader import copy_data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +47,11 @@ class SavaniLWO(SavaniBase):
         optimizer_maxiter: int = 10,
         thresh_optimizer_maxiter: int = 100,
         beta: float = 2.2,
-        neuron_frac: float = 0.1,
+        neuron_frac: float = 0.2,
         tau_init: float = 0.5,
         outputs_are_logits: bool = True,
         n_eval_batches: int = 3,
         eval_batch_size: int = 128,
-        max_neurons_to_optimize: int = 100,
         **kwargs,
     ) -> None:
         """
@@ -76,7 +74,7 @@ class SavaniLWO(SavaniBase):
         best_model = deepcopy(self.model)
         best_phi = -1
 
-        self.internal_dl = copy_data_loader(dataloader, batch_size=eval_batch_size)
+        self.initialize_dataloader(dataloader, eval_batch_size)
 
         total_layers = len(list(self.model.parameters()))
         if n_layers_to_optimize == "all":
@@ -90,10 +88,13 @@ class SavaniLWO(SavaniBase):
             total=n_layers_to_optimize,
             file=sys.stdout,
         ) as pbar:
-            for i, parameters in enumerate(self.model.parameters()):
+            for i, (name, parameters) in enumerate(self.model.named_parameters()):
                 # We're optimizing the last n_layers_to_optimize layers
-                if i < total_layers - n_layers_to_optimize - 1 or i >= total_layers - 1:
+                # -3 to avoid the last layer (2 outputs) weights and bias, then to avoid second to last layer's bias, we dont want to optimize bias as it doesn't make sense
+                if i < total_layers - n_layers_to_optimize - 2 or i >= total_layers - 2:
                     continue
+
+                logger.debug(f"Optimizing layer {i} with name {name}")
 
                 self.parameters_np = parameters.detach().cpu().numpy()
                 std = self.parameters_np.std()
@@ -117,9 +118,13 @@ class SavaniLWO(SavaniBase):
                 logger.debug(f"Optimizing layer {i} with {len(space)} parameters")
 
                 res = forest_minimize(
-                    self.objective_LWO(parameters, tau_init),
+                    self.objective_LWO(parameters, best_tau),
                     space,
                     n_calls=optimizer_maxiter,
+                    n_jobs=4,
+                    random_state=self.seed,
+                    # n_points=1000,
+                    # verbose=True,
                 )
 
                 if -res.fun > best_phi:

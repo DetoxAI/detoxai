@@ -35,7 +35,10 @@ class DetoxaiDataLoader(DataLoader):
 
 
 def copy_data_loader(
-    dataloader: DataLoader, batch_size: int | None = None
+    dataloader: DataLoader,
+    batch_size: int | None = None,
+    shuffle: bool = False,
+    drop_last: bool = False,
 ) -> DetoxaiDataLoader:
     """
     Copy the dataloader
@@ -56,4 +59,6 @@ def copy_data_loader(
         batch_size=batch_size,
         num_workers=dataloader.num_workers,
         collate_fn=dataloader.collate_fn,
+        shuffle=shuffle,
+        drop_last=drop_last,
     )

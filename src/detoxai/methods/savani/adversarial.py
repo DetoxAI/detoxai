@@ -68,7 +68,7 @@ class SavaniAFT(SavaniBase):
         self.delta = delta
         self.n_eval_batches = n_eval_batches
 
-        self.internal_dl = copy_data_loader(dataloader, batch_size=train_batch_size)
+        self.initialize_dataloader(dataloader, train_batch_size)
         self.__sample_example, _, _ = self.sample_batch()
 
         channels = self.__sample_example.shape[1]
