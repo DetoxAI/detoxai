@@ -1,5 +1,7 @@
 # DetoxAI
 
+[![Python tests](https://github.com/FairUnlearn/detoxai/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/FairUnlearn/detoxai/actions/workflows/python-tests.yml)
+
 desription here
 
 # Quickstart
