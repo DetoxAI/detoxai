@@ -128,7 +128,7 @@ class NaiveThresholdOptimizer(PosthocBase):
         )
         preds = preds.to(self.device)  #
         probs = self.__get_postive_probabilities(preds)
-
+        scores = []
         # Grid search with fairness consideration
         for threshold in thresholds:
             score = self._evaluate_threshold(
@@ -139,11 +139,15 @@ class NaiveThresholdOptimizer(PosthocBase):
                 objective_function,
                 metric,
             )
-
+            scores.append(score)
             if score > best_score:
                 best_score = score
                 best_threshold = threshold
-
+        logger.debug("Grid search results:")
+        for threshold, score in zip(thresholds, scores):
+            logger.debug(f"Threshold: {threshold:.3f} -> Score: {score:.3f}")
+        logger.debug("Best result:")
+        logger.debug(f"Threshold: {best_threshold:.3f} -> Score: {best_score:.3f}")
         probs = probs.to(self.device)
         targets = targets.to(self.device)
         sensitive_features = sensitive_features.to(self.device)
