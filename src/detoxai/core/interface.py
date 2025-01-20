@@ -2,6 +2,7 @@ import torch.nn as nn
 from copy import deepcopy
 import logging
 import traceback
+import signal
 from datetime import datetime
 
 # Project imports
@@ -17,6 +18,7 @@ from ..methods import (
     RejectOptionClassification,
     NaiveThresholdOptimizer,
     FineTune,
+    ModelCorrectionMethod,
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
@@ -24,8 +26,7 @@ from ..utils.dataloader import DetoxaiDataLoader
 from ..metrics.fairness_metrics import AllMetrics
 from .evaluation import evaluate_model
 from .mcda_helpers import filter_pareto_front, select_best_method
-from .interface_helpers import construct_metrics_config
-from ..cavs.extract_activations import get_layer_by_name
+from .interface_helpers import construct_metrics_config, infer_layers
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ DEFAULT_METHODS_CONFIG = {
         "device": "cpu",
         "dataloader": None,
         "test_dataloader": None,
+        "method_timeout": 600,  # seconds
     },
     "PCLARC": {
         "cav_type": "signal",
@@ -71,19 +73,12 @@ DEFAULT_METHODS_CONFIG = {
         "intervention_layers": "penultimate",
         "use_cache": True,
     },
-    "SAVANIRP": {
-        "data_to_use": 0.15,
-    },
+    "SAVANIRP": {},
     "SAVANILWO": {
-        "data_to_use": 0.15,
-        "n_layers_to_optimize": 4,
+        "n_layers_to_optimize": 2,
     },
-    "SAVANIAFT": {
-        "data_to_use": 0.15,
-    },
-    "ZHANGM": {
-        "data_to_use": 0.15,
-    },
+    "SAVANIAFT": {},
+    "ZHANGM": {},
     "ROC": {
         "theta_range": (0.55, 0.95),
         "theta_steps": 20,
@@ -152,21 +147,6 @@ def debias(
         `test_dataloader` (optional): DataLoader for the test dataset. If not provided, the original dataloader is used
 
 
-    ***
-    `TEMPLATE FOR METHODS CONFIG`
-
-    methods_config_template = {
-        "global": {
-            "last_layer_name": "fc",
-            "epsilon": 0.05,
-            "bias_metric": "equal_opportunity",
-        },
-        "method_specific": {
-            r"SavaniLWO": {
-                "iterations": 10,
-            }
-        },
-    }
     """
 
     logging.debug(f"Received configuration:\n  {methods_config}")
@@ -348,26 +328,37 @@ def run_correction(
 
         # Here we finally run the correction method
         try:
-            corrector.apply_model_correction(**method_kwargs)
+            timeout = method_kwargs.pop("method_timeout", None)
+            if timeout is not None and timeout > 0:
+                logger.debug(f"Running correction method {method} with timeout set")
+                success = _apply_model_correction_w_timeout(
+                    corrector, method_kwargs, timeout
+                )
+                if not success:
+                    failed = True
+                    logger.error(f"Correction method {method} failed")
+            else:
+                corrector.apply_model_correction(**method_kwargs)
 
-            logger.debug(f"Correction method {method} applied")
+            if not failed:
+                logger.debug(f"Correction method {method} applied")
 
-            method_kwargs["model"] = corrector.get_lightning_model()
+                method_kwargs["model"] = corrector.get_lightning_model()
 
-            # Remove gradients
-            for param in method_kwargs["model"].parameters():
-                param.requires_grad = False
+                # Remove gradients
+                for param in method_kwargs["model"].parameters():
+                    param.requires_grad = False
 
-            test_dl = method_kwargs["test_dataloader"]
-            metrics = evaluate_model(
-                method_kwargs["model"],
-                method_kwargs["dataloader"] if test_dl is None else test_dl,
-                pareto_metrics,
-                device=method_kwargs["device"],
-            )
+                test_dl = method_kwargs["test_dataloader"]
+                metrics = evaluate_model(
+                    method_kwargs["model"],
+                    method_kwargs["dataloader"] if test_dl is None else test_dl,
+                    pareto_metrics,
+                    device=method_kwargs["device"],
+                )
 
-            # Move to CPU
-            method_kwargs["model"].to("cpu")
+                # Move to CPU
+                method_kwargs["model"].to("cpu")
 
         except Exception as e:
             logger.error(f"Error running correction method {method}: {e}")
@@ -382,43 +373,37 @@ def run_correction(
     )
 
 
-def infer_layers(corrector, layers: list[str] | str) -> list[str]:
+def _apply_model_correction_w_timeout(
+    corrector: ModelCorrectionMethod, method_kwargs: dict, timeout: float
+) -> bool:
     """
-    Infer the layers to use for the correction method
+    Execute the apply_model_correction method of the corrector
+    as a task with timeout to prevent infinite execution
 
-    Args:
-        corrector: Correction method object
-        layers: Layer specification
-
-    There are wildcards available:
-    - "last": Use the last layer
-    - "penultimate": Use the penultimate layer
-
-    Otherwise, a list of *actual* layer names can be passed
+    corrector.apply_model_correction(**method_kwargs)
     """
-    llist = list()
-    if layers == "last":
-        last_layer = list(corrector.model.named_modules())[-1][0]
-        llist.append(last_layer)
-    elif layers == "penultimate":
-        penultimate_layer = list(corrector.model.named_modules())[-2][0]
-        llist.append(penultimate_layer)
-    elif isinstance(layers, list):
-        for layer in layers:
-            llist.append(_resolve_layer(corrector.model, layer))
-    elif isinstance(layers, str):
-        llist.append(_resolve_layer(corrector.model, layers))
-    else:
-        raise ValueError(f"Invalid layer specification {layers}")
 
-    return llist
+    def handler(signum, frame):
+        raise Exception("Timeout")
 
+    signal.signal(signal.SIGALRM, handler)
+    signal.alarm(int(timeout))
 
-def _resolve_layer(model, layer) -> nn.Module | None:
-    """
-    Resolve a layer name to a layer in the model
-    """
-    ret = get_layer_by_name(model, layer)
-    if ret == model:
-        raise ValueError(f"Layer {layer} not found in the model")
-    return ret
+    try:
+        corrector.apply_model_correction(**method_kwargs)
+
+        # Disable the alarm
+        signal.alarm(0)
+
+        return True
+
+    except Exception as e:
+        if "Timeout" not in str(e):
+            logger.error(
+                f"Error running correction method {corrector.__class__.__name__}: {e}"
+            )
+            logger.error(traceback.format_exc())
+            return False
+        else:
+            logger.error(f"Correction method {corrector.__class__.__name__} timed out")
+            return False

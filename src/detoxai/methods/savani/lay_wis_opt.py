@@ -7,7 +7,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from copy import deepcopy
 from tqdm import tqdm
-from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize
+from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize  # noqa
 from skopt.space import Real
 
 # Project imports
@@ -42,27 +42,23 @@ class SavaniLWO(SavaniBase):
         dataloader: DataLoader,
         last_layer_name: str,
         epsilon: float = 0.1,
-        bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
-        data_to_use: float | int = 128,
+        bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
         n_layers_to_optimize: int | str = "all",
         optimizer_maxiter: int = 10,
         thresh_optimizer_maxiter: int = 100,
         beta: float = 2.2,
-        neuron_frac: float = 0.1,
+        neuron_frac: float = 0.2,
         tau_init: float = 0.5,
-        options: dict = {},
+        outputs_are_logits: bool = True,
+        n_eval_batches: int = 3,
+        eval_batch_size: int = 128,
         **kwargs,
     ) -> None:
         """
         Do layer-wise optimization to find the best weights for each layer and the best threshold tau
 
-        In options you can specify that your model already outputs probabilities, in which case the model will not apply the softmax function
-        options = {'outputs_are_logits': False}
 
         """
-        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
-            "frac_of_batches_to_use must be in [0, 1] or an integer"
-        )
         assert self.check_layer_name_exists(last_layer_name), (
             f"Layer name {last_layer_name} not found in the model"
         )
@@ -71,16 +67,14 @@ class SavaniLWO(SavaniBase):
         self.tau_init = tau_init
         self.epsilon = epsilon
         self.bias_metric = bias_metric
-        self.options = options
+        self.outputs_are_logits = outputs_are_logits
+        self.n_eval_batches = n_eval_batches
 
         best_tau = tau_init
         best_model = deepcopy(self.model)
         best_phi = -1
 
-        # Unpack multiple batches of the dataloader
-        self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
-            dataloader, data_to_use
-        )
+        self.initialize_dataloader(dataloader, eval_batch_size)
 
         total_layers = len(list(self.model.parameters()))
         if n_layers_to_optimize == "all":
@@ -94,18 +88,18 @@ class SavaniLWO(SavaniBase):
             total=n_layers_to_optimize,
             file=sys.stdout,
         ) as pbar:
-            for i, parameters in enumerate(self.model.parameters()):
+            for i, (name, parameters) in enumerate(self.model.named_parameters()):
                 # We're optimizing the last n_layers_to_optimize layers
-                if i < total_layers - n_layers_to_optimize:
-                    logger.debug(f"Skipping layer {i}")
+                # -3 to avoid the last layer (2 outputs) weights and bias, then to avoid second to last layer's bias, we dont want to optimize bias as it doesn't make sense
+                if i < total_layers - n_layers_to_optimize - 2 or i >= total_layers - 2:
                     continue
+
+                logger.debug(f"Optimizing layer {i} with name {name}")
 
                 self.parameters_np = parameters.detach().cpu().numpy()
                 std = self.parameters_np.std()
                 n = max(int(neuron_frac * len(self.parameters_np)), 1)
                 # Cap the number of neurons to optimize, this is useful for large models
-                if "max_neurons_to_optimize" in options:
-                    n = min(n, options["max_neurons_to_optimize"])
                 logger.debug(
                     f"Optimizing layer {i} with {n} out of {len(self.parameters_np)} neurons"
                 )
@@ -121,10 +115,16 @@ class SavaniLWO(SavaniBase):
                     for x in flat_parameters
                 ]
 
+                logger.debug(f"Optimizing layer {i} with {len(space)} parameters")
+
                 res = forest_minimize(
-                    self.objective_LWO(parameters, tau_init),
+                    self.objective_LWO(parameters, best_tau),
                     space,
                     n_calls=optimizer_maxiter,
+                    n_jobs=4,
+                    random_state=self.seed,
+                    # n_points=1000,
+                    # verbose=True,
                 )
 
                 if -res.fun > best_phi:

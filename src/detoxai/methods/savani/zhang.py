@@ -12,6 +12,8 @@ from ...metrics.bias_metrics import (
     BiasMetrics,
 )
 
+from ...utils.dataloader import copy_data_loader
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,19 +35,19 @@ class ZhangM(SavaniBase):
         dataloader: DataLoader,
         last_layer_name: str,
         epsilon: float = 0.1,
-        bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
-        data_to_use: float | int = 128,
-        iterations: int = 10,
-        critic_iterations: int = 15,
-        model_iterations: int = 15,
-        train_batch_size: int = 16,
+        bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
+        iterations: int = 5,
+        critic_iterations: int = 5,
+        model_iterations: int = 2,
+        train_batch_size: int = 128,
         thresh_optimizer_maxiter: int = 100,
         tau_init: float = 0.5,
-        alpha: float = 5.0,
-        critic_lr: float = 1e-4,
+        # alpha: float = 5.0,
+        critic_lr: float = 2e-4,
         model_lr: float = 1e-4,
-        critic_linear: list[int] = [64, 32, 16],
-        options: dict = {},
+        critic_linear: list[int] = [256, 256, 256],
+        outputs_are_logits: bool = True,
+        n_eval_batches: int = 3,
         **kwargs,
     ) -> None:
         """backward
@@ -55,35 +57,46 @@ class ZhangM(SavaniBase):
         options = {'outputs_are_logits': False}
 
         """
-        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
-            "frac_of_batches_to_use must be in [0, 1] or an integer"
-        )
         assert self.check_layer_name_exists(last_layer_name), (
             f"Layer name {last_layer_name} not found in the model"
         )
+
+        assert outputs_are_logits, "Only logits are supported at the moment"
 
         self.last_layer_name = last_layer_name
         self.tau_init = tau_init
         self.epsilon = epsilon
         self.bias_metric = bias_metric
-        self.options = options
+        self.outputs_are_logits = outputs_are_logits
+        self.n_eval_batches = n_eval_batches
 
-        # Unpack multiple batches of the dataloader
-        self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
-            dataloader, data_to_use
-        )
-        self.ProtAttr_torch = self.ProtAttr_torch.to(dtype=torch.float32)
-        self.Y_true_torch = self.ProtAttr_torch.to(dtype=torch.float32)
+        self.initialize_dataloader(dataloader, train_batch_size)
 
-        self.critic = self.get_critic(2, critic_linear)  # Binary classification
+        if bias_metric.value == BiasMetrics.DP_GAP.value:
+            # 2 because wepass only the predictions as input
+            self.critic = self.get_critic(2, critic_linear)
+        elif bias_metric.value == BiasMetrics.EO_GAP.value:
+            # 4 because we pass the predictions and the true labels as input
+            self.critic = self.get_critic(3, critic_linear)
+        else:
+            raise ValueError(f"Not supported: {bias_metric.value}")
 
-        critic_criterion = nn.BCELoss()
+        critic_criterion = nn.CrossEntropyLoss()
         critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
         model_optimizer = torch.optim.Adam(self.model.parameters(), lr=model_lr)
-        model_loss = nn.BCELoss()
+        model_loss = nn.CrossEntropyLoss()
 
-        for i in tqdm(range(iterations), desc="Zhang: Adversarial Fine Tuning"):
+        for i in tqdm(range(iterations + 1), desc="Zhang: Adversarial Fine Tuning"):
+            t = i  # t is the iteration number, starting from 1
+            alpha = t**0.5  # as in the paper alpha = sqrt(t)
+            # in the paper it is lr = 1/t, but we want to be able to set a base lr,
+            # so we multiply the base lr by 1/t
+            if t > 0:
+                new_model_lr = model_lr * (1 / t)
+                for g in model_optimizer.param_groups:
+                    g["lr"] = new_model_lr
+
             logger.debug(f"Minibatch no. {i}")
 
             for param in self.critic.parameters():
@@ -95,16 +108,21 @@ class ZhangM(SavaniBase):
             self.critic.train()
             # Train the critic
             for j in range(critic_iterations):
-                x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
+                x, y_true, prot_attr = self.sample_batch()
 
-                y_pred = self.model(x)
-                c_pred = self.critic(y_pred)[:, 0]
+                with torch.no_grad():
+                    y_logits = self.model(x)
+
                 if bias_metric.value == BiasMetrics.DP_GAP.value:
-                    c_loss = critic_criterion(c_pred, prot_attr)
+                    c_pred = self.critic(y_logits)
                 elif bias_metric.value == BiasMetrics.EO_GAP.value:
-                    c_loss = critic_criterion(c_pred, y_true)
+                    combined = torch.cat([y_logits, y_true.unsqueeze(1)], dim=1)
+                    c_pred = self.critic(combined)
                 else:
                     raise ValueError(f"Not supported: {bias_metric.value}")
+
+                c_loss = critic_criterion(c_pred, prot_attr.long())
+
                 c_loss.backward()
                 critic_optimizer.step()
                 critic_optimizer.zero_grad()
@@ -119,49 +137,50 @@ class ZhangM(SavaniBase):
             self.model.train()
             self.critic.eval()
 
-            # Train the model
-            for j in range(model_iterations):
-                x, y_true, prot_attr = self.sample_minibatch(train_batch_size)
+            if i > 0:  # Skip the first iteration
+                # Train the model
+                for j in range(model_iterations):
+                    x, y_true, prot_attr = self.sample_batch()
 
-                y_pred = self.model(x)
+                    y_logits = self.model(x)
 
-                c_pred = self.critic(y_pred)[:, 0]
+                    if bias_metric.value == BiasMetrics.DP_GAP.value:
+                        c_pred = self.critic(y_logits).squeeze()
+                    elif bias_metric.value == BiasMetrics.EO_GAP.value:
+                        combined = torch.cat([y_logits, y_true.unsqueeze(1)], dim=1)
+                        c_pred = self.critic(combined).squeeze()
+                    else:
+                        raise ValueError(f"Not supported: {bias_metric.value}")
 
-                if bias_metric.value == BiasMetrics.DP_GAP.value:
-                    c_loss = critic_criterion(c_pred, prot_attr)
-                elif bias_metric.value == BiasMetrics.EO_GAP.value:
-                    c_loss = critic_criterion(c_pred, y_true)
-                else:
-                    raise ValueError(f"Not supported: {bias_metric.value}")
+                    c_loss = critic_criterion(c_pred, prot_attr.long())
 
-                if self.options.get("outputs_are_logits", True):
-                    y_pred = torch.softmax(y_pred, dim=1)[:, 0]
+                    m_loss = model_loss(y_logits, y_true.long())
 
-                m_loss = model_loss(y_pred, y_true)
+                    for name, param in self.model.named_parameters():
+                        try:
+                            m_grad = autograd.grad(m_loss, param, retain_graph=True)[0]
+                            c_grad = autograd.grad(c_loss, param, retain_graph=True)[0]
+                        except RuntimeError as e:
+                            logger.warning(
+                                RuntimeError(
+                                    f"[{i},{j}] Grad error in layer {name}: {e}"
+                                )
+                            )
+                            continue
+                        shape = c_grad.shape
+                        m_grad = m_grad.flatten()
+                        c_grad = c_grad.flatten()
 
-                for name, param in self.model.named_parameters():
-                    try:
-                        m_grad = autograd.grad(m_loss, param, retain_graph=True)[0]
-                        c_grad = autograd.grad(c_loss, param, retain_graph=True)[0]
-                    except RuntimeError as e:
-                        logger.warning(
-                            RuntimeError(f"[{i},{j}] Grad error in layer {name}: {e}")
-                        )
-                        continue
-                    shape = c_grad.shape
-                    m_grad = m_grad.flatten()
-                    c_grad = c_grad.flatten()
+                        m_grad_proj = (m_grad.T @ c_grad) * c_grad
+                        grad = m_grad - m_grad_proj - alpha * c_grad
+                        grad = grad.reshape(shape)
+                        param.backward(grad)
 
-                    m_grad_proj = (m_grad.T @ c_grad) * c_grad
-                    grad = m_grad - m_grad_proj - alpha * c_grad
-                    grad = grad.reshape(shape)
-                    param.backward(grad)
+                    model_optimizer.step()
+                    model_optimizer.zero_grad()
+                    critic_optimizer.zero_grad()
 
-                model_optimizer.step()
-                model_optimizer.zero_grad()
-                critic_optimizer.zero_grad()
-
-                logger.debug(f"[{j}] Model loss: {m_loss.item()}")
+                    logger.debug(f"[{j}] Model loss: {m_loss.item()}")
 
         tau, phi = self.optimize_tau(tau_init, thresh_optimizer_maxiter)
         logger.info(f"Best tau: {tau}, Best phi: {phi}")
@@ -191,6 +210,5 @@ class ZhangM(SavaniBase):
             ]
 
         critic_layers.append(nn.Linear(critic_linear[-1], 2))
-        critic_layers.append(nn.Softmax(dim=1))
 
         return nn.Sequential(*critic_layers).to(self.device)

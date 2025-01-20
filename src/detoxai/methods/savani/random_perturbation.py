@@ -31,25 +31,21 @@ class SavaniRP(SavaniBase):
         last_layer_name: str,
         epsilon: float = 0.1,
         T_iters: int = 10,
-        bias_metric: BiasMetrics | str = BiasMetrics.DP_GAP,
-        data_to_use: float | int = 128,
+        bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
         optimizer_maxiter: int = 50,
         tau_init: float = 0.5,
+        outputs_are_logits: bool = True,
         options: dict = {},
+        eval_batch_size: int = 128,
+        n_eval_batches: int = 3,
         **kwargs,
     ) -> None:
         """
         Apply random weights perturbation to the model, then select threshold 'tau' that maximizes phi
 
-        In options you can specify that your model already outputs probabilities, in which case the model will not apply the softmax function
-        options = {'outputs_are_logits': False}
-
         To change perturbation parameters, you can pass the mean and std of the Gaussian noise
         options = {'mean': 1.0, 'std': 0.1}
         """
-        assert 0 <= data_to_use <= 1 or isinstance(data_to_use, int), (
-            "frac_of_batches_to_use must be in [0, 1] or an integer"
-        )
         assert T_iters > 0, "T_iters must be a positive integer"
         assert self.check_layer_name_exists(last_layer_name), (
             f"Layer name {last_layer_name} not found in the model"
@@ -57,20 +53,15 @@ class SavaniRP(SavaniBase):
 
         self.last_layer_name = last_layer_name
         self.epsilon = epsilon
-        self.options = options
         self.bias_metric = bias_metric
+        self.outputs_are_logits = outputs_are_logits
+        self.n_eval_batches = n_eval_batches
+
+        self.initialize_dataloader(dataloader, eval_batch_size)
 
         best_tau = tau_init
         best_model = deepcopy(self.model)
         best_phi = -1
-
-        # Unpack multiple batches of the dataloader
-        self.X_torch, self.Y_true_torch, self.ProtAttr_torch = self.unpack_batches(
-            dataloader, data_to_use
-        )
-
-        self.Y_true_np = self.Y_true_torch.detach().cpu().numpy()
-        self.ProtAttr_np = self.ProtAttr_torch.detach().cpu().numpy()
 
         with tqdm(
             desc=f"Random Perturbation iterations (phi: {best_phi:.3f}, tau: {best_tau:.3f})",
