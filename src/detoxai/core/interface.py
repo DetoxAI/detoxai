@@ -73,19 +73,12 @@ DEFAULT_METHODS_CONFIG = {
         "intervention_layers": "penultimate",
         "use_cache": True,
     },
-    "SAVANIRP": {
-        "data_to_use": 0.15,
-    },
+    "SAVANIRP": {},
     "SAVANILWO": {
-        "data_to_use": 0.15,
         "n_layers_to_optimize": 4,
     },
-    "SAVANIAFT": {
-        "data_to_use": 0.15,
-    },
-    "ZHANGM": {
-        "data_to_use": 0.15,
-    },
+    "SAVANIAFT": {},
+    "ZHANGM": {},
     "ROC": {
         "theta_range": (0.55, 0.95),
         "theta_steps": 20,

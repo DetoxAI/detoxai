@@ -47,7 +47,7 @@ class ZhangM(SavaniBase):
         model_lr: float = 1e-4,
         critic_linear: list[int] = [256, 256, 256],
         outputs_are_logits: bool = True,
-        max_batches_eval: int = 5,
+        n_eval_batches: int = 3,
         **kwargs,
     ) -> None:
         """backward
@@ -68,7 +68,7 @@ class ZhangM(SavaniBase):
         self.epsilon = epsilon
         self.bias_metric = bias_metric
         self.outputs_are_logits = outputs_are_logits
-        self.max_batches_eval = max_batches_eval
+        self.n_eval_batches = n_eval_batches
 
         self.internal_dl = copy_data_loader(dataloader, batch_size=train_batch_size)
 

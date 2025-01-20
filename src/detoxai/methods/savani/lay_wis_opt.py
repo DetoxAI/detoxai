@@ -51,9 +51,9 @@ class SavaniLWO(SavaniBase):
         neuron_frac: float = 0.1,
         tau_init: float = 0.5,
         outputs_are_logits: bool = True,
-        options: dict = {},
-        max_batches_eval: int = 5,
+        n_eval_batches: int = 3,
         eval_batch_size: int = 128,
+        max_neurons_to_optimize: int = 100,
         **kwargs,
     ) -> None:
         """
@@ -70,7 +70,7 @@ class SavaniLWO(SavaniBase):
         self.epsilon = epsilon
         self.bias_metric = bias_metric
         self.outputs_are_logits = outputs_are_logits
-        self.max_batches_eval = max_batches_eval
+        self.n_eval_batches = n_eval_batches
 
         best_tau = tau_init
         best_model = deepcopy(self.model)
@@ -92,16 +92,13 @@ class SavaniLWO(SavaniBase):
         ) as pbar:
             for i, parameters in enumerate(self.model.parameters()):
                 # We're optimizing the last n_layers_to_optimize layers
-                if i < total_layers - n_layers_to_optimize:
-                    logger.debug(f"Skipping layer {i}")
+                if i < total_layers - n_layers_to_optimize - 1 or i >= total_layers - 1:
                     continue
 
                 self.parameters_np = parameters.detach().cpu().numpy()
                 std = self.parameters_np.std()
                 n = max(int(neuron_frac * len(self.parameters_np)), 1)
                 # Cap the number of neurons to optimize, this is useful for large models
-                if "max_neurons_to_optimize" in options:
-                    n = min(n, options["max_neurons_to_optimize"])
                 logger.debug(
                     f"Optimizing layer {i} with {n} out of {len(self.parameters_np)} neurons"
                 )
@@ -116,6 +113,8 @@ class SavaniLWO(SavaniBase):
                     )
                     for x in flat_parameters
                 ]
+
+                logger.debug(f"Optimizing layer {i} with {len(space)} parameters")
 
                 res = forest_minimize(
                     self.objective_LWO(parameters, tau_init),

@@ -47,7 +47,7 @@ class SavaniAFT(SavaniBase):
         critic_filters: list[int] = [8, 16, 32],
         critic_linear: list[int] = [32],
         outputs_are_logits: bool = True,
-        max_batches_eval: int = 5,
+        n_eval_batches: int = 3,
         **kwargs,
     ) -> None:
         """backward
@@ -66,12 +66,12 @@ class SavaniAFT(SavaniBase):
         self.outputs_are_logits = outputs_are_logits
         self.lam = lam
         self.delta = delta
-        self.max_batches_eval = max_batches_eval
+        self.n_eval_batches = n_eval_batches
 
         self.internal_dl = copy_data_loader(dataloader, batch_size=train_batch_size)
-        _x, _, _ = self.sample_batch()
+        self.__sample_example, _, _ = self.sample_batch()
 
-        channels = _x.shape[1]
+        channels = self.__sample_example.shape[1]
 
         self.critic = self.get_critic(
             channels, critic_filters, critic_linear, train_batch_size
@@ -176,7 +176,7 @@ class SavaniAFT(SavaniBase):
         encoder = nn.Sequential(*encoder_layers).to(self.device)
 
         with torch.no_grad():
-            size_after = encoder(self.X_torch[:batch_size]).shape[0]
+            size_after = encoder(self.__sample_example[:batch_size]).shape[0]
 
         critic_layers = [encoder, nn.Linear(size_after, critic_linear[0]), nn.ReLU()]
 

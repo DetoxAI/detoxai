@@ -38,7 +38,7 @@ class SavaniRP(SavaniBase):
         outputs_are_logits: bool = True,
         options: dict = {},
         eval_batch_size: int = 128,
-        max_batches_eval: int = 5,
+        n_eval_batches: int = 3,
         **kwargs,
     ) -> None:
         """
@@ -56,7 +56,7 @@ class SavaniRP(SavaniBase):
         self.epsilon = epsilon
         self.bias_metric = bias_metric
         self.outputs_are_logits = outputs_are_logits
-        self.max_batches_eval = max_batches_eval
+        self.n_eval_batches = n_eval_batches
 
         self.internal_dl = copy_data_loader(dataloader, eval_batch_size)
 

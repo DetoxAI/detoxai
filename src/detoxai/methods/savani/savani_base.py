@@ -17,6 +17,8 @@ from .utils import phi_torch
 
 logger = logging.getLogger(__name__)
 
+Batch = tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+
 
 class SavaniBase(ModelCorrectionMethod, ABC):
     def __init__(
@@ -57,7 +59,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         self, backend: str, cache_preds: bool = True, direction: str = "min"
     ) -> callable:
         if cache_preds:
-            y_probs, y_true, prot_attr = self.get_pred_true_prot(self.internal_dl)
+            y_probs, y_true, prot_attr = self.get_pred_true_prot()
             y_preds = y_probs[:, 1]
 
         if direction == "min":
@@ -86,18 +88,18 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         Calculate the phi metric for a given threshold tau
         """
         if cached is None:
-            y_probs, y_true, prot_attr = self.get_pred_true_prot(self.internal_dl)
+            y_probs, y_true, prot_attr = self.get_pred_true_prot()
             y_preds = y_probs[:, 1]
         else:
             y_preds, y_true, prot_attr = cached
 
-            return phi_torch(
-                y_true,
-                y_preds > tau.to(self.device),
-                prot_attr,
-                self.epsilon,
-                self.bias_metric,
-            )
+        return phi_torch(
+            y_true,
+            y_preds > tau.to(self.device),
+            prot_attr,
+            self.epsilon,
+            self.bias_metric,
+        )
 
     def apply_hook(self, tau: float) -> None:
         def hook(module, input, output):
@@ -128,19 +130,12 @@ class SavaniBase(ModelCorrectionMethod, ABC):
 
         self.hooks = hooks
 
-    def get_pred_true_prot(
-        self, dataloader: DataLoader
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def get_pred_true_prot(self) -> Batch:
         Y_preds, Y_true, ProtAttr = [], [], []
 
         with torch.no_grad():
-            for i, batch in enumerate(dataloader):
-                if self.max_batches_eval is not None and i >= self.max_batches_eval:
-                    break
-                x, y_true, prot = batch
-                x = x.to(self.device)
-                y_true = y_true.to(self.device)
-                prot = prot.to(self.device)
+            for _ in range(self.n_eval_batches):
+                x, y_true, prot = self.sample_batch()
 
                 y_logit = self.model(x)
 
@@ -165,62 +160,22 @@ class SavaniBase(ModelCorrectionMethod, ABC):
                 return True
         return False
 
-    # def unpack_batches(
-    #     self, dataloader: DataLoader, frac: float | int
-    # ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    #     """
-    #     frac can be either an integer or a float
-    #     If frac is an integer, it will return that many samples
-    #     If frac is a float, it will return that fraction of the batches available in the dataloader
-    #     """
-    #     X, Y_true, ProtAttr = [], [], []
-    #     all_batches = len(dataloader)
+    def sample_batch(self) -> Batch:
+        """Sample a single batch from a dataloader"""
+        try:
+            batch: Batch = next(self.dl_iter)
+        except StopIteration:
+            self.dl_iter = iter(self.internal_dl)
+            batch: Batch = next(self.dl_iter)
+        except AttributeError:
+            self.dl_iter = iter(self.internal_dl)
+            batch: Batch = next(self.dl_iter)
 
-    #     if isinstance(frac, int):
-    #         n_batches = frac
-    #     else:
-    #         n_batches = max(int(all_batches * frac), 1)
+        print("Sampled batch")
 
-    #     n = 0
+        x, y, p = batch
+        x = x.to(self.device)
+        y = y.to(self.device)
+        p = p.to(self.device)
 
-    #     for i, batch in enumerate(dataloader):
-    #         X.append(batch[0])
-    #         Y_true.append(batch[1])
-    #         ProtAttr.append(batch[2])
-
-    #         n += len(batch[0])
-
-    #         if n >= n_batches:
-    #             break
-
-    #         if i == n_batches and isinstance(frac, float):
-    #             break
-
-    #     X = torch.cat(X).to(self.device)
-    #     Y_true = torch.cat(Y_true).to(self.device)
-    #     ProtAttr = torch.cat(ProtAttr).to(self.device)
-
-    #     # Shave off the extra samples
-    #     if isinstance(frac, int):
-    #         X = X[:frac]
-    #         Y_true = Y_true[:frac]
-    #         ProtAttr = ProtAttr[:frac]
-
-    #     return X, Y_true, ProtAttr
-
-    def sample_minibatch(
-        self, batch_size: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        idx = torch.randperm(self.X_torch.shape[0])[:batch_size]
-        return self.X_torch[idx], self.Y_true_torch[idx], self.ProtAttr_torch[idx]
-
-    def sample_batch(
-        self, idx: int = -1
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        if idx == -1:
-            idx = np.random.randint(0, len(self.internal_dl))
-        else:
-            idx = idx % len(self.internal_dl)
-
-        x, y, p = self.internal_dl.get_nth_batch2(idx)
-        return x.to(self.device), y.to(self.device), p.to(self.device)
+        return x, y, p
