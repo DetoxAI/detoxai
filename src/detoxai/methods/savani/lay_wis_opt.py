@@ -7,8 +7,11 @@ import numpy as np
 from torch.utils.data import DataLoader
 from copy import deepcopy
 from tqdm import tqdm
-from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize  # noqa
+from skopt import forest_minimize  # noqa
 from skopt.space import Real
+
+# from sklearn.ensemble import RandomForestRegressor
+from skopt.learning.forest import RandomForestRegressor
 
 # Project imports
 from .savani_base import SavaniBase
@@ -38,13 +41,13 @@ class SavaniLWO(SavaniBase):
         thresh_optimizer_maxiter: int = 100,
         beta: float = 2.2,
         params_to_opt: int | float = 0.5,
-        never_more_than: int = 10_000,
+        never_more_than: int = 50_000,
         tau_init: float = 0.5,
         outputs_are_logits: bool = True,
         n_eval_batches: int = 3,
         eval_batch_size: int = 128,
         skopt_verbose: bool = True,
-        skopt_njobs: int = 2,
+        skopt_njobs: int = 4,
         skopt_npoints: int = 1000,
         skopt_maxiter: int = 10,
         **kwargs,
@@ -65,11 +68,11 @@ class SavaniLWO(SavaniBase):
         self.outputs_are_logits = outputs_are_logits
         self.n_eval_batches = n_eval_batches
 
-        best_tau = tau_init
-        best_model = deepcopy(self.model)
-        best_phi = -1
-
         self.initialize_dataloader(dataloader, eval_batch_size)
+
+        best_model = deepcopy(self.model)
+
+        best_phi, best_tau = self.optimize_tau(tau_init, thresh_optimizer_maxiter)
 
         total_layers = len(list(self.model.parameters()))
         if n_layers_to_optimize == "all":
@@ -130,9 +133,20 @@ class SavaniLWO(SavaniBase):
 
                 logger.debug(f"Optimizing {len(space)} parameters")
 
+                regressor = RandomForestRegressor(
+                    n_estimators=50,
+                    n_jobs=skopt_njobs,
+                    max_depth=10,
+                    verbose=skopt_verbose,
+                    min_samples_leaf=2,
+                    random_state=self.seed,
+                    min_impurity_decrease=1e-4,
+                )
+
                 res = forest_minimize(
                     self.objective_LWO(o_params, best_tau, indices),
-                    space,
+                    dimensions=space,
+                    base_estimator=regressor,
                     n_calls=skopt_maxiter,
                     n_jobs=skopt_njobs,
                     random_state=self.seed,
@@ -185,7 +199,7 @@ class SavaniLWO(SavaniBase):
             The objective function
         """
 
-        if isinstance(tau, float):
+        if not isinstance(tau, torch.Tensor):
             tau = torch.tensor(tau, device=self.device)
 
         def objective(new_params: list) -> float:
