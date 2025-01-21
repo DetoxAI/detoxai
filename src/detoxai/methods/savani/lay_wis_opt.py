@@ -9,21 +9,13 @@ from copy import deepcopy
 from tqdm import tqdm
 from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize  # noqa
 from skopt.space import Real
+from functools import reduce
 
 # Project imports
 from .savani_base import SavaniBase
 from ...metrics.bias_metrics import BiasMetrics
 
 logger = logging.getLogger(__name__)
-
-
-def flatten_with_map(arr, indices):
-    return arr[indices].flatten()
-
-
-def unflatten_with_map(original, flat_arr, indices):
-    original[indices] = flat_arr.reshape(original[indices].shape)
-    return original
 
 
 class SavaniLWO(SavaniBase):
@@ -47,7 +39,8 @@ class SavaniLWO(SavaniBase):
         optimizer_maxiter: int = 10,
         thresh_optimizer_maxiter: int = 100,
         beta: float = 2.2,
-        neuron_frac: float = 0.2,
+        params_to_opt: int | float = 0.5,
+        never_more_than: int = 10_000,
         tau_init: float = 0.5,
         outputs_are_logits: bool = True,
         n_eval_batches: int = 3,
@@ -88,56 +81,70 @@ class SavaniLWO(SavaniBase):
             total=n_layers_to_optimize,
             file=sys.stdout,
         ) as pbar:
-            for i, (name, parameters) in enumerate(self.model.named_parameters()):
+            for i, (name, o_params) in enumerate(self.model.named_parameters()):
                 # We're optimizing the last n_layers_to_optimize layers
                 # -3 to avoid the last layer (2 outputs) weights and bias, then to avoid second to last layer's bias, we dont want to optimize bias as it doesn't make sense
-                if i < total_layers - n_layers_to_optimize - 2 or i >= total_layers - 2:
+                if i < total_layers - n_layers_to_optimize - 1 or i >= total_layers - 1:
                     continue
 
-                logger.debug(f"Optimizing layer {i} with name {name}")
+                logger.debug(f"Optimizing {name} layer ({i})")
 
-                self.parameters_np = parameters.detach().cpu().numpy()
-                std = self.parameters_np.std()
-                n = max(int(neuron_frac * len(self.parameters_np)), 1)
+                total_params_cnt = o_params.numel()
+
+                if isinstance(params_to_opt, float):
+                    n = max(int(params_to_opt * total_params_cnt), 1)
+                else:
+                    n = params_to_opt
+
+                    if n > total_params_cnt:
+                        n = total_params_cnt
+                        logger.info(
+                            f"Even though you asked for {params_to_opt} of the parameters, we're capping it to {total_params_cnt}"
+                        )
+
                 # Cap the number of neurons to optimize, this is useful for large models
-                logger.debug(
-                    f"Optimizing layer {i} with {n} out of {len(self.parameters_np)} neurons"
-                )
-                self.idx = np.random.choice(len(self.parameters_np), n, replace=False)
+                # Otherwise skopt will literally kill your machine
+                if n > never_more_than:
+                    n = never_more_than
+                    logger.info(
+                        f"Even though you asked for {params_to_opt} of the parameters, we're capping it to {never_more_than}"
+                    )
 
-                flat_parameters = flatten_with_map(self.parameters_np, self.idx)
+                # Cap the number of neurons to optimize, this is useful for large models
+                logger.debug(f"Optimizing lay. {i} w. {n}/{total_params_cnt} params")
 
+                sel_params, indices = self.flatten_select(o_params, n, total_params_cnt)
+
+                logging.debug(f"Flattened parameters cnt: {sel_params.numel()}")
+
+                std = o_params.std().detach().cpu().numpy()
                 space = [
                     Real(
                         x - beta * std,
                         x + beta * std,
                     )
-                    for x in flat_parameters
+                    for x in sel_params.detach().cpu().numpy()
                 ]
 
-                logger.debug(f"Optimizing layer {i} with {len(space)} parameters")
+                logger.debug(f"Optimizing {len(space)} parameters")
 
                 res = forest_minimize(
-                    self.objective_LWO(parameters, best_tau),
+                    self.objective_LWO(o_params, best_tau, indices),
                     space,
                     n_calls=optimizer_maxiter,
-                    n_jobs=4,
+                    n_jobs=2,
                     random_state=self.seed,
-                    # n_points=1000,
-                    # verbose=True,
+                    n_points=1000,
+                    verbose=True,
                 )
 
                 if -res.fun > best_phi:
-                    best_params = res.x
+                    best_p: list = res.x
+                    best_p_t = torch.tensor(best_p, device=self.device)
 
                     # Update the weights
                     with torch.no_grad():
-                        parameters.data = torch.tensor(
-                            unflatten_with_map(
-                                self.parameters_np, np.array(best_params), self.idx
-                            ),
-                            device=self.device,
-                        )
+                        o_params.data = self.unflatten(o_params, best_p_t, indices)
 
                     tau, phi = self.optimize_tau(tau_init, thresh_optimizer_maxiter)
 
@@ -161,22 +168,80 @@ class SavaniLWO(SavaniBase):
         # Add a hook with the best transformation
         self.apply_hook(best_tau)
 
-    def objective_LWO(self, parameters, tau):
+    def objective_LWO(
+        self, o_params: torch.Tensor, tau: float, indices: list
+    ) -> callable:
+        """
+        Objective function for the layer-wise optimization
+
+        Args:
+            o_params: The original parameters (torch.Tensor)
+            tau: The threshold value (float)
+            indices: The indices of the selected neurons (list)
+
+        Returns:
+            The objective function
+        """
+
         if isinstance(tau, float):
             tau = torch.tensor(tau, device=self.device)
 
-        def objective(new_parameters) -> float:
-            nonlocal tau
-            ps = unflatten_with_map(
-                self.parameters_np, np.array(new_parameters), self.idx
-            )
+        def objective(new_params: list) -> float:
+            nonlocal tau, o_params, indices
 
             # Update the weights
             with torch.no_grad():
-                parameters.data = torch.tensor(ps, device=self.device)
+                np_trch = torch.tensor(new_params, device=self.device)
+                o_params.data = self.unflatten(o_params, np_trch, indices)
 
             phi, _ = self.phi_torch(tau)
 
             return -phi.detach().cpu().numpy()
 
         return objective
+
+    def flatten_select(
+        self, params: torch.Tensor, select_cnt: float | int, total_params: int
+    ) -> tuple[torch.Tensor, list]:
+        """
+        Take an n-dimensional array,
+
+        Args:
+            params: The parameters to flatten (N-dimensional array)
+            select_cnt: The number of neurons to select (float is a fraction of the total neurons, int is the number of neurons)
+            total_params: The total number of parameters
+
+        Returns:
+            A 1-dimensional array of selected neurons
+            A 1-dimensional array of indices of the selected neurons
+        """
+
+        if isinstance(select_cnt, float):
+            select_cnt = int(select_cnt * total_params)
+        assert select_cnt <= total_params, (
+            "select_cnt must be less than the total number of parameters"
+        )
+
+        indices = np.random.choice(total_params, select_cnt, replace=False)
+        indices = list(indices)
+
+        return params.flatten()[indices], indices
+
+    def unflatten(
+        self, o_params: torch.Tensor, f_params: torch.Tensor, indices: list
+    ) -> torch.Tensor:
+        """
+        Unflatten the parameters
+
+        Args:
+            o_params: The original parameters
+            f_params: The flattened parameters
+            indices: The indices of the selected neurons
+
+        Returns:
+            The unflattened parameters
+        """
+        o_shape = o_params.shape
+        o_params = o_params.flatten()
+        o_params[indices] = f_params
+        return o_params.reshape(o_shape)

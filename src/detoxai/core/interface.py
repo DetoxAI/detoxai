@@ -5,6 +5,7 @@ import traceback
 import signal
 from datetime import datetime
 
+
 # Project imports
 from ..methods import (
     SavaniRP,
@@ -75,7 +76,7 @@ DEFAULT_METHODS_CONFIG = {
     },
     "SAVANIRP": {},
     "SAVANILWO": {
-        "n_layers_to_optimize": 2,
+        "n_layers_to_optimize": 4,
     },
     "SAVANIAFT": {},
     "ZHANGM": {},
@@ -378,9 +379,15 @@ def _apply_model_correction_w_timeout(
 ) -> bool:
     """
     Execute the apply_model_correction method of the corrector
-    as a task with timeout to prevent infinite execution
+    as a task with timeout to prevent infinite execution.
 
-    corrector.apply_model_correction(**method_kwargs)
+    Args:
+        corrector: Object with an apply_model_correction method.
+        method_kwargs: Arguments to pass to the method.
+        timeout: Maximum execution time in seconds.
+
+    Returns:
+        bool: True if successful, False on error or timeout.
     """
 
     def handler(signum, frame):
@@ -391,13 +398,11 @@ def _apply_model_correction_w_timeout(
 
     try:
         corrector.apply_model_correction(**method_kwargs)
-
-        # Disable the alarm
-        signal.alarm(0)
-
-        return True
+        signal.alarm(0)  # Disable the alarm
 
     except Exception as e:
+        signal.alarm(0)
+
         if "Timeout" not in str(e):
             logger.error(
                 f"Error running correction method {corrector.__class__.__name__}: {e}"
