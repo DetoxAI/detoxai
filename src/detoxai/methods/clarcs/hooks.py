@@ -72,6 +72,13 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
 
         A = torch.matmul(vvt, (x_copy_detached - z).T).T  # (N, batch_size)
 
+        if torch.rand(42) < 0.1:
+            logger.debug(f"DEBUG: Magnitude of A: {A.detach().norm()}")
+            logger.debug(f"DEBUG: Magnitude of cav: {cav.norm()}")
+            logger.debug(f"DEBUG: Magnitude of mean_length: {mean_length.norm()}")
+            logger.debug(f"DEBUG: Magnitude of x_copy_detached: {x_copy_detached.norm()}")
+            logger.debug(f"DEBUG: Magnitude of vvt: {vvt.norm()}")
+
         results = output - A * alpha
 
         adjusted_output = results.reshape(output_shapes)
