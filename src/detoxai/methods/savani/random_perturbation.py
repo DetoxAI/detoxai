@@ -59,9 +59,9 @@ class SavaniRP(SavaniBase):
 
         self.initialize_dataloader(dataloader, eval_batch_size)
 
-        best_tau = tau_init
         best_model = deepcopy(self.model)
-        best_phi = -1
+
+        best_tau, best_phi = self.optimize_tau(tau_init, optimizer_maxiter)
 
         with tqdm(
             desc=f"Random Perturbation iterations (phi: {best_phi:.3f}, tau: {best_tau:.3f})",
