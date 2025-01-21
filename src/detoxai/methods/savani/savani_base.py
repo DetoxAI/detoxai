@@ -47,7 +47,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         best_phi = 1e-6
         tau = tau_init
 
-        for _tau in torch.linspace(0, 1, thresh_optimizer_maxiter):
+        for _tau in torch.linspace(0.05, 0.95, thresh_optimizer_maxiter):
             phi = objective_fn(_tau)
 
             if phi > best_phi:

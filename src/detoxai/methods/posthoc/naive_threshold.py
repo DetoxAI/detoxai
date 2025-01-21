@@ -168,9 +168,9 @@ class NaiveThresholdOptimizer(PosthocBase):
     def apply_model_correction(
         self,
         last_layer_name: str,
-        threshold_range: Tuple[float, float] = (0.1, 0.9),
+        threshold_range: Tuple[float, float] = (0.05, 0.95),
         objective_function: Optional[Callable[[float, float], float]] = None,
-        threshold_steps: int = 20,
+        threshold_steps: int = 100,
         metric: str = "EO_GAP",
         **kwargs: Any,
     ) -> None:

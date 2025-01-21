@@ -405,11 +405,12 @@ def _apply_model_correction_w_timeout(
         signal.alarm(0)
 
         if "Timeout" not in str(e):
+            logger.error(traceback.format_exc())
             logger.error(
                 f"Error running correction method {corrector.__class__.__name__}: {e}"
             )
-            logger.error(traceback.format_exc())
             return False
         else:
+            logger.error(traceback.format_exc())
             logger.error(f"Correction method {corrector.__class__.__name__} timed out")
             return False
