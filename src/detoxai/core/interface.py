@@ -400,6 +400,7 @@ def _apply_model_correction_w_timeout(
     try:
         corrector.apply_model_correction(**method_kwargs)
         signal.alarm(0)  # Disable the alarm
+        return True
 
     except Exception as e:
         signal.alarm(0)
