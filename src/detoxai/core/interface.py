@@ -337,6 +337,7 @@ def run_correction(
                 )
                 if not success:
                     failed = True
+                    logger.error(traceback.format_exc())
                     logger.error(f"Correction method {method} failed")
             else:
                 corrector.apply_model_correction(**method_kwargs)
@@ -362,8 +363,8 @@ def run_correction(
                 method_kwargs["model"].to("cpu")
 
         except Exception as e:
-            logger.error(f"Error running correction method {method}: {e}")
             logger.error(traceback.format_exc())
+            logger.error(f"Error running correction method {method}: {e}")
             failed = True
 
     else:

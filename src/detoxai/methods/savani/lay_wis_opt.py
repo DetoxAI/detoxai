@@ -9,7 +9,6 @@ from copy import deepcopy
 from tqdm import tqdm
 from skopt import gbrt_minimize, gp_minimize, dummy_minimize, forest_minimize  # noqa
 from skopt.space import Real
-from functools import reduce
 
 # Project imports
 from .savani_base import SavaniBase
@@ -36,7 +35,6 @@ class SavaniLWO(SavaniBase):
         epsilon: float = 0.1,
         bias_metric: BiasMetrics | str = BiasMetrics.EO_GAP,
         n_layers_to_optimize: int | str = "all",
-        optimizer_maxiter: int = 10,
         thresh_optimizer_maxiter: int = 100,
         beta: float = 2.2,
         params_to_opt: int | float = 0.5,
@@ -45,6 +43,10 @@ class SavaniLWO(SavaniBase):
         outputs_are_logits: bool = True,
         n_eval_batches: int = 3,
         eval_batch_size: int = 128,
+        skopt_verbose: bool = True,
+        skopt_njobs: int = 2,
+        skopt_npoints: int = 1000,
+        skopt_maxiter: int = 10,
         **kwargs,
     ) -> None:
         """
@@ -131,11 +133,11 @@ class SavaniLWO(SavaniBase):
                 res = forest_minimize(
                     self.objective_LWO(o_params, best_tau, indices),
                     space,
-                    n_calls=optimizer_maxiter,
-                    n_jobs=2,
+                    n_calls=skopt_maxiter,
+                    n_jobs=skopt_njobs,
                     random_state=self.seed,
-                    n_points=1000,
-                    verbose=True,
+                    n_points=skopt_npoints,
+                    verbose=skopt_verbose,
                 )
 
                 if -res.fun > best_phi:
