@@ -48,6 +48,7 @@ class ZhangM(SavaniBase):
         critic_linear: list[int] = [256, 256, 256],
         outputs_are_logits: bool = True,
         n_eval_batches: int = 3,
+        soft_thresh_temperature: float = 100.0,
         **kwargs,
     ) -> None:
         """backward
@@ -189,7 +190,7 @@ class ZhangM(SavaniBase):
             self.lightning_model.model = self.model
 
         # Add a hook with the best transformation
-        self.apply_hook(tau)
+        self.apply_hook(tau, soft_thresh_temperature)
 
     def get_critic(
         self,

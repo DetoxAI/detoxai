@@ -38,6 +38,7 @@ class SavaniRP(SavaniBase):
         options: dict = {},
         eval_batch_size: int = 128,
         n_eval_batches: int = 3,
+        soft_thresh_temperature: float = 100.0,
         **kwargs,
     ) -> None:
         """
@@ -91,7 +92,7 @@ class SavaniRP(SavaniBase):
             self.lightning_model.model = best_model
 
         # Add a hook with the best transformation
-        self.apply_hook(best_tau)
+        self.apply_hook(best_tau, soft_thresh_temperature)
 
     def _perturb_weights(
         self, module: nn.Module, mean: float = 1.0, std: float = 0.1, **kwargs

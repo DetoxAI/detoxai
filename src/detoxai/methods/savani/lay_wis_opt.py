@@ -50,6 +50,7 @@ class SavaniLWO(SavaniBase):
         skopt_njobs: int = 4,
         skopt_npoints: int = 1000,
         skopt_maxiter: int = 10,
+        soft_thresh_temperature: float = 100.0,
         **kwargs,
     ) -> None:
         """
@@ -182,7 +183,7 @@ class SavaniLWO(SavaniBase):
             self.lightning_model.model = best_model
 
         # Add a hook with the best transformation
-        self.apply_hook(best_tau)
+        self.apply_hook(best_tau, soft_thresh_temperature)
 
     def objective_LWO(
         self, o_params: torch.Tensor, tau: float, indices: list

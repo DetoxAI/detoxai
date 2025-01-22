@@ -102,17 +102,19 @@ class SavaniBase(ModelCorrectionMethod, ABC):
             self.bias_metric,
         )
 
-    def apply_hook(self, tau: float) -> None:
+    def apply_hook(self, tau: float, temperature: float = 100) -> None:
         def hook(module, input, output):
             # output = (output > tau).int() # doesn't allow gradients to flow
             # Assuming binary classification
 
             if self.outputs_are_logits:
                 probs = softmax(output, dim=1)
-                output[:, 1] = sigmoid((probs[:, 1] - tau) * 10)  # soft thresholding
+                # soft thresholding
+                output[:, 1] = sigmoid((probs[:, 1] - tau) * temperature)
                 output[:, 0] = 1 - output[:, 1]
             else:
-                output[:, 1] = sigmoid((output[:, 1] - tau) * 10)  # soft thresholding
+                # soft thresholding
+                output[:, 1] = sigmoid((output[:, 1] - tau) * temperature)
                 output[:, 0] = 1 - output[:, 1]
 
             # logger.debug(f"Savani hook fired in layer: {module}")
