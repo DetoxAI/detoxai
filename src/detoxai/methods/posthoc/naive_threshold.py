@@ -63,16 +63,16 @@ class NaiveThresholdOptimizer(PosthocBase):
 
         def hook(module: nn.Module, input: Any, output: torch.Tensor) -> torch.Tensor:
             probs = self._get_probabilities(output)
+            pos_probs = probs[:, 1]
 
+            scaling_factor = 100.0
+            pos_class = torch.sigmoid(scaling_factor * (pos_probs - threshold))
+            
             preds = torch.zeros_like(probs, device=self.device)
+            preds[:, 0] = 1 - pos_class
+            preds[:, 1] = pos_class
 
-            mask = torch.argmax(probs, dim=1).bool()
-
-            # assume binary classification with two output nodes
-            preds[~mask, 0] = 1
-            preds[mask, 1] = 1
-
-            return preds.float()
+            return preds
 
         return hook
 
