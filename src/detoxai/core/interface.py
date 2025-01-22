@@ -4,7 +4,7 @@ import logging
 import traceback
 import signal
 from datetime import datetime
-
+import multiprocessing as mp
 
 # Project imports
 from ..methods import (
@@ -331,10 +331,18 @@ def run_correction(
         try:
             timeout = method_kwargs.pop("method_timeout", None)
             if timeout is not None and timeout > 0:
-                logger.debug(f"Running correction method {method} with timeout set")
-                success = _apply_model_correction_w_timeout(
-                    corrector, method_kwargs, timeout
-                )
+                logger.debug(f"Running {method} w {timeout} s timeout")
+
+                if isinstance(corrector, LEACE):
+                    logger.debug(f"Running {method} with multiprocessing")
+                    success = _mp_apply_model_correction_w_timeout(
+                        corrector, method_kwargs, timeout
+                    )
+                else:
+                    success = _apply_model_correction_w_timeout(
+                        corrector, method_kwargs, timeout
+                    )
+
                 if not success:
                     failed = True
                     logger.error(traceback.format_exc())
@@ -415,3 +423,42 @@ def _apply_model_correction_w_timeout(
             logger.error(traceback.format_exc())
             logger.error(f"Correction method {corrector.__class__.__name__} timed out")
             return False
+
+
+def _mp_apply_model_correction_w_timeout(
+    corrector: ModelCorrectionMethod, method_kwargs: dict, timeout: float
+) -> bool:
+    """
+    Execute the apply_model_correction method of the corrector in a separate process
+    as a task with timeout to prevent infinite execution.
+
+    Args:
+        corrector: Object with an apply_model_correction method.
+        method_kwargs: Arguments to pass to the method.
+        timeout: Maximum execution time in seconds.
+
+    Returns:
+        bool: True if successful, False on error or timeout.
+    """
+
+    try:
+        p = mp.Process(
+            target=_apply_model_correction_w_timeout,
+            args=(corrector, method_kwargs, timeout),
+        )
+        p.start()
+
+        p.join(timeout)
+
+        if p.is_alive():
+            p.kill()
+            p.join()
+            return False
+        else:
+            return True
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        logger.error(
+            f"Error running correction method {corrector.__class__.__name__}: {e}"
+        )
+        return False

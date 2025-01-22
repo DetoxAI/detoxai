@@ -52,7 +52,11 @@ class LEACE(ModelCorrectionMethod):
         assert hasattr(self, "activations"), "Activations must be extracted first."
         assert self.activations is not None, "Activations must be extracted first."
 
+        logger.debug(f"LEACE will be applied to layers: {intervention_layers}")
+
         for lay in intervention_layers:
+            logger.debug(f"Applying LEACE to layer: {lay}")
+
             labels = self.activations["labels"][:, 1]
             layer_acts = self.activations[lay].reshape(
                 self.activations[lay].shape[0], -1
