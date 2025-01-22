@@ -1,6 +1,7 @@
 import logging
 import torch
 from torch import nn
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +73,13 @@ def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
 
         A = torch.matmul(vvt, (x_copy_detached - z).T).T  # (N, batch_size)
 
-        if torch.rand(42) < 0.1:
+        if random.random() < 0.1:
             logger.debug(f"DEBUG: Magnitude of A: {A.detach().norm()}")
             logger.debug(f"DEBUG: Magnitude of cav: {cav.norm()}")
             logger.debug(f"DEBUG: Magnitude of mean_length: {mean_length.norm()}")
-            logger.debug(f"DEBUG: Magnitude of x_copy_detached: {x_copy_detached.norm()}")
+            logger.debug(
+                f"DEBUG: Magnitude of x_copy_detached: {x_copy_detached.norm()}"
+            )
             logger.debug(f"DEBUG: Magnitude of vvt: {vvt.norm()}")
 
         results = output - A * alpha

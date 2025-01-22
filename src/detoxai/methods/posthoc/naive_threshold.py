@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from typing import Tuple, Optional, List, Any, Callable
 import logging
+import lightning as L
 
 from .posthoc_base import PosthocBase
 from ...utils.dataloader import DetoxaiDataLoader
@@ -26,7 +27,7 @@ class NaiveThresholdOptimizer(PosthocBase):
 
     def __init__(
         self,
-        model: nn.Module,
+        model: nn.Module | L.LightningModule,
         experiment_name: str,
         device: str,
         dataloader: DetoxaiDataLoader,
@@ -197,3 +198,6 @@ class NaiveThresholdOptimizer(PosthocBase):
                 hook = module.register_forward_hook(self._threshold_hook(threshold))
                 logger.debug(f"Hook registered on layer: {name}")
                 self.hooks.append(hook)
+
+        if hasattr(self, "lightning_model"):
+            self.lightning_model.model = self.model

@@ -333,15 +333,15 @@ def run_correction(
             if timeout is not None and timeout > 0:
                 logger.debug(f"Running {method} w {timeout} s timeout")
 
-                if isinstance(corrector, LEACE):
-                    logger.debug(f"Running {method} with multiprocessing")
-                    success = _mp_apply_model_correction_w_timeout(
-                        corrector, method_kwargs, timeout
-                    )
-                else:
-                    success = _apply_model_correction_w_timeout(
-                        corrector, method_kwargs, timeout
-                    )
+                # if isinstance(corrector, LEACE):
+                #     logger.debug(f"Running {method} with multiprocessing")
+                #     success = _mp_apply_model_correction_w_timeout(
+                #         corrector, method_kwargs, timeout
+                #     )
+                # else:
+                success = _apply_model_correction_w_timeout(
+                    corrector, method_kwargs, timeout
+                )
 
                 if not success:
                     failed = True

@@ -45,7 +45,9 @@ class LEACE(ModelCorrectionMethod):
             use_cache,
         )
 
-    def apply_model_correction(self, intervention_layers: list[str], **kwargs) -> None:
+    def apply_model_correction(
+        self, intervention_layers: list[str], use_n_examples: int = 15_000, **kwargs
+    ) -> None:
         """
         Apply the LEACE eraser to the specified layers of the model.
         """
@@ -62,8 +64,8 @@ class LEACE(ModelCorrectionMethod):
                 self.activations[lay].shape[0], -1
             )
 
-            X_torch = torch.from_numpy(layer_acts).to(self.device)
-            y_torch = torch.from_numpy(labels).to(self.device)
+            X_torch = torch.from_numpy(layer_acts[:use_n_examples]).to(self.device)
+            y_torch = torch.from_numpy(labels[:use_n_examples]).to(self.device)
 
             eraser = LeaceEraser.fit(X_torch, y_torch)
 
