@@ -178,13 +178,16 @@ def make_detoxai_datasets_variant(variant_config):
         <= 1.0
     ), "Fractions should add up to less than or equal to 1.0"
 
+    split_index_offset = 0
     for split_name, split_config in variant_config["splits"].items():
         split_path = variant_path / f"{split_name}.txt"
-        split_indices_stop_index = int(split_config["fraction"] * len(labels_fraction))
-        df_split = labels_fraction.iloc[:split_indices_stop_index]
+        split_num_samples = int(split_config["fraction"] * len(labels_fraction))
+        df_split = labels_fraction.iloc[split_index_offset:split_index_offset+split_num_samples]
+        split_index_offset += split_num_samples
+        print(len(df_split))
 
         final_split_indices, total_samples = balance_dataset(df_split, split_config)
-
+        print(final_split_indices)
         final_split_df = df_split.loc[final_split_indices]
         np.savetxt(split_path, final_split_df.index.to_numpy(), fmt="%d", delimiter=",")
 
