@@ -371,7 +371,7 @@ class DetoxaiDataset(VisionDataset):
 
     def get_class_names(self) -> List[str]:
         return [
-            f"{self.config['target']}_{item.replace(' ', '_')}"
+            f"{self.config['target']}_{str(item).replace(' ', '_')}"
             for key, item in self.labels_mapping[self.config["target"]].items()
         ]
 
