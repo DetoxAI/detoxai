@@ -106,6 +106,7 @@ def balance_dataset(df: pd.DataFrame, config: dict) -> Tuple[np.ndarray, int]:
     total_samples = calculate_max_samples(df, config)
     selected_indices: Set[int] = set()
     remaining_indices = set(df.index.tolist())
+    total_matching_indices = set()
 
     for balance_rule in config["balancing"]:
         n_samples = int(balance_rule["percentage"] * total_samples)
@@ -136,13 +137,22 @@ def balance_dataset(df: pd.DataFrame, config: dict) -> Tuple[np.ndarray, int]:
             selected_indices.update(selected)
             remaining_indices -= set(selected)
 
+        total_matching_indices.update(matching_indices)
+
     total_percentage = sum(rule["percentage"] for rule in config["balancing"])
 
     if total_percentage < 1 and remaining_indices:
         remaining_samples = int((1 - total_percentage) * total_samples)
-        remaining_to_sample = min(remaining_samples, len(remaining_indices))
+        indices_that_do_not_adhere_to_any_rule = (
+            remaining_indices - total_matching_indices
+        )
+        remaining_to_sample = min(
+            remaining_samples, len(indices_that_do_not_adhere_to_any_rule)
+        )
         remaining_selected = np.random.choice(
-            list(remaining_indices), size=remaining_to_sample, replace=False
+            list(indices_that_do_not_adhere_to_any_rule),
+            size=remaining_to_sample,
+            replace=False,
         )
         selected_indices.update(remaining_selected)
 
@@ -158,17 +168,15 @@ def make_detoxai_datasets_variant(variant_config):
         / "splits"
     )
     os.makedirs(variant_path, exist_ok=True)
-    
+
     labels = pd.read_csv(
         Path(DETOXAI_DATASET_PATH) / variant_config["dataset"] / "labels.csv"
     )
-    labels = labels.sample(frac=1).reset_index(drop=True) #shuffle
     labels_fraction = labels.iloc[: int(variant_config["fraction"] * len(labels))]
-    
 
-    assert variant_config["fraction"] <= 1.0, (
-        "Fraction should be less than or equal to 1.0"
-    )
+    assert (
+        variant_config["fraction"] <= 1.0
+    ), "Fraction should be less than or equal to 1.0"
     assert (
         sum(
             [
@@ -183,7 +191,9 @@ def make_detoxai_datasets_variant(variant_config):
     for split_name, split_config in variant_config["splits"].items():
         split_path = variant_path / f"{split_name}.txt"
         split_num_samples = int(split_config["fraction"] * len(labels_fraction))
-        df_split = labels_fraction.iloc[split_index_offset:split_index_offset+split_num_samples]
+        df_split = labels_fraction.iloc[
+            split_index_offset : split_index_offset + split_num_samples
+        ]
         split_index_offset += split_num_samples
 
         final_split_indices, total_samples = balance_dataset(df_split, split_config)
