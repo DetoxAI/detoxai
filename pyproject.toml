@@ -1,6 +1,6 @@
 [project]
 name = "detoxai"
-version = "0.2.2"
+version = "0.2.3"
 description = "todo"
 readme = "README_pypi.md"
 requires-python = ">=3.11"
@@ -20,6 +20,7 @@ dependencies = [
     "scikit-optimize>=0.10.2",
     "pandas>=2.2.3",
     "zennit>=0.5.1",
+    "matplotlib>=3.10.0",
 ]
 
 [build-system]
