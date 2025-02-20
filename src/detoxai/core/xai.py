@@ -19,7 +19,8 @@ class XAIMetricsCalculator:
         model: nn.Module,
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
-        sailmap_metrics: list[str] = ["RRF", "HRF", "MRR", "DET"],
+        vanilla_model: nn.Module = None,
+        sailmap_metrics: list[str] = ["RRF", "HRF", "MRR", "DET", "RMSDR", "DDT", "DCR"],
         batches: int = 2,
         condition_on: str = ConditionOn.PROPER_LABEL.value,
         verbose: bool = False,
@@ -31,6 +32,7 @@ class XAIMetricsCalculator:
             - `model` (nn.Module): The model to use for LRP
             - `rect_pos` (tuple[int, int]): The position of the rectangle
             - `rect_size` (tuple[int, int]): The size of the rectangle
+            - `vanilla_model` (nn.Module): The vanilla model to use for comparison
             - `sailmap_metrics` (list[str]): The list of metrics to calculate
             - `batches` (int): The number of batches to calculate
             - `condition_on` (str): The condition to calculate the metrics on
@@ -52,11 +54,26 @@ class XAIMetricsCalculator:
                 metrics_calcs.append(MRR())
             elif metric == "DET":
                 metrics_calcs.append(DET())
+            elif metric == "RMSDR":
+                if vanilla_model is None:
+                    raise ValueError("RMSDR requires a vanilla model for comparison")
+                metrics_calcs.append(RMSDR())
+            elif metric == "DDT":
+                if vanilla_model is None:
+                    raise ValueError("DDT requires a vanilla model for comparison")
+                metrics_calcs.append(DDT())
+            elif metric == "DCR":
+                if vanilla_model is None:
+                    raise ValueError("DCR requires a vanilla model for comparison")
+                metrics_calcs.append(DCR())
             else:
                 raise ValueError(f"Metric {metric} is not supported")
 
         for i in tqdm(range(batches), disable=not verbose, desc="Calculating metrics"):
             lrpres = self.lrphandler.calculate(model, self.dataloader, batch_num=i)
+
+            if vanilla_model is not None:
+                vanilla_lrpres = self.lrphandler.calculate(vanilla_model, self.dataloader, batch_num=i)
 
             _, labels, _ = self.dataloader.get_nth_batch(i)  # noqa
 
@@ -73,9 +90,17 @@ class XAIMetricsCalculator:
             sailmaps: torch.Tensor = torch.stack(conditioned).to(dtype=float)
             sailmaps = sailmaps.cpu().detach().numpy()
 
+            if vanilla_model is not None:
+                vanilla_sailmaps = torch.stack(
+                    [vanilla_lrpres[label, i] for i, label in enumerate(labels)]
+                ).to(dtype=float)
+                vanilla_sailmaps = vanilla_sailmaps.cpu().detach().numpy()
+
             for metric in metrics_calcs:
-                print(metric)
-                metric.aggregate(sailmaps, rect_pos, rect_size)
+                if isinstance(metric, (RMSDR, DDT, DCR)):
+                    metric.aggregate(sailmaps, rect_pos, rect_size, vanilla_sailmaps)
+                else:
+                    metric.aggregate(sailmaps, rect_pos, rect_size)
 
         ret = {}
         for metric in metrics_calcs:
@@ -341,3 +366,137 @@ class DET(SailRectMetric):
                 scores[i] = 1
 
         return scores
+
+
+class RMSDR(SailRectMetric):
+    """
+    Root Mean Square Difference Ratio (RMSDR)
+    
+    Compares the root mean square differences between debiased and vanilla saliency maps
+    inside vs outside the ROI.
+    """
+    
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.name = "RMSDR"
+
+    def _core(
+        self,
+        sailmaps: np.ndarray,  # debiased maps
+        rect_pos: tuple[int, int],
+        rect_size: tuple[int, int],
+        vanilla_maps: np.ndarray = None,  # vanilla maps
+    ) -> np.ndarray:
+        if vanilla_maps is None:
+            raise ValueError("RMSDR requires both debiased and vanilla saliency maps")
+            
+        # Get rectangles for both maps
+        d_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
+        v_rect = self._sailmaps_rect(vanilla_maps, rect_pos, rect_size)
+        
+        # Calculate differences inside rectangle
+        diff_rect = (d_rect - v_rect) ** 2
+        rms_inside = np.sqrt(diff_rect.reshape(len(diff_rect), -1).mean(axis=1))
+        
+        # Calculate differences outside rectangle
+        d_outside = sailmaps.copy()
+        v_outside = vanilla_maps.copy()
+        
+        d_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
+                    rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
+        v_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
+                    rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
+        
+        diff_outside = (d_outside - v_outside) ** 2
+        rms_outside = np.sqrt(diff_outside.reshape(len(diff_outside), -1).mean(axis=1))
+        
+        return rms_inside / rms_outside
+
+
+class DDT(SailRectMetric):
+    """
+    Difference Distribution Testing (DDT)
+    
+    Tests whether the distribution of differences between debiased and vanilla maps
+    is different inside vs outside the ROI using Mann-Whitney-Wilcoxon test.
+    """
+    
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.name = "DDT"
+
+    def _core(
+        self,
+        sailmaps: np.ndarray,  # debiased maps
+        rect_pos: tuple[int, int],
+        rect_size: tuple[int, int],
+        vanilla_maps: np.ndarray = None,  # vanilla maps
+    ) -> np.ndarray:
+        if vanilla_maps is None:
+            raise ValueError("DDT requires both debiased and vanilla saliency maps")
+            
+        # Calculate differences
+        diff_maps = sailmaps - vanilla_maps
+        
+        # Get differences inside and outside rectangle
+        diff_rect = self._sailmaps_rect(diff_maps, rect_pos, rect_size)
+        
+        diff_outside = diff_maps.copy()
+        diff_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
+                       rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
+        
+        scores = np.zeros(diff_rect.shape[0])
+        # Per image
+        for i in range(diff_rect.shape[0]):
+            _, p = stats.mannwhitneyu(
+                diff_rect[i].flatten(), 
+                diff_outside[i].flatten(), 
+                alternative="two-sided"
+            )
+            if p < 0.01:
+                scores[i] = 1
+                
+        return scores
+
+
+class DCR(SailRectMetric):
+    """
+    Direction Change Ratio (DCR)
+    
+    Measures the ratio of pixels showing decreased intensity in the debiased model
+    compared to the vanilla model, inside vs outside the ROI.
+    """
+    
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.name = "DCR"
+
+    def _core(
+        self,
+        sailmaps: np.ndarray,  # debiased maps
+        rect_pos: tuple[int, int],
+        rect_size: tuple[int, int],
+        vanilla_maps: np.ndarray = None,  # vanilla maps
+    ) -> np.ndarray:
+        if vanilla_maps is None:
+            raise ValueError("DCR requires both debiased and vanilla saliency maps")
+            
+        # Get rectangles for both maps
+        d_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
+        v_rect = self._sailmaps_rect(vanilla_maps, rect_pos, rect_size)
+        
+        # Calculate proportion of decreased pixels inside rectangle
+        decreased_inside = (d_rect < v_rect).reshape(len(d_rect), -1).mean(axis=1)
+        
+        # Calculate proportion of decreased pixels outside rectangle
+        d_outside = sailmaps.copy()
+        v_outside = vanilla_maps.copy()
+        
+        d_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
+                    rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
+        v_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
+                    rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
+        
+        decreased_outside = (d_outside < v_outside).reshape(len(d_outside), -1).mean(axis=1)
+        
+        return decreased_inside / decreased_outside
