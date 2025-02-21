@@ -14,6 +14,11 @@ class XAIMetricsCalculator:
         self.dataloader = dataloader
         self.lrphandler = lrphandler
 
+    def _symmetrize(
+        self, sailmaps: np.ndarray, neutral_point: float = 0.5
+    ) -> np.ndarray:
+        return np.abs(sailmaps - neutral_point)
+
     def calculate_metrics(
         self,
         model: nn.Module,
@@ -32,6 +37,9 @@ class XAIMetricsCalculator:
         batches: int = 2,
         condition_on: str = ConditionOn.PROPER_LABEL.value,
         verbose: bool = False,
+        # source_range: tuple[float, float] = (0, 1),
+        neutral_point: float = 0.5,
+        abs_on_neutral: bool = True,
     ) -> dict[str, float]:
         """
         Calculate the metrics for the given model and sailmaps
@@ -99,12 +107,17 @@ class XAIMetricsCalculator:
 
             sailmaps: torch.Tensor = torch.stack(conditioned).to(dtype=float)
             sailmaps = sailmaps.cpu().detach().numpy()
+            if abs_on_neutral:
+                sailmaps = self._symmetrize(sailmaps, neutral_point)
 
             if vanilla_model is not None:
                 vanilla_sailmaps = torch.stack(
                     [vanilla_lrpres[label, i] for i, label in enumerate(labels)]
                 ).to(dtype=float)
                 vanilla_sailmaps = vanilla_sailmaps.cpu().detach().numpy()
+
+                if abs_on_neutral:
+                    vanilla_sailmaps = self._symmetrize(vanilla_sailmaps, neutral_point)
 
             for metric in metrics_calcs:
                 if isinstance(metric, (RMSDR, DDT, DCR)):
@@ -257,17 +270,11 @@ class HRF(SailRectMetric):
 
     def __init__(
         self,
-        epsilon: float = 0.5,
-        source_range: tuple[float, float] = (0, 1),
-        symmetrical: bool = False,
-        neutral_point: float = 0.5,
+        epsilon: float = 0.05,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.epsilon = epsilon
-        self.source_range = source_range
-        self.symmetrical = symmetrical
-        self.neutral_point = neutral_point
 
         self.name = "HRF"
 
@@ -277,18 +284,12 @@ class HRF(SailRectMetric):
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
     ) -> np.ndarray:
-        if self.symmetrical:
-            sm_rect = (
-                self._sailmaps_rect(sailmaps, rect_pos, rect_size) - self.neutral_point
-            )
-            sm_rect = np.abs(sm_rect).reshape(len(sm_rect), -1)
+        sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
 
-            # Rescale to [0, 1]
-            sm_rect = (sm_rect - sm_rect.min(axis=1)) / (
-                sm_rect.max(axis=1) - sm_rect.min(axis=1)
-            )
-        else:
-            sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
+        print(
+            f"Describe qunaitles etc summary: {np.quantile(sm_rect, [0.25, 0.5, 0.75])}"
+        )
+        print(f"epsilon: {self.epsilon}")
 
         high_relevance = np.sum(sm_rect > self.epsilon, axis=1)
         return high_relevance / sm_rect.size
