@@ -25,9 +25,9 @@ class XAIMetricsCalculator:
             "HRF",
             "MRR",
             "DET",
-            "RMSDR",
-            "DDT",
-            "DCR",
+            "ADR",
+            "DIF",
+            "RDDT",
         ],
         batches: int = 2,
         condition_on: str = ConditionOn.PROPER_LABEL.value,
@@ -62,18 +62,18 @@ class XAIMetricsCalculator:
                 metrics_calcs.append(MRR())
             elif metric == "DET":
                 metrics_calcs.append(DET())
-            elif metric == "RMSDR":
+            elif metric == "ADR":
                 if vanilla_model is None:
-                    raise ValueError("RMSDR requires a vanilla model for comparison")
-                metrics_calcs.append(RMSDR())
-            elif metric == "DDT":
+                    raise ValueError("ADR requires a vanilla model for comparison")
+                metrics_calcs.append(ADR())
+            elif metric == "DIF":
                 if vanilla_model is None:
-                    raise ValueError("DDT requires a vanilla model for comparison")
-                metrics_calcs.append(DDT())
-            elif metric == "DCR":
+                    raise ValueError("DIF requires a vanilla model for comparison")
+                metrics_calcs.append(DIF())
+            elif metric == "RDDT":
                 if vanilla_model is None:
-                    raise ValueError("DCR requires a vanilla model for comparison")
-                metrics_calcs.append(DCR())
+                    raise ValueError("RDDT requires a vanilla model for comparison")
+                metrics_calcs.append(RDDT())
             else:
                 raise ValueError(f"Metric {metric} is not supported")
 
@@ -107,7 +107,7 @@ class XAIMetricsCalculator:
                 vanilla_sailmaps = vanilla_sailmaps.cpu().detach().numpy()
 
             for metric in metrics_calcs:
-                if isinstance(metric, (RMSDR, DDT, DCR)):
+                if isinstance(metric, (ADR, DIF, RDDT)):
                     metric.aggregate(sailmaps, rect_pos, rect_size, vanilla_sailmaps)
                 else:
                     metric.aggregate(sailmaps, rect_pos, rect_size)
@@ -383,152 +383,99 @@ class DET(SailRectMetric):
         return scores
 
 
-class RMSDR(SailRectMetric):
+class ADR(SailRectMetric):
     """
-    Root Mean Square Difference Ratio (RMSDR)
-
-    Compares the root mean square differences between debiased and vanilla saliency maps
-    inside vs outside the ROI.
-    """
-
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.name = "RMSDR"
-
-    def _core(
-        self,
-        sailmaps: np.ndarray,  # debiased maps
-        rect_pos: tuple[int, int],
-        rect_size: tuple[int, int],
-        vanilla_maps: np.ndarray = None,  # vanilla maps
-    ) -> np.ndarray:
-        if vanilla_maps is None:
-            raise ValueError("RMSDR requires both debiased and vanilla saliency maps")
-
-        # Get rectangles for both maps
-        d_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
-        v_rect = self._sailmaps_rect(vanilla_maps, rect_pos, rect_size)
-
-        # Calculate differences inside rectangle
-        diff_rect = (d_rect - v_rect) ** 2
-        rms_inside = np.sqrt(diff_rect.reshape(len(diff_rect), -1).mean(axis=1))
-
-        # Calculate differences outside rectangle
-        d_outside = sailmaps.copy()
-        v_outside = vanilla_maps.copy()
-
-        d_outside[
-            :,
-            rect_pos[0] : rect_pos[0] + rect_size[0],
-            rect_pos[1] : rect_pos[1] + rect_size[1],
-        ] = 0
-        v_outside[
-            :,
-            rect_pos[0] : rect_pos[0] + rect_size[0],
-            rect_pos[1] : rect_pos[1] + rect_size[1],
-        ] = 0
-
-        diff_outside = (d_outside - v_outside) ** 2
-        rms_outside = np.sqrt(diff_outside.reshape(len(diff_outside), -1).mean(axis=1))
-
-        return rms_inside / rms_outside
-
-
-class DDT(SailRectMetric):
-    """
-    Difference Distribution Testing (DDT)
-
-    Tests whether the distribution of differences between debiased and vanilla maps
-    is different inside vs outside the ROI using Mann-Whitney-Wilcoxon test.
+    Average Difference in Region (ADR)
+    
+    ADR measures the mean pixel-wise difference between vanilla and debiased saliency maps 
+    within the region of interest (ROI). A positive value indicates that vanilla saliency 
+    values are generally higher than debiased ones in the region.
     """
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.name = "DDT"
+        self.name = "ADR"
 
     def _core(
         self,
-        sailmaps: np.ndarray,  # debiased maps
+        sailmaps: np.ndarray,
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
-        vanilla_maps: np.ndarray = None,  # vanilla maps
+        vanilla_sailmaps: np.ndarray = None,
     ) -> np.ndarray:
-        if vanilla_maps is None:
-            raise ValueError("DDT requires both debiased and vanilla saliency maps")
+        sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
+        vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
+        
+        # Calculate mean difference per image
+        diff = vanilla_sm_rect - sm_rect
+        return diff.reshape(len(diff), -1).mean(axis=1)
 
-        # Calculate differences
-        diff_maps = sailmaps - vanilla_maps
 
-        # Get differences inside and outside rectangle
-        diff_rect = self._sailmaps_rect(diff_maps, rect_pos, rect_size)
+class DIF(SailRectMetric):
+    """
+    Decreased Intensity Fraction (DIF)
+    
+    DIF measures the ratio of pixels showing decreased intensity in the debiased model 
+    compared to the vanilla model. It represents the fraction of pixels inside a rectangle 
+    that significantly flipped their saliency value.
+    """
 
-        diff_outside = diff_maps.copy()
-        diff_outside[
-            :,
-            rect_pos[0] : rect_pos[0] + rect_size[0],
-            rect_pos[1] : rect_pos[1] + rect_size[1],
-        ] = 0
+    def __init__(self, threshold: float = 0.1, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.name = "DIF"
+        self.threshold = threshold
 
-        scores = np.zeros(diff_rect.shape[0])
+    def _core(
+        self,
+        sailmaps: np.ndarray,
+        rect_pos: tuple[int, int],
+        rect_size: tuple[int, int],
+        vanilla_sailmaps: np.ndarray = None,
+    ) -> np.ndarray:
+        sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
+        vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
+        
+        # Calculate fraction of pixels where debiased < vanilla
+        diff = vanilla_sm_rect - sm_rect
+        decreased = (diff > self.threshold).reshape(len(diff), -1)
+        return decreased.sum(axis=1) / decreased.shape[1]
+
+
+class RDDT(SailRectMetric):
+    """
+    Rectangle Difference Distribution Testing (RDDT)
+    
+    Performs a Wilcoxon signed rank test to determine if pixels from the vanilla model
+    have significantly higher intensity than those from the debiased model within the ROI.
+    Returns 1 if the test rejects the null hypothesis (indicating vanilla has higher intensity),
+    0 otherwise.
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.name = "RDDT"
+
+    def _core(
+        self,
+        sailmaps: np.ndarray,
+        rect_pos: tuple[int, int],
+        rect_size: tuple[int, int],
+        vanilla_sailmaps: np.ndarray = None,
+    ) -> np.ndarray:
+        sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
+        vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
+        
+        scores = np.zeros(sm_rect.shape[0])
         # Per image
-        for i in range(diff_rect.shape[0]):
-            _, p = stats.mannwhitneyu(
-                diff_rect[i].flatten(),
-                diff_outside[i].flatten(),
-                alternative="two-sided",
+        for i in range(sm_rect.shape[0]):
+            _, p = stats.wilcoxon(
+                vanilla_sm_rect[i].flatten(),
+                sm_rect[i].flatten(),
+                alternative="greater"
             )
             if p < 0.01:
                 scores[i] = 1
-
+                
         return scores
 
 
-class DCR(SailRectMetric):
-    """
-    Direction Change Ratio (DCR)
-
-    Measures the ratio of pixels showing decreased intensity in the debiased model
-    compared to the vanilla model, inside vs outside the ROI.
-    """
-
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.name = "DCR"
-
-    def _core(
-        self,
-        sailmaps: np.ndarray,  # debiased maps
-        rect_pos: tuple[int, int],
-        rect_size: tuple[int, int],
-        vanilla_maps: np.ndarray = None,  # vanilla maps
-    ) -> np.ndarray:
-        if vanilla_maps is None:
-            raise ValueError("DCR requires both debiased and vanilla saliency maps")
-
-        # Get rectangles for both maps
-        d_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
-        v_rect = self._sailmaps_rect(vanilla_maps, rect_pos, rect_size)
-
-        # Calculate proportion of decreased pixels inside rectangle
-        decreased_inside = (d_rect < v_rect).reshape(len(d_rect), -1).mean(axis=1)
-
-        # Calculate proportion of decreased pixels outside rectangle
-        d_outside = sailmaps.copy()
-        v_outside = vanilla_maps.copy()
-
-        d_outside[
-            :,
-            rect_pos[0] : rect_pos[0] + rect_size[0],
-            rect_pos[1] : rect_pos[1] + rect_size[1],
-        ] = 0
-        v_outside[
-            :,
-            rect_pos[0] : rect_pos[0] + rect_size[0],
-            rect_pos[1] : rect_pos[1] + rect_size[1],
-        ] = 0
-
-        decreased_outside = (
-            (d_outside < v_outside).reshape(len(d_outside), -1).mean(axis=1)
-        )
-
-        return decreased_inside / decreased_outside
