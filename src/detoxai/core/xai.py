@@ -20,7 +20,15 @@ class XAIMetricsCalculator:
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
         vanilla_model: nn.Module = None,
-        sailmap_metrics: list[str] = ["RRF", "HRF", "MRR", "DET", "RMSDR", "DDT", "DCR"],
+        sailmap_metrics: list[str] = [
+            "RRF",
+            "HRF",
+            "MRR",
+            "DET",
+            "RMSDR",
+            "DDT",
+            "DCR",
+        ],
         batches: int = 2,
         condition_on: str = ConditionOn.PROPER_LABEL.value,
         verbose: bool = False,
@@ -73,7 +81,9 @@ class XAIMetricsCalculator:
             lrpres = self.lrphandler.calculate(model, self.dataloader, batch_num=i)
 
             if vanilla_model is not None:
-                vanilla_lrpres = self.lrphandler.calculate(vanilla_model, self.dataloader, batch_num=i)
+                vanilla_lrpres = self.lrphandler.calculate(
+                    vanilla_model, self.dataloader, batch_num=i
+                )
 
             _, labels, _ = self.dataloader.get_nth_batch(i)  # noqa
 
@@ -154,11 +164,16 @@ class SailRectMetric(ABC):
         sailmaps: np.ndarray,
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
+        vanilla_sailmaps: np.ndarray = None,
     ):
         """
         Aggregate sailmaps for later calculation
         """
-        c = self._core(sailmaps, rect_pos, rect_size)
+        if vanilla_sailmaps is not None:
+            c = self._core(sailmaps, rect_pos, rect_size, vanilla_sailmaps)
+        else:
+            c = self._core(sailmaps, rect_pos, rect_size)
+
         assert isinstance(c, np.ndarray), "Output should be a numpy array"
         self.metvals.extend(c)
 
@@ -371,11 +386,11 @@ class DET(SailRectMetric):
 class RMSDR(SailRectMetric):
     """
     Root Mean Square Difference Ratio (RMSDR)
-    
+
     Compares the root mean square differences between debiased and vanilla saliency maps
     inside vs outside the ROI.
     """
-    
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.name = "RMSDR"
@@ -389,38 +404,44 @@ class RMSDR(SailRectMetric):
     ) -> np.ndarray:
         if vanilla_maps is None:
             raise ValueError("RMSDR requires both debiased and vanilla saliency maps")
-            
+
         # Get rectangles for both maps
         d_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         v_rect = self._sailmaps_rect(vanilla_maps, rect_pos, rect_size)
-        
+
         # Calculate differences inside rectangle
         diff_rect = (d_rect - v_rect) ** 2
         rms_inside = np.sqrt(diff_rect.reshape(len(diff_rect), -1).mean(axis=1))
-        
+
         # Calculate differences outside rectangle
         d_outside = sailmaps.copy()
         v_outside = vanilla_maps.copy()
-        
-        d_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
-                    rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
-        v_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
-                    rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
-        
+
+        d_outside[
+            :,
+            rect_pos[0] : rect_pos[0] + rect_size[0],
+            rect_pos[1] : rect_pos[1] + rect_size[1],
+        ] = 0
+        v_outside[
+            :,
+            rect_pos[0] : rect_pos[0] + rect_size[0],
+            rect_pos[1] : rect_pos[1] + rect_size[1],
+        ] = 0
+
         diff_outside = (d_outside - v_outside) ** 2
         rms_outside = np.sqrt(diff_outside.reshape(len(diff_outside), -1).mean(axis=1))
-        
+
         return rms_inside / rms_outside
 
 
 class DDT(SailRectMetric):
     """
     Difference Distribution Testing (DDT)
-    
+
     Tests whether the distribution of differences between debiased and vanilla maps
     is different inside vs outside the ROI using Mann-Whitney-Wilcoxon test.
     """
-    
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.name = "DDT"
@@ -434,39 +455,42 @@ class DDT(SailRectMetric):
     ) -> np.ndarray:
         if vanilla_maps is None:
             raise ValueError("DDT requires both debiased and vanilla saliency maps")
-            
+
         # Calculate differences
         diff_maps = sailmaps - vanilla_maps
-        
+
         # Get differences inside and outside rectangle
         diff_rect = self._sailmaps_rect(diff_maps, rect_pos, rect_size)
-        
+
         diff_outside = diff_maps.copy()
-        diff_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
-                       rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
-        
+        diff_outside[
+            :,
+            rect_pos[0] : rect_pos[0] + rect_size[0],
+            rect_pos[1] : rect_pos[1] + rect_size[1],
+        ] = 0
+
         scores = np.zeros(diff_rect.shape[0])
         # Per image
         for i in range(diff_rect.shape[0]):
             _, p = stats.mannwhitneyu(
-                diff_rect[i].flatten(), 
-                diff_outside[i].flatten(), 
-                alternative="two-sided"
+                diff_rect[i].flatten(),
+                diff_outside[i].flatten(),
+                alternative="two-sided",
             )
             if p < 0.01:
                 scores[i] = 1
-                
+
         return scores
 
 
 class DCR(SailRectMetric):
     """
     Direction Change Ratio (DCR)
-    
+
     Measures the ratio of pixels showing decreased intensity in the debiased model
     compared to the vanilla model, inside vs outside the ROI.
     """
-    
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.name = "DCR"
@@ -480,23 +504,31 @@ class DCR(SailRectMetric):
     ) -> np.ndarray:
         if vanilla_maps is None:
             raise ValueError("DCR requires both debiased and vanilla saliency maps")
-            
+
         # Get rectangles for both maps
         d_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         v_rect = self._sailmaps_rect(vanilla_maps, rect_pos, rect_size)
-        
+
         # Calculate proportion of decreased pixels inside rectangle
         decreased_inside = (d_rect < v_rect).reshape(len(d_rect), -1).mean(axis=1)
-        
+
         # Calculate proportion of decreased pixels outside rectangle
         d_outside = sailmaps.copy()
         v_outside = vanilla_maps.copy()
-        
-        d_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
-                    rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
-        v_outside[:, rect_pos[0]:rect_pos[0]+rect_size[0], 
-                    rect_pos[1]:rect_pos[1]+rect_size[1]] = 0
-        
-        decreased_outside = (d_outside < v_outside).reshape(len(d_outside), -1).mean(axis=1)
-        
+
+        d_outside[
+            :,
+            rect_pos[0] : rect_pos[0] + rect_size[0],
+            rect_pos[1] : rect_pos[1] + rect_size[1],
+        ] = 0
+        v_outside[
+            :,
+            rect_pos[0] : rect_pos[0] + rect_size[0],
+            rect_pos[1] : rect_pos[1] + rect_size[1],
+        ] = 0
+
+        decreased_outside = (
+            (d_outside < v_outside).reshape(len(d_outside), -1).mean(axis=1)
+        )
+
         return decreased_inside / decreased_outside
