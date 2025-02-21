@@ -121,7 +121,13 @@ class XAIMetricsCalculator:
 
             for metric in metrics_calcs:
                 if isinstance(metric, (ADR, DIF, RDDT)):
-                    metric.aggregate(sailmaps, rect_pos, rect_size, vanilla_sailmaps)
+                    if np.allclose(sailmaps, vanilla_sailmaps):
+                        # If the sailmaps are the same, the metric will be 0
+                        metric.metvals.extend(np.zeros(sailmaps.shape[0]))
+                    else:
+                        metric.aggregate(
+                            sailmaps, rect_pos, rect_size, vanilla_sailmaps
+                        )
                 else:
                     metric.aggregate(sailmaps, rect_pos, rect_size)
 
@@ -286,11 +292,6 @@ class HRF(SailRectMetric):
     ) -> np.ndarray:
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
 
-        print(
-            f"Describe qunaitles etc summary: {np.quantile(sm_rect, [0.25, 0.5, 0.75])}"
-        )
-        print(f"epsilon: {self.epsilon}")
-
         high_relevance = np.sum(sm_rect > self.epsilon, axis=1)
         return high_relevance / sm_rect.size
 
@@ -387,9 +388,9 @@ class DET(SailRectMetric):
 class ADR(SailRectMetric):
     """
     Average Difference in Region (ADR)
-    
-    ADR measures the mean pixel-wise difference between vanilla and debiased saliency maps 
-    within the region of interest (ROI). A positive value indicates that vanilla saliency 
+
+    ADR measures the mean pixel-wise difference between vanilla and debiased saliency maps
+    within the region of interest (ROI). A positive value indicates that vanilla saliency
     values are generally higher than debiased ones in the region.
     """
 
@@ -406,7 +407,7 @@ class ADR(SailRectMetric):
     ) -> np.ndarray:
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
-        
+
         # Calculate mean difference per image
         diff = vanilla_sm_rect - sm_rect
         return diff.reshape(len(diff), -1).mean(axis=1)
@@ -415,9 +416,9 @@ class ADR(SailRectMetric):
 class DIF(SailRectMetric):
     """
     Decreased Intensity Fraction (DIF)
-    
-    DIF measures the ratio of pixels showing decreased intensity in the debiased model 
-    compared to the vanilla model. It represents the fraction of pixels inside a rectangle 
+
+    DIF measures the ratio of pixels showing decreased intensity in the debiased model
+    compared to the vanilla model. It represents the fraction of pixels inside a rectangle
     that significantly flipped their saliency value.
     """
 
@@ -435,7 +436,7 @@ class DIF(SailRectMetric):
     ) -> np.ndarray:
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
-        
+
         # Calculate fraction of pixels where debiased < vanilla
         diff = vanilla_sm_rect - sm_rect
         decreased = (diff > self.threshold).reshape(len(diff), -1)
@@ -445,7 +446,7 @@ class DIF(SailRectMetric):
 class RDDT(SailRectMetric):
     """
     Rectangle Difference Distribution Testing (RDDT)
-    
+
     Performs a Wilcoxon signed rank test to determine if pixels from the vanilla model
     have significantly higher intensity than those from the debiased model within the ROI.
     Returns 1 if the test rejects the null hypothesis (indicating vanilla has higher intensity),
@@ -465,18 +466,16 @@ class RDDT(SailRectMetric):
     ) -> np.ndarray:
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
-        
+
         scores = np.zeros(sm_rect.shape[0])
         # Per image
         for i in range(sm_rect.shape[0]):
             _, p = stats.wilcoxon(
                 vanilla_sm_rect[i].flatten(),
                 sm_rect[i].flatten(),
-                alternative="greater"
+                alternative="greater",
             )
             if p < 0.01:
                 scores[i] = 1
-                
+
         return scores
-
-
