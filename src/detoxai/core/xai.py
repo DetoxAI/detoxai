@@ -261,6 +261,8 @@ class RRF(SailRectMetric):
         r_sum = sm_rect.reshape(len(sm_rect), -1).sum(axis=1)
         s_sum = sailmaps.reshape(len(sm_rect), -1).sum(axis=1)
 
+        print(f"RRF shape: {r_sum.shape}, {s_sum.shape}")
+
         return r_sum / s_sum  # safe bc s_sum > r_sum and never 0
 
 
@@ -291,9 +293,11 @@ class HRF(SailRectMetric):
         rect_size: tuple[int, int],
     ) -> np.ndarray:
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
+        sm_rect = sm_rect.reshape(len(sm_rect), -1)
+        rect_size = sm_rect.shape[1]
 
         high_relevance = np.sum(sm_rect > self.epsilon, axis=1)
-        return high_relevance / sm_rect.size
+        return high_relevance / rect_size
 
 
 class MRR(SailRectMetric):
@@ -422,10 +426,10 @@ class DIF(SailRectMetric):
     that significantly flipped their saliency value.
     """
 
-    def __init__(self, threshold: float = 0.1, **kwargs) -> None:
+    def __init__(self, eps: float = 1e-3, **kwargs) -> None:
         super().__init__(**kwargs)
         self.name = "DIF"
-        self.threshold = threshold
+        self.eps = eps
 
     def _core(
         self,
@@ -439,7 +443,7 @@ class DIF(SailRectMetric):
 
         # Calculate fraction of pixels where debiased < vanilla
         diff = vanilla_sm_rect - sm_rect
-        decreased = (diff > self.threshold).reshape(len(diff), -1)
+        decreased = (diff > self.eps).reshape(len(diff), -1)
         return decreased.sum(axis=1) / decreased.shape[1]
 
 
