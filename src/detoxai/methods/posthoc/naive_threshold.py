@@ -65,9 +65,9 @@ class NaiveThresholdOptimizer(PosthocBase):
             probs = self._get_probabilities(output)
             pos_probs = probs[:, 1]
 
-            scaling_factor = 100.0
+            scaling_factor = 10.0
             pos_class = torch.sigmoid(scaling_factor * (pos_probs - threshold))
-            
+
             preds = torch.zeros_like(probs, device=self.device)
             preds[:, 0] = 1 - pos_class
             preds[:, 1] = pos_class
