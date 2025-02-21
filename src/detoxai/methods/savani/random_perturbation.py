@@ -38,7 +38,7 @@ class SavaniRP(SavaniBase):
         options: dict = {},
         eval_batch_size: int = 128,
         n_eval_batches: int = 3,
-        soft_thresh_temperature: float = 100.0,
+        soft_thresh_temperature: float = 10.0,
         **kwargs,
     ) -> None:
         """

@@ -50,7 +50,7 @@ class SavaniLWO(SavaniBase):
         skopt_njobs: int = 4,
         skopt_npoints: int = 1000,
         skopt_maxiter: int = 10,
-        soft_thresh_temperature: float = 100.0,
+        soft_thresh_temperature: float = 10.0,
         **kwargs,
     ) -> None:
         """

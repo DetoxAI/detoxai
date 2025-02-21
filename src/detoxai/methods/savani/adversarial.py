@@ -48,7 +48,7 @@ class SavaniAFT(SavaniBase):
         critic_linear: list[int] = [32],
         outputs_are_logits: bool = True,
         n_eval_batches: int = 3,
-        soft_thresh_temperature: float = 100.0,
+        soft_thresh_temperature: float = 10.0,
         **kwargs,
     ) -> None:
         """backward
