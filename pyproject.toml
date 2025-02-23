@@ -1,6 +1,6 @@
 [project]
 name = "detoxai"
-version = "0.2.7"
+version = "0.2.8"
 description = "todo"
 readme = "README_pypi.md"
 requires-python = ">=3.11"
