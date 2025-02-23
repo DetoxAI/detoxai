@@ -376,17 +376,23 @@ class DET(SailRectMetric):
             rect_pos[1] : rect_pos[1] + rect_size[1],
         ] = 0
 
-        scores = np.zeros(sm_rect.shape[0])
-        # Per image
-        for i in range(sm_rect.shape[0]):
-            _, p = stats.mannwhitneyu(
-                sm_rect[i].flatten(), sm_outside[i].flatten(), alternative="greater"
-            )
-
-            if p < 0.01:
-                scores[i] = 1
-
-        return scores
+        aggregated_sm = sm_rect.reshape(len(sm_rect), -1)
+        mean_sm = np.mean(aggregated_sm, axis=1)
+        aggregated_outside = sm_outside.reshape(len(sm_outside), -1)
+        mean_outside = np.mean(aggregated_outside, axis=1)
+        return mean_sm - mean_outside
+    
+    def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
+        """
+        Calculate the metric for already aggregated sailmaps
+        """
+        ret = dict()
+        _, p = stats.ttest_1samp(self.metvals, 0, alternative="greater")
+        ret["mean"] = p < 0.01
+        ret["result"] = p < 0.01
+        ret["std"] = p
+        ret["p-value"] = p
+        return ret
 
 
 class ADR(SailRectMetric):
@@ -471,15 +477,17 @@ class RDDT(SailRectMetric):
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
 
-        scores = np.zeros(sm_rect.shape[0])
-        # Per image
-        for i in range(sm_rect.shape[0]):
-            _, p = stats.wilcoxon(
-                vanilla_sm_rect[i].flatten(),
-                sm_rect[i].flatten(),
-                alternative="greater",
-            )
-            if p < 0.01:
-                scores[i] = 1
-
-        return scores
+        aggregated_vanilla_sm = vanilla_sm_rect.reshape(len(vanilla_sm_rect), -1)
+        aggregated_sm = sm_rect.reshape(len(sm_rect), -1)
+        mean_vanilla_sm = np.mean(aggregated_vanilla_sm, axis=1)
+        mean_sm = np.mean(aggregated_sm, axis=1)
+        return mean_vanilla_sm - mean_sm
+    
+    def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
+        ret = dict()
+        _, p = stats.ttest_1samp(self.metvals, 0, alternative="greater")
+        ret["mean"] = p < 0.01
+        ret["result"] = p < 0.01
+        ret["std"] = p
+        ret["p-value"] = p
+        return ret
