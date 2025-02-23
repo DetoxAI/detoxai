@@ -27,6 +27,7 @@ SUPPORTED_COMPOSITES = [
     "EpsilonPlusFlat",
     "EpsilonGammaBox",
     "MixedComposite",
+    None,
 ]
 SUPPORTED_ATTRIBUTTORS = ["Gradient", "SmoothGrad", "IntegratedGradients", "Occlusion"]
 
@@ -131,6 +132,9 @@ class LRPHandler:
         Returns:
             - `Composite` instance
         """
+        if self.composite_name is None:
+            return None
+
         if self.composite_name in SUPPORTED_COMPOSITES:
             composite_class = globals().get(self.composite_name)
             if composite_class is None:
@@ -155,7 +159,10 @@ class LRPHandler:
             if attributor_class is None:
                 raise ValueError(f"Attributor class {self.attributor_name} not found")
 
-        attributor = attributor_class(model, composite=self.composite)
+        if self.composite:
+            attributor = attributor_class(model, composite=self.composite)
+        else:
+            attributor = attributor_class(model)
 
         return attributor
 
