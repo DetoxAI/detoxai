@@ -377,11 +377,22 @@ class DET(SailRectMetric):
         ] = 0
 
         aggregated_sm = sm_rect.reshape(len(sm_rect), -1)
-        median_sm = np.median(aggregated_sm, axis=1)
+        mean_sm = np.mean(aggregated_sm, axis=1)
         aggregated_outside = sm_outside.reshape(len(sm_outside), -1)
-        median_outside = np.median(aggregated_outside, axis=1)
-        _, p = stats.mannwhitneyu(median_sm, median_outside, alternative="greater")
-        return np.array([p * sm_rect.shape[0]])
+        mean_outside = np.mean(aggregated_outside, axis=1)
+        return mean_sm - mean_outside
+    
+    def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
+        """
+        Calculate the metric for already aggregated sailmaps
+        """
+        ret = dict()
+        _, p = stats.ttest_1samp(self.metvals, 0, alternative="greater")
+        ret["mean"] = p < 0.01
+        ret["result"] = p < 0.01
+        ret["std"] = p
+        ret["p-value"] = p
+        return ret
 
 
 class ADR(SailRectMetric):
@@ -468,7 +479,15 @@ class RDDT(SailRectMetric):
 
         aggregated_vanilla_sm = vanilla_sm_rect.reshape(len(vanilla_sm_rect), -1)
         aggregated_sm = sm_rect.reshape(len(sm_rect), -1)
-        median_vanilla_sm = np.median(aggregated_vanilla_sm, axis=1)
-        median_sm = np.median(aggregated_sm, axis=1)
-        _, p = stats.wilcoxon(median_vanilla_sm, median_sm, alternative="greater")
-        return np.array([p * sm_rect.shape[0]])
+        mean_vanilla_sm = np.mean(aggregated_vanilla_sm, axis=1)
+        mean_sm = np.mean(aggregated_sm, axis=1)
+        return mean_vanilla_sm - mean_sm
+    
+    def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
+        ret = dict()
+        _, p = stats.ttest_1samp(self.metvals, 0, alternative="greater")
+        ret["mean"] = p < 0.01
+        ret["result"] = p < 0.01
+        ret["std"] = p
+        ret["p-value"] = p
+        return ret
