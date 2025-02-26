@@ -15,6 +15,8 @@ class HeatmapVisualizer(ImageVisualizer):
         model: nn.Module,
         lrp_object: LRPHandler = None,
         plot_config: dict = {},
+        draw_rectangles: bool = False,
+        rectangle_config: dict = {},
     ) -> None:
         self.data_loader = data_loader
         self.model = model
@@ -24,6 +26,7 @@ class HeatmapVisualizer(ImageVisualizer):
 
         self.lrp_object = lrp_object
 
+        self.init_rectangle_painter(draw_rectangles, rectangle_config)
         self.set_up_plots_configuration(plot_config)
 
     def visualize_batch(
@@ -56,6 +59,8 @@ class HeatmapVisualizer(ImageVisualizer):
 
         for i, img in enumerate(images[:max_images]):
             im = ax[i // cols, i % cols].imshow(img, cmap="seismic", vmin=0, vmax=1)
+
+            self.maybe_paint_rectangle(ax[i // cols, i % cols])
 
         if show_cbar:
             # Show colorbar at the bottom
@@ -103,6 +108,8 @@ class HeatmapVisualizer(ImageVisualizer):
 
                 img = images[mask].mean(dim=0).cpu().detach().numpy()
                 ax[row, col].imshow(img, cmap="seismic", vmin=0, vmax=1)
+
+                self.maybe_paint_rectangle(ax[row, col])
 
     def _get_heatmaps(
         self, batch_num: int, condition_on: ConditionOn, max_images: int | None

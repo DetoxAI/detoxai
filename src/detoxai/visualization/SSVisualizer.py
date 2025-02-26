@@ -19,13 +19,25 @@ class SSVisualizer(ImageVisualizer):
         model: nn.Module,
         lrp_object: LRPHandler = None,
         plot_config: dict = {},
+        draw_rectangles: bool = False,
+        rectangle_config: dict = {},
     ) -> None:
         self.data_loader = data_loader
         self.model = model
         self.set_up_plots_configuration(plot_config)
+        self.init_rectangle_painter(draw_rectangles, rectangle_config)
 
-        self.lrp_vis = HeatmapVisualizer(data_loader, model, lrp_object, plot_config)
-        self.data_vis = DataVisualizer(data_loader, plot_config)
+        self.lrp_vis = HeatmapVisualizer(
+            data_loader,
+            model,
+            lrp_object,
+            plot_config,
+            draw_rectangles,
+            rectangle_config,
+        )
+        self.data_vis = DataVisualizer(
+            data_loader, plot_config, draw_rectangles, rectangle_config
+        )
 
         self.model_device = next(model.parameters()).device
 

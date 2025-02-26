@@ -6,15 +6,21 @@ from .ImageVisualizer import ImageVisualizer
 
 
 class DataVisualizer(ImageVisualizer):
-    def __init__(self, data_loader: DetoxaiDataLoader, plot_config: dict = {}) -> None:
+    def __init__(
+        self,
+        data_loader: DetoxaiDataLoader,
+        plot_config: dict = {},
+        draw_rectangles: bool = False,
+        rectangle_config: dict = {},
+    ) -> None:
         self.data_loader = data_loader
         self.set_up_plots_configuration(plot_config)
+        self.init_rectangle_painter(draw_rectangles, rectangle_config)
 
     def visualize_batch(
         self,
         batch_num: int,
         max_images: int | None = 36,
-        return_fig: bool = False,
         batch_preds: torch.Tensor | None = None,
         show_labels: bool = True,
     ) -> None:
@@ -51,6 +57,8 @@ class DataVisualizer(ImageVisualizer):
                 # img = img.permute(1, 2, 0)
                 img = img.transpose((1, 2, 0))
             ax[i // cols, i % cols].imshow(img, vmin=0, vmax=1)
+
+            self.maybe_paint_rectangle(ax[i // cols, i % cols])
 
             if show_labels:
                 # Add label in the upper left corner
@@ -98,3 +106,5 @@ class DataVisualizer(ImageVisualizer):
 
                 img = images[mask].mean(dim=0).cpu().detach().numpy()
                 ax[row, col].imshow(img.transpose((1, 2, 0)))
+
+                self.maybe_paint_rectangle(ax[row, col])
