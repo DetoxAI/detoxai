@@ -5,6 +5,10 @@ import torch.nn as nn
 import torch
 from tqdm import tqdm
 
+import time
+import matplotlib.pyplot as plt
+import os
+
 from ..utils.dataloader import DetoxaiDataLoader
 from ..visualization import LRPHandler, ConditionOn
 
@@ -257,6 +261,17 @@ class RRF(SailRectMetric):
         rect_size: tuple[int, int],
     ) -> np.ndarray:
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
+        print(f"sm_rect shape: {sm_rect.shape}")
+        # Sm_rectr is 32 x Width x Height, I want to matplotlib savefig this
+        fig, ax = plt.subplots(4, 4, figsize=(20, 20))
+        ax = ax.flatten()
+        for i in range(16):
+            ax[i].imshow(sm_rect[i])
+            ax[i].axis("off")
+
+        os.makedirs("/workspace/debug/xai_images", exist_ok=True)
+        plt.savefig("/workspace/debug/xai_images" + str(time.time()) + ".png")
+        plt.close()
 
         r_sum = sm_rect.reshape(len(sm_rect), -1).sum(axis=1)
         s_sum = sailmaps.reshape(len(sm_rect), -1).sum(axis=1)
@@ -381,7 +396,7 @@ class DET(SailRectMetric):
         aggregated_outside = sm_outside.reshape(len(sm_outside), -1)
         mean_outside = np.mean(aggregated_outside, axis=1)
         return mean_sm - mean_outside
-    
+
     def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
         """
         Calculate the metric for already aggregated sailmaps
@@ -482,7 +497,7 @@ class RDDT(SailRectMetric):
         mean_vanilla_sm = np.mean(aggregated_vanilla_sm, axis=1)
         mean_sm = np.mean(aggregated_sm, axis=1)
         return mean_vanilla_sm - mean_sm
-    
+
     def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
         ret = dict()
         _, p = stats.ttest_1samp(self.metvals, 0, alternative="greater")
