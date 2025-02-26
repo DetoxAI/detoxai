@@ -57,7 +57,7 @@ class Visualizer(ABC):
         else:
             self.ax.axis("off")
 
-        self.figure.tight_layout()
+        self.figure.tight_layout(h_pad=-0.1, w_pad=-0.5)
 
         return self.figure, self.ax
 

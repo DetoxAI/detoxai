@@ -98,18 +98,19 @@ class HeatmapVisualizer(ImageVisualizer):
         ulab = labels.unique()
         uprot = prot_attr.unique()
 
-        fig, ax = self.get_canvas(
-            rows=len(ulab), cols=len(uprot), shape=(len(ulab) * 3, len(uprot) * 3)
-        )
+        fig, ax = self.get_canvas(rows=4, cols=1, shape=(3, 10))
 
+        i = 0
         for row, label in enumerate(ulab):
             for col, prot_a in enumerate(uprot):
                 mask = (labels == label) & (prot_attr == prot_a)
 
                 img = images[mask].mean(dim=0).cpu().detach().numpy()
-                ax[row, col].imshow(img, cmap="seismic", vmin=0, vmax=1)
+                ax[i].imshow(img, cmap="seismic", vmin=0, vmax=1)
 
-                self.maybe_paint_rectangle(ax[row, col])
+                self.maybe_paint_rectangle(ax[i])
+
+                i += 1
 
     def _get_heatmaps(
         self, batch_num: int, condition_on: ConditionOn, max_images: int | None

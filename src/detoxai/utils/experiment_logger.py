@@ -15,7 +15,9 @@ class ExperimentLogger:
         elif isinstance(self.logger, WandbLogger):
             self.logger.log({name: metric})
         elif isinstance(self.logger, ClearMLLogger):
-            self.logger.report_scalar(title=name, series=name, value=metric, iteration=step)
+            self.logger.report_scalar(
+                title=name, series=name, value=metric, iteration=step
+            )
         else:
             raise ValueError(
                 f"Logger must be either a TensorBoardLogger or a WandbLogger. Is {type(self.logger)}"
@@ -29,7 +31,13 @@ class ExperimentLogger:
         elif isinstance(self.logger, WandbLogger):
             self.logger.log_image(key=name, images=[figure])
         elif isinstance(self.logger, ClearMLLogger):
-            self.logger.report_matplotlib_figure(title=name, series=name, iteration=step, figure=figure)
+            self.logger.report_matplotlib_figure(
+                title=name,
+                series=name,
+                iteration=step,
+                figure=figure,
+                report_image=True,
+            )
         else:
             raise ValueError(
                 f"Logger must be either a TensorBoardLogger or a WandbLogger. Is {type(self.logger)}"
@@ -43,7 +51,9 @@ class ExperimentLogger:
         elif isinstance(self.logger, WandbLogger):
             self.logger.log(table)
         elif isinstance(self.logger, ClearMLLogger):
-            self.logger.report_table(title=name, series=name, iteration=step, table_plot=table)
+            self.logger.report_table(
+                title=name, series=name, iteration=step, table_plot=table
+            )
         else:
             raise ValueError(
                 f"Logger must be either a TensorBoardLogger or a WandbLogger. Is {type(self.logger)}"
