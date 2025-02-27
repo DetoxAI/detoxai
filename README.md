@@ -40,3 +40,16 @@ source .venv/bin/activate
 
 python main.py
 ```
+
+# Acknowledgment
+If you use this library in your work please cite as: 
+```
+@misc{detoxai,
+  authors={Ignacy Stepka and Lukasz Sztukiewicz and Michal Wilinski},
+  title={DetoxAI: a Python Package for Debiasing Neural Networks},
+}
+```
+
+
+# License 
+MIT License
