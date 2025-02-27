@@ -2,7 +2,6 @@
 
 [![Python tests](https://github.com/FairUnlearn/detoxai/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/FairUnlearn/detoxai/actions/workflows/python-tests.yml)
 
-desription here
 
 # Quickstart
 
@@ -41,28 +40,3 @@ source .venv/bin/activate
 
 python main.py
 ```
-
-
-To upgrade packages run
-```bash
-    uv lock --upgrade-package gdown
-```
-
-To build package run (recommended)
-```bash
-    uv build --no-sources
-```
-
-uv add --dev ipykernel
-uv run ipython kernel install --user --name=detoxaikernel
-
-uv build --no-sources --index-strategy unsafe-best-match
-
-uv run --with detoxai --no-project -- python -c "import detoxai; print(detoxai.__version__)"
-
-uv publish --token $UV_PUBLISH_TOKEN --index testpypi
-
-### Be careful with the following command, upload all files from dist folder
-
-
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ detoxai
