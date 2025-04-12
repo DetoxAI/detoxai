@@ -39,6 +39,8 @@ dataloader = torch.utils.data.DataLoader(list(zip(X, Y, PA)), batch_size=32)
 results: dict[str, detoxai.CorrectionResult] = detoxai.debias(model, dataloader)
 ``` 
 
+Too see more examples of detoxai in use, see `examples/` folder.
+
 # Installation
 
 DetoxAI is available on PyPI, and can be installed by running the following command:
