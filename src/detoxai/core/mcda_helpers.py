@@ -37,7 +37,9 @@ def is_pareto_efficient(costs: np.ndarray, return_mask: bool = True) -> np.ndarr
         return is_efficient
 
 
-def filter_pareto_front(results: list[CorrectionResult]) -> list[CorrectionResult]:
+def filter_pareto_front(
+    results: dict[str, CorrectionResult],
+) -> dict[str, CorrectionResult]:
     """
     Filter the results to only include those on the pareto front
 
@@ -45,9 +47,9 @@ def filter_pareto_front(results: list[CorrectionResult]) -> list[CorrectionResul
         results: List of CorrectionResult objects to filter
     """
 
-    metrics = results[0].get_all_metrics()["pareto"].keys()
+    metrics = list(results.values())[0].get_all_metrics()["pareto"].keys()
     data = []
-    for result in results:
+    for method, result in results.items():
         d = []
         for met in metrics:
             if met in MINIMIZE:
@@ -61,10 +63,10 @@ def filter_pareto_front(results: list[CorrectionResult]) -> list[CorrectionResul
 
     logger.info(f"Pareto front: {list(zip(results, mask))}")
 
-    return [result for result, m in zip(results, mask) if m]
+    return {method: result for (method, result), m in zip(results.items(), mask) if m}
 
 
-def select_best_method(results: list[CorrectionResult]) -> CorrectionResult:
+def select_best_method(results: dict[str, CorrectionResult]) -> CorrectionResult:
     """
     Select the best correction method from the results using the ideal point method
 
@@ -78,11 +80,11 @@ def select_best_method(results: list[CorrectionResult]) -> CorrectionResult:
         logger.warning(mess)
         pf = results
 
-    metrics = results[0].get_all_metrics()["pareto"].keys()
+    metrics = list(results.values())[0].get_all_metrics()["pareto"].keys()
 
     # Get the ideal point
     ideal_point = [0] * len(metrics)
-    for result in pf:
+    for result in pf.values():
         for i, met in enumerate(metrics):
             v = result.get_metric(met)
             if met in MINIMIZE:
@@ -95,7 +97,7 @@ def select_best_method(results: list[CorrectionResult]) -> CorrectionResult:
     best_method = None
     best_score = None
 
-    for result in results:
+    for result in results.values():
         score = 0
         for i, met in enumerate(metrics):
             v = result.get_metric(met)

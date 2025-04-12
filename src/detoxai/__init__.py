@@ -18,10 +18,13 @@ if "DETOXAI_DATASET_PATH" not in os.environ:
     DETOXAI_DATASET_PATH = DETOXAI_ROOT_PATH / "datasets"
     os.environ["DETOXAI_DATASET_PATH"] = str(DETOXAI_DATASET_PATH)
 
-logger.info(f'Detoxai paths: {os.getenv("DETOXAI_ROOT_PATH")}, {os.getenv("DETOXAI_DATASET_PATH")}')
+logger.info(
+    f"Detoxai paths: {os.getenv('DETOXAI_ROOT_PATH')}, {os.getenv('DETOXAI_DATASET_PATH')}"
+)
 
 from .datasets.catalog.download import download_datasets  # noqa
 from .core.interface import debias  # noqa
+from .core.results_class import CorrectionResult  # noqa
 
 import importlib.metadata
 

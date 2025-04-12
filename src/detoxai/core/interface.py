@@ -129,7 +129,7 @@ def debias(
     include_vanila_in_results: bool = True,
     test_dataloader: DetoxaiDataLoader = None,
     num_of_classes: int | None = None,
-) -> CorrectionResult | list[CorrectionResult]:
+) -> CorrectionResult | dict[str, CorrectionResult]:
     """
     Run a suite of correction methods on the model and return the results
 
@@ -215,7 +215,7 @@ def debias(
     # else:
     #     model = FairnessLightningWrapper(model)
 
-    results = []
+    results = {}
     for method in methods:
         logger.info("=" * 50 + f" Running method {method} " + "=" * 50)
         method_kwargs = config[method] | config["global"]
@@ -223,7 +223,7 @@ def debias(
         method_kwargs["dataloader"] = dataloader
         method_kwargs["test_dataloader"] = test_dataloader
         result = run_correction(method, method_kwargs, pareto_metrics)
-        results.append(result)
+        results[method] = result
 
     if include_vanila_in_results:
         vanilla_result = CorrectionResult(
@@ -236,7 +236,7 @@ def debias(
                 device=device,
             ),
         )
-        results.append(vanilla_result)
+        results["Vanilla"] = vanilla_result
 
     if return_type == "pareto-front":
         return filter_pareto_front(results)
