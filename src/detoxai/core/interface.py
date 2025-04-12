@@ -5,6 +5,7 @@ import traceback
 import signal
 from datetime import datetime
 import multiprocessing as mp
+from torch.utils.data import DataLoader
 
 # Project imports
 from ..methods import (
@@ -23,7 +24,7 @@ from ..methods import (
 )
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
-from ..utils.dataloader import DetoxaiDataLoader
+from ..utils.dataloader import DetoxaiDataLoader, WrappedDataLoader
 from ..metrics.fairness_metrics import AllMetrics
 from .evaluation import evaluate_model
 from .mcda_helpers import filter_pareto_front, select_best_method
@@ -118,7 +119,7 @@ def parse_methods_config(methods_config: dict) -> dict:
 
 def debias(
     model: nn.Module,
-    dataloader: DetoxaiDataLoader,
+    dataloader: DataLoader,
     methods: list[str] | str = "all",
     metrics: list[str] | str = "all",
     methods_config: dict = {},
@@ -127,6 +128,7 @@ def debias(
     device: str = "cpu",
     include_vanila_in_results: bool = True,
     test_dataloader: DetoxaiDataLoader = None,
+    num_of_classes: int | None = None,
 ) -> CorrectionResult | list[CorrectionResult]:
     """
     Run a suite of correction methods on the model and return the results
@@ -146,9 +148,23 @@ def debias(
         `device` (optional): Device to run the correction methods on
         `include_vanila_in_results` (optional): Include the vanilla model in the results
         `test_dataloader` (optional): DataLoader for the test dataset. If not provided, the original dataloader is used
-
-
+        `num_of_classes` (optional): Number of classes in the dataset. Default is None, which means the number of classes will be inferred from the dataloader
     """
+
+    if not isinstance(dataloader, DetoxaiDataLoader):
+        unique_classes = set()
+        if num_of_classes is None:
+            logger.warning(
+                "Detoxai will infer the number of classes from the dataloader"
+            )
+            for batch in dataloader:
+                # Assuming the first element of the batch is the input
+                labels = batch[1]
+                unique_classes.update(labels.unique().tolist())
+            num_of_classes = len(unique_classes)
+            logger.warning(f"Inferred number of classes: {num_of_classes}")
+
+        dataloader = WrappedDataLoader(dataloader.dataset, num_of_classes)
 
     logging.debug(f"Received configuration:\n  {methods_config}")
 
@@ -177,20 +193,9 @@ def debias(
     config["global"]["experiment_name"] = exp_name
     logging.info(f"Experiment name: {config['global']['experiment_name']}")
 
-    # # ------------------------------------------------
-    # # DATASET HANDLING IS TODO HERE
-    # # Load supported tags ie. protected attributes
-    # supported_tags = load_supported_tags()
-    # if harmful_concept not in supported_tags["attributes"]:
-    #     raise ValueError(
-    #         f"Attribute {harmful_concept} not found in supported attributes"
-    #     )
-    # else:
-    #     prot_attr_arity = len(supported_tags["mapping"][harmful_concept])
-    #     class_labels = NotImplementedError  # TODO: Take it from somewhere
-
-    # pass
-
+    # If somebody passes a dataloader that is not detoxai's we still allow it
+    # but fine-tuning metrics won't be available (final metrics still will be calculated)
+    # if isinstance(dataloader, DetoxaiDataLoader):
     class_labels = dataloader.get_class_names()
     prot_attr_arity = 2  # TODO only supported binary protected attributes
 
@@ -207,6 +212,8 @@ def debias(
         performance_metrics=metrics_calculator.get_performance_metrics(),
         fairness_metrics=metrics_calculator.get_fairness_metrics(),
     )
+    # else:
+    #     model = FairnessLightningWrapper(model)
 
     results = []
     for method in methods:

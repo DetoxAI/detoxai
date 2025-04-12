@@ -72,7 +72,7 @@ class LRPHandler:
 
         Parameters:
             - `model` (nn.Module): The model to use for LRP
-            - `data_loader` (WrappedDataLoader): The data loader to use for LRP
+            - `data_loader` (WrappedDataLoader | torch Dataloader): The data loader to use for LRP
             - `batch_num` (int | None): The batch number to calculate LRP for. If `batch_num` is None, then
             attribution is calculated for the entire datset.
 
@@ -81,7 +81,7 @@ class LRPHandler:
             LRP was conditioned, IMG_w and IMG_h are the width and height of the image.
         """
         # Figure out the shape of the tensor to return
-        L = len(data_loader.get_class_names())
+        L = data_loader.get_num_classes()
         batch_shape = next(iter(data_loader))[0].shape
 
         model_device = next(model.parameters()).device

@@ -1,5 +1,6 @@
 import logging
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 import itertools
 
 from .datasets import DetoxaiDataset
@@ -32,6 +33,25 @@ class DetoxaiDataLoader(DataLoader):
         # Use itertools.islice to get to the desired batch directly
         batch = next(itertools.islice(dataiter, n, n + 1), None)
         return batch
+
+    def get_num_classes(self) -> int:
+        assert isinstance(self.dataset, DetoxaiDataset), (
+            "Dataset must be an instance of DetoxaiDataset, as we rely on its internal structure"
+        )
+        return self.dataset.get_num_classes()
+
+
+class WrappedDataLoader(DetoxaiDataLoader):
+    def __init__(self, dataset: Dataset, num_of_classes: int, **kwargs):
+        super().__init__(dataset, **kwargs)
+        self.num_of_classes = num_of_classes
+
+    def get_num_classes(self) -> int:
+        return self.num_of_classes
+
+    def get_class_names(self) -> list[str]:
+        """Name them A B C .."""
+        return [chr(i) for i in range(65, 65 + self.num_of_classes)]
 
 
 def copy_data_loader(
