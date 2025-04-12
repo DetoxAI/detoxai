@@ -7,6 +7,17 @@ import yaml
 
 
 def create_structure2(train_dataset, test_dataset, base_dir, data_dir) -> None:
+    """
+
+    Args:
+      train_dataset:
+      test_dataset:
+      base_dir:
+      data_dir:
+
+    Returns:
+
+    """
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=1, shuffle=False
     )
@@ -19,6 +30,16 @@ def create_structure2(train_dataset, test_dataset, base_dir, data_dir) -> None:
 
 
 def create_structure(train_dataset, base_dir, data_dir) -> None:  # noqa
+    """
+
+    Args:
+      train_dataset:
+      base_dir:
+      data_dir:
+
+    Returns:
+
+    """
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset, batch_size=1, shuffle=False
     )

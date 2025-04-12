@@ -1,10 +1,10 @@
+import logging
+
 import torch
 import torch.nn as nn
-import logging
 from torch.utils.data import DataLoader
 
 from ..metrics.metrics import comprehensive_metrics_torch
-
 
 logger = logging.getLogger(__name__)
 
@@ -15,36 +15,16 @@ def evaluate_model(
     pareto_metrics: list[str] | None = None,
     device: str | None = None,
 ) -> dict:
-    """
-    Evaluate the model on various metrics
+    """Evaluate the model on various metrics
 
     Args:
-        - model: Model to evaluate
-        - dataloader: DataLoader for the dataset
-        - pareto_metrics: List of metrics to include in the pareto front
-    ***
-    `TEMPLATE FOR METRICS DICT`
-    ***
+      - model: Model to evaluate
+      - dataloader: DataLoader for the dataset
+      - pareto_metrics: List of metrics to include in the pareto front
+      - device: Device to use for evaluation ("cpu" or "cuda")
 
-    metrics_dict_template = {
-        "pareto": {
-            "balanced_accuracy": 0.0,
-            "equal_opportunity": 0.0,
-        },
-        "all": {
-            "balanced_accuracy": 0.0,
-            "equal_opportunity": 0.0,
-            "equalized_odds": 0.0,
-            "demographic_parity": 0.0,
-            "accuracy": 0.0,
-            "precision": 0.0,
-            "recall": 0.0,
-            "f1": 0.0,
-        },
-    }
+    Returns:
 
-    Args:
-        model: Model to evaluate
     """
 
     logger.debug("Evaluating model")

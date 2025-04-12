@@ -1,24 +1,24 @@
-import torch
-import lightning as L
 import logging
+
+import lightning as L
+import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from torch import autograd
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-# Project imports
-from .savani_base import SavaniBase
 from ...metrics.bias_metrics import (
     BiasMetrics,
 )
 
-from ...utils.dataloader import copy_data_loader
+# Project imports
+from .savani_base import SavaniBase
 
 logger = logging.getLogger(__name__)
 
 
 class ZhangM(SavaniBase):
-    """Brian Hu Zhang, Blake Lemoine, Margaret Mitchell - "Mitigating unwanted biases with adversarial learning" """
+    """Brian Hu Zhang, Blake Lemoine, Margaret Mitchell - "Mitigating unwanted biases with adversarial learning"""
 
     def __init__(
         self,
@@ -56,6 +56,30 @@ class ZhangM(SavaniBase):
 
         In options you can specify that your model already outputs probabilities, in which case the model will not apply the softmax function
         options = {'outputs_are_logits': False}
+
+        Args:
+          dataloader: DataLoader:
+          last_layer_name: str:
+          epsilon: float:  (Default value = 0.1)
+          bias_metric: BiasMetrics | str:  (Default value = BiasMetrics.EO_GAP)
+          iterations: int:  (Default value = 5)
+          critic_iterations: int:  (Default value = 5)
+          model_iterations: int:  (Default value = 2)
+          train_batch_size: int:  (Default value = 128)
+          thresh_optimizer_maxiter: int:  (Default value = 100)
+          tau_init: float:  (Default value = 0.5)
+          # alpha: float:  (Default value = 5.0)
+          critic_lr: float:  (Default value = 2e-4)
+          model_lr: float:  (Default value = 1e-4)
+          critic_linear: list[int]:  (Default value = [256)
+          256:
+          256]:
+          outputs_are_logits: bool:  (Default value = True)
+          n_eval_batches: int:  (Default value = 3)
+          soft_thresh_temperature: float:  (Default value = 10.0)
+          **kwargs:
+
+        Returns:
 
         """
         assert self.check_layer_name_exists(last_layer_name), (
@@ -197,6 +221,15 @@ class ZhangM(SavaniBase):
         input_dim: int,
         critic_linear: list[int],
     ) -> nn.Module:
+        """
+
+        Args:
+          input_dim: int:
+          critic_linear: list[int]:
+
+        Returns:
+
+        """
         critic_layers = [
             nn.Linear(input_dim, critic_linear[0]),
             nn.ReLU(),

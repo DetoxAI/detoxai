@@ -1,10 +1,11 @@
+import logging
+import types
+from copy import deepcopy
 from enum import Enum
 from typing import Callable
+
 import lightning as L
 import torch
-from copy import deepcopy
-import types
-import logging
 
 from .clarc import CLARC
 
@@ -13,6 +14,8 @@ _logger = logging.getLogger(__name__)
 
 # Enum masking patterns
 class RRMaskingPattern(Enum):
+    """ """
+
     MAX_LOGIT = "max_logit"
     TARGET_LOGIT = "target_logit"
     ALL_LOGITS = "all_logits"
@@ -22,12 +25,16 @@ class RRMaskingPattern(Enum):
 
 # Enum RR loss types
 class RRLossType(Enum):
+    """ """
+
     L2 = "l2"
     L1 = "l1"
     COSINE = "cosine"
 
 
 class RRCLARC(CLARC):
+    """ """
+
     def __init__(
         self,
         model: L.LightningModule,
@@ -52,6 +59,19 @@ class RRCLARC(CLARC):
         ft_lr: float = 1e-3,
         **kwargs,
     ) -> None:
+        """
+
+        Args:
+          cav_layers: list[str]:
+          dataloader: torch.utils.data.DataLoader:
+          logger: object | bool:  (Default value = False)
+          fine_tune_epochs: int:  (Default value = 1)
+          ft_lr: float:  (Default value = 1e-3)
+          **kwargs:
+
+        Returns:
+
+        """
         assert len(cav_layers) == 1, "RR-CLARC only supports one CAV layer"
         self.cav_layer = cav_layers[0]
 
@@ -71,6 +91,7 @@ class RRCLARC(CLARC):
         )
 
         def configure_optimizers(self):
+            """ """
             optimizer = torch.optim.Adam(self.parameters(), lr=ft_lr)
             return optimizer
 
@@ -103,13 +124,34 @@ class RRCLARC(CLARC):
         self.lightning_model.training_step = clone_original_training_step
 
     def rr_clarc_hook(self) -> Callable:
+        """ """
+
         def hook(m, i, output):
+            """
+
+            Args:
+              m:
+              i:
+              output:
+
+            Returns:
+
+            """
             self.intermediate_a = output
             return output
 
         return hook
 
     def masked_criterion(self, y_hat: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        """
+
+        Args:
+          y_hat: torch.Tensor:
+          y: torch.Tensor:
+
+        Returns:
+
+        """
         match self.masking:
             case RRMaskingPattern.MAX_LOGIT:
                 return y_hat.max(1)[0]
@@ -126,6 +168,14 @@ class RRCLARC(CLARC):
                 raise ValueError(f"Invalid masking pattern: {self.masking}")
 
     def rr_loss(self, gradient: torch.Tensor) -> torch.Tensor:
+        """
+
+        Args:
+          gradient: torch.Tensor:
+
+        Returns:
+
+        """
         cav = self.cav[self.cav_layer]
 
         # TODO: Figure out what it was
@@ -147,7 +197,19 @@ class RRCLARC(CLARC):
                 raise NotImplementedError
 
     def modified_training_step(self) -> Callable:
+        """ """
+
         def training_step(lightning_obj, batch, batch_idx):
+            """
+
+            Args:
+              lightning_obj:
+              batch:
+              batch_idx:
+
+            Returns:
+
+            """
             with torch.enable_grad():
                 x = batch[0]
                 y = batch[1]

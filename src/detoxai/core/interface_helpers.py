@@ -1,13 +1,13 @@
 import os
-import yaml
+
 import torch.nn as nn
+import yaml
 
 from ..cavs.extract_activations import get_layer_by_name
 
 
 def load_supported_tags() -> dict:
-    """
-    From ./datasets/catalog/<dataset_name>/labels_mapping.yaml, load the dicts
+    """From ./datasets/catalog/<dataset_name>/labels_mapping.yaml, load the dicts
 
     ***
     STRUCTURE:
@@ -18,6 +18,11 @@ def load_supported_tags() -> dict:
             "dataset_name": labels_mapping...
             }
     }
+
+    Args:
+
+    Returns:
+
     """
     mapping = {}
     datasets = []
@@ -50,12 +55,16 @@ def load_supported_tags() -> dict:
 def construct_metrics_config(
     metrics: list[str] | str = "all", types: str = "GAP"
 ) -> dict:
-    """
-    Construct the metrics configuration for the fairness and performance metrics
+    """Construct the metrics configuration for the fairness and performance metrics
 
     Args:
-        metrics: List of metrics to include in the configuration
-        types: Type of metric to use. Options are "GAP" or "RATIO"
+      metrics: List of metrics to include in the configuration
+      types: Type of metric to use. Options are "GAP" or "RATIO"
+      metrics: list[str] | str:  (Default value = "all")
+      types: str:  (Default value = "GAP")
+
+    Returns:
+
     """
     if types == "GAP":
         f_reduce = "difference"
@@ -87,8 +96,14 @@ def construct_metrics_config(
 
 
 def resolve_layer(model, layer) -> nn.Module | None:
-    """
-    Resolve a layer name to a layer in the model
+    """Resolve a layer name to a layer in the model
+
+    Args:
+      model:
+      layer:
+
+    Returns:
+
     """
     ret = get_layer_by_name(model, layer)
     if ret == model:
@@ -97,18 +112,19 @@ def resolve_layer(model, layer) -> nn.Module | None:
 
 
 def infer_layers(corrector, layers: list[str] | str) -> list[str]:
-    """
-    Infer the layers to use for the correction method
+    """Infer the layers to use for the correction method
 
     Args:
-        corrector: Correction method object
-        layers: Layer specification
-
+      corrector: Correction method object
+      layers: Layer specification
     There are wildcards available:
     - "last": Use the last layer
     - "penultimate": Use the penultimate layer
-
     Otherwise, a list of *actual* layer names can be passed
+      layers: list[str] | str:
+
+    Returns:
+
     """
     llist = list()
     if layers == "last":

@@ -1,10 +1,12 @@
 import pandas as pd
 
+from ..utils.decorators import ensure_metrics_config_not_empty
 from .MetricsVisualizer import MetricsVisualizer
-from .wrappers import ensure_metrics_config_not_empty
 
 
 class TableVisualizer(MetricsVisualizer):
+    """ """
+
     def __init__(self, results: dict, metrics_config: dict) -> None:
         self.raw_results: pd.DataFrame = self.canonize_results(results, metrics_config)
         self.metrics_config = metrics_config
@@ -15,18 +17,15 @@ class TableVisualizer(MetricsVisualizer):
 
     @ensure_metrics_config_not_empty
     def create_table(self) -> None:
+        """ """
         self.results = self.__organize_metrics(self.raw_results)
 
     def get_table(self) -> pd.DataFrame:
-        """
-        Get formated table aggregated for all methods
-        """
+        """Get formated table aggregated for all methods"""
         return self.results
 
     def get_latex_table(self) -> str:
-        """
-        Get formatted table in LaTeX format with enhanced styling
-        """
+        """Get formatted table in LaTeX format with enhanced styling"""
         latex = self.results.to_latex(
             index=True,
             multirow=True,
@@ -44,14 +43,17 @@ class TableVisualizer(MetricsVisualizer):
         return latex
 
     def get_raw_results(self) -> pd.DataFrame:
-        """
-        Get raw results, i.e., the results as a melted DataFrame
-        """
+        """Get raw results, i.e., the results as a melted DataFrame"""
         return self.raw_results
 
     def save_to_csv(self, path: str) -> None:
-        """
-        Save the table to a CSV file
+        """Save the table to a CSV file
+
+        Args:
+          path: str:
+
+        Returns:
+
         """
         self.results.to_csv(path, index=True)
 

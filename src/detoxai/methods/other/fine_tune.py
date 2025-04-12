@@ -1,14 +1,13 @@
+import types
+
 import lightning as L
 import torch
-import types
 
 from ..model_correction import ModelCorrectionMethod
 
 
 class FineTune(ModelCorrectionMethod):
-    """
-    This is kind-of a dummy correction method that is a baseline in form of further fine tuning of the model
-    """
+    """This is kind-of a dummy correction method that is a baseline in form of further fine tuning of the model"""
 
     def __init__(
         self, model: L.LightningModule, experiment_name: str, device: str, **kwargs
@@ -23,7 +22,21 @@ class FineTune(ModelCorrectionMethod):
         lr: float = 1e-4,
         **kwargs,
     ) -> None:
+        """
+
+        Args:
+          dataloader: torch.utils.data.DataLoader:
+          logger: object | bool:  (Default value = False)
+          fine_tune_epochs: int:  (Default value = 1)
+          lr: float:  (Default value = 1e-4)
+          **kwargs:
+
+        Returns:
+
+        """
+
         def configure_optimizers(self):
+            """ """
             optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
             return optimizer
 

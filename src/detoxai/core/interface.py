@@ -1,34 +1,25 @@
-import torch.nn as nn
-from copy import deepcopy
 import logging
-import traceback
-import signal
-from datetime import datetime
 import multiprocessing as mp
+import signal
+import traceback
+from copy import deepcopy
+from datetime import datetime
+
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
 # Project imports
-from ..methods import (
-    SavaniRP,
-    SavaniLWO,
-    SavaniAFT,
-    ZhangM,
-    RRCLARC,
-    PCLARC,
-    ACLARC,
-    LEACE,
-    RejectOptionClassification,
-    NaiveThresholdOptimizer,
-    FineTune,
-    ModelCorrectionMethod,
-)
+from ..methods import (ACLARC, LEACE, PCLARC, RRCLARC, FineTune,
+                       ModelCorrectionMethod, NaiveThresholdOptimizer,
+                       RejectOptionClassification, SavaniAFT, SavaniLWO,
+                       SavaniRP, ZhangM)
+from ..metrics.fairness_metrics import AllMetrics
+from ..utils.dataloader import DetoxaiDataLoader, WrappedDataLoader
+from .evaluation import evaluate_model
+from .interface_helpers import construct_metrics_config, infer_layers
+from .mcda_helpers import filter_pareto_front, select_best_method
 from .model_wrappers import FairnessLightningWrapper
 from .results_class import CorrectionResult
-from ..utils.dataloader import DetoxaiDataLoader, WrappedDataLoader
-from ..metrics.fairness_metrics import AllMetrics
-from .evaluation import evaluate_model
-from .mcda_helpers import filter_pareto_front, select_best_method
-from .interface_helpers import construct_metrics_config, infer_layers
 
 logger = logging.getLogger(__name__)
 
@@ -101,8 +92,13 @@ DEFAULT_METHODS_CONFIG = {
 
 
 def parse_methods_config(methods_config: dict) -> dict:
-    """
-    Here we compare what was passed and overwrite the default configuration
+    """Here we compare what was passed and overwrite the default configuration
+
+    Args:
+      methods_config: dict:
+
+    Returns:
+
     """
     for key, dic in DEFAULT_METHODS_CONFIG.items():
         if key not in methods_config:
@@ -251,12 +247,17 @@ def debias(
 def run_correction(
     method: str, method_kwargs: dict, pareto_metrics: list[str] | None = None
 ) -> CorrectionResult:
-    """
-    Run the specified correction method
+    """Run the specified correction method
 
     Args:
-        method: Correction method to run
-        kwargs: Arguments for the correction method
+      method: Correction method to run
+      kwargs: Arguments for the correction method
+      method: str:
+      method_kwargs: dict:
+      pareto_metrics: list[str] | None:  (Default value = None)
+
+    Returns:
+
     """
     metrics = {"pareto": {}, "all": {}}
     failed = False
@@ -393,20 +394,32 @@ def run_correction(
 def _apply_model_correction_w_timeout(
     corrector: ModelCorrectionMethod, method_kwargs: dict, timeout: float
 ) -> bool:
-    """
-    Execute the apply_model_correction method of the corrector
+    """Execute the apply_model_correction method of the corrector
     as a task with timeout to prevent infinite execution.
 
     Args:
-        corrector: Object with an apply_model_correction method.
-        method_kwargs: Arguments to pass to the method.
-        timeout: Maximum execution time in seconds.
+      corrector: Object with an apply_model_correction method.
+      method_kwargs: Arguments to pass to the method.
+      timeout: Maximum execution time in seconds.
+      corrector: ModelCorrectionMethod:
+      method_kwargs: dict:
+      timeout: float:
 
     Returns:
-        bool: True if successful, False on error or timeout.
+      bool: True if successful, False on error or timeout.
+
     """
 
     def handler(signum, frame):
+        """
+
+        Args:
+          signum:
+          frame:
+
+        Returns:
+
+        """
         raise Exception("Timeout")
 
     signal.signal(signal.SIGALRM, handler)
@@ -435,17 +448,20 @@ def _apply_model_correction_w_timeout(
 def _mp_apply_model_correction_w_timeout(
     corrector: ModelCorrectionMethod, method_kwargs: dict, timeout: float
 ) -> bool:
-    """
-    Execute the apply_model_correction method of the corrector in a separate process
+    """Execute the apply_model_correction method of the corrector in a separate process
     as a task with timeout to prevent infinite execution.
 
     Args:
-        corrector: Object with an apply_model_correction method.
-        method_kwargs: Arguments to pass to the method.
-        timeout: Maximum execution time in seconds.
+      corrector: Object with an apply_model_correction method.
+      method_kwargs: Arguments to pass to the method.
+      timeout: Maximum execution time in seconds.
+      corrector: ModelCorrectionMethod:
+      method_kwargs: dict:
+      timeout: float:
 
     Returns:
-        bool: True if successful, False on error or timeout.
+      bool: True if successful, False on error or timeout.
+
     """
 
     try:

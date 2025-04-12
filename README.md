@@ -71,6 +71,26 @@ DetoxAI is available on PyPI, and can be installed by running the following comm
 
   python main.py
   ```
+
+## Development
+
+### Install pre-commit hooks
+```bash
+    pre-commit install
+```
+
+```bash
+    pre-commit run --all-files
+```
+
+
+### Rebuild documentation
+```bash
+    cd docs
+    make clean
+    sphinx-apidoc -o . ../src/detoxai
+    make html
+```
 ## Using pip
   You can also install DetoxAI using pip. To do this, run the following command:
   ```bash
@@ -79,7 +99,7 @@ DetoxAI is available on PyPI, and can be installed by running the following comm
 
 
 # Acknowledgment
-If you use this library in your work please cite as: 
+If you use this library in your work please cite as:
 ```
 @misc{detoxai,
   authors={Ignacy Stepka and Lukasz Sztukiewicz and Michal Wilinski},
@@ -88,5 +108,5 @@ If you use this library in your work please cite as:
 ```
 
 
-# License 
+# License
 MIT License

@@ -3,12 +3,14 @@ import torch
 from torch import nn
 
 from ..utils.dataloader import DetoxaiDataLoader
+from .enums import ConditionOn
 from .ImageVisualizer import ImageVisualizer
 from .LRPHandler import LRPHandler
-from .enums import ConditionOn
 
 
 class HeatmapVisualizer(ImageVisualizer):
+    """ """
+
     def __init__(
         self,
         data_loader: DetoxaiDataLoader,
@@ -37,6 +39,18 @@ class HeatmapVisualizer(ImageVisualizer):
         max_images: int | None = 36,
         return_fig: bool = False,
     ) -> None:
+        """
+
+        Args:
+          batch_num: int:
+          condition_on: ConditionOn:  (Default value = ConditionOn.PROPER_LABEL)
+          show_cbar: bool:  (Default value = True)
+          max_images: int | None:  (Default value = 36)
+          return_fig: bool:  (Default value = False)
+
+        Returns:
+
+        """
         images = self._get_heatmaps(batch_num, condition_on, max_images)
 
         print(images.shape)
@@ -84,6 +98,15 @@ class HeatmapVisualizer(ImageVisualizer):
         batch_num: int,
         condition_on: ConditionOn = ConditionOn.PROPER_LABEL,
     ) -> None:
+        """
+
+        Args:
+          batch_num: int:
+          condition_on: ConditionOn:  (Default value = ConditionOn.PROPER_LABEL)
+
+        Returns:
+
+        """
         _, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)  # noqa
 
         images = self._get_heatmaps(batch_num, condition_on, None)
@@ -115,6 +138,16 @@ class HeatmapVisualizer(ImageVisualizer):
     def _get_heatmaps(
         self, batch_num: int, condition_on: ConditionOn, max_images: int | None
     ) -> np.ndarray:
+        """
+
+        Args:
+          batch_num: int:
+          condition_on: ConditionOn:
+          max_images: int | None:
+
+        Returns:
+
+        """
         images, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)  # noqa
 
         if max_images is None:

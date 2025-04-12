@@ -7,6 +7,8 @@ from torchmetrics import MetricCollection
 
 
 class BaseLightningWrapper(L.LightningModule):
+    """ """
+
     def __init__(
         self,
         model: torch.nn.Module,
@@ -31,6 +33,15 @@ class BaseLightningWrapper(L.LightningModule):
         self.optimizer = optimizer
 
     def training_step(self, batch, batch_idx):
+        """
+
+        Args:
+          batch:
+          batch_idx:
+
+        Returns:
+
+        """
         super().training_step(batch, batch_idx)
         inputs = batch[0]
         labels = batch[1]
@@ -40,6 +51,16 @@ class BaseLightningWrapper(L.LightningModule):
         return {"loss": loss, "preds": preds}
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
+        """
+
+        Args:
+          outputs:
+          batch:
+          batch_idx:
+
+        Returns:
+
+        """
         super().on_train_batch_end(outputs, batch, batch_idx)
         preds = outputs["preds"]
         labels = batch[1]
@@ -48,12 +69,22 @@ class BaseLightningWrapper(L.LightningModule):
             self.log_dict(batch_performance_metrics)
 
     def on_train_epoch_end(self):
+        """ """
         if self.train_performance_metrics:
             epoch_performance_metrics = self.train_performance_metrics.compute()
             self.log_dict(epoch_performance_metrics)
             self.train_performance_metrics.reset()
 
     def test_step(self, batch, batch_idx):
+        """
+
+        Args:
+          batch:
+          batch_idx:
+
+        Returns:
+
+        """
         super().test_step(batch, batch_idx)
         inputs = batch[0]
         labels = batch[1]
@@ -62,6 +93,16 @@ class BaseLightningWrapper(L.LightningModule):
         return {"loss": loss, "preds": preds}
 
     def on_test_batch_end(self, outputs, batch, batch_idx):
+        """
+
+        Args:
+          outputs:
+          batch:
+          batch_idx:
+
+        Returns:
+
+        """
         super().on_test_batch_end(outputs, batch, batch_idx)
         preds = outputs["preds"]
         labels = batch[1]
@@ -70,25 +111,45 @@ class BaseLightningWrapper(L.LightningModule):
             self.log_dict(batch_performance_metrics)
 
     def on_test_epoch_end(self):
+        """ """
         if self.test_performance_metrics:
             epoch_performance_metrics = self.test_performance_metrics.compute()
             self.log_dict(epoch_performance_metrics)
             self.test_performance_metrics.reset()
 
     def configure_optimizers(self):
+        """ """
         optimizer = self.optimizer(self.parameters(), lr=self.learning_rate)
         return optimizer
 
     def forward(self, x):
+        """
+
+        Args:
+          x:
+
+        Returns:
+
+        """
         return self.model(x)
 
     def predict_step(self, batch):
+        """
+
+        Args:
+          batch:
+
+        Returns:
+
+        """
         inputs = batch[0]
         preds = self.model(inputs)
         return preds
 
 
 class FairnessLightningWrapper(BaseLightningWrapper):
+    """ """
+
     def __init__(
         self,
         model: torch.nn.Module,
@@ -113,10 +174,29 @@ class FairnessLightningWrapper(BaseLightningWrapper):
         )
 
     def training_step(self, batch, batch_idx):
+        """
+
+        Args:
+          batch:
+          batch_idx:
+
+        Returns:
+
+        """
         out = super().training_step(batch, batch_idx)
         return out
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
+        """
+
+        Args:
+          outputs:
+          batch:
+          batch_idx:
+
+        Returns:
+
+        """
         super().on_train_batch_end(outputs, batch, batch_idx)
         preds = outputs["preds"]
         pred_for_1 = preds[:, 1]
@@ -129,6 +209,7 @@ class FairnessLightningWrapper(BaseLightningWrapper):
             self.log_dict(batch_fairness_metrics)
 
     def on_train_epoch_end(self):
+        """ """
         super().on_train_epoch_end()
         if self.train_fairness_metrics:
             epoch_fairness_metrics = self.train_fairness_metrics.compute()
@@ -136,10 +217,29 @@ class FairnessLightningWrapper(BaseLightningWrapper):
             self.train_fairness_metrics.reset()
 
     def test_step(self, batch, batch_idx):
+        """
+
+        Args:
+          batch:
+          batch_idx:
+
+        Returns:
+
+        """
         out = super().test_step(batch, batch_idx)
         return out
 
     def on_test_batch_end(self, outputs, batch, batch_idx):
+        """
+
+        Args:
+          outputs:
+          batch:
+          batch_idx:
+
+        Returns:
+
+        """
         super().on_test_batch_end(outputs, batch, batch_idx)
         preds = outputs["preds"]
         pred_for_1 = preds[:, 1]
@@ -152,6 +252,7 @@ class FairnessLightningWrapper(BaseLightningWrapper):
             self.log_dict(batch_fairness_metrics)
 
     def on_test_epoch_end(self):
+        """ """
         super().on_test_epoch_end()
         if self.test_fairness_metrics:
             epoch_fairness_metrics = self.test_fairness_metrics.compute()
@@ -159,6 +260,16 @@ class FairnessLightningWrapper(BaseLightningWrapper):
             self.test_fairness_metrics.reset()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
+        """
+
+        Args:
+          batch:
+          batch_idx:
+          dataloader_idx:  (Default value = None)
+
+        Returns:
+
+        """
         inputs = batch[0]
         preds = self.model(inputs)
         return preds

@@ -1,19 +1,18 @@
-import numpy as np
-
 import logging
-import torch
+from abc import ABC, abstractmethod
+
 import lightning as L
+import numpy as np
+import torch
 import torch.nn as nn
+from torch.nn.functional import sigmoid, softmax
 from torch.utils.data import DataLoader
 
-from torch.nn.functional import softmax, sigmoid
-
-from abc import ABC, abstractmethod
+from ...utils.dataloader import copy_data_loader
 
 # Project imports
 from ..model_correction import ModelCorrectionMethod
 from .utils import phi_torch
-from ...utils.dataloader import copy_data_loader
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +20,8 @@ Batch = tuple[torch.Tensor, torch.Tensor, torch.Tensor]
 
 
 class SavaniBase(ModelCorrectionMethod, ABC):
+    """ """
+
     def __init__(
         self,
         model: nn.Module | L.LightningModule,
@@ -36,11 +37,21 @@ class SavaniBase(ModelCorrectionMethod, ABC):
 
     @abstractmethod
     def apply_model_correction(self) -> None:
+        """ """
         raise NotImplementedError
 
     def optimize_tau(
         self, tau_init: float, thresh_optimizer_maxiter: int
     ) -> tuple[float, float]:
+        """
+
+        Args:
+          tau_init: float:
+          thresh_optimizer_maxiter: int:
+
+        Returns:
+
+        """
         objective_fn = self.objective_thresh("torch", True, "max")
 
         best_phi = 1e-6
@@ -58,6 +69,16 @@ class SavaniBase(ModelCorrectionMethod, ABC):
     def objective_thresh(
         self, backend: str, cache_preds: bool = True, direction: str = "min"
     ) -> callable:
+        """
+
+        Args:
+          backend: str:
+          cache_preds: bool:  (Default value = True)
+          direction: str:  (Default value = "min")
+
+        Returns:
+
+        """
         if cache_preds:
             y_probs, y_true, prot_attr = self.get_pred_true_prot()
             y_preds = y_probs[:, 1]
@@ -72,6 +93,14 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         if backend == "torch":
 
             def objective(tau):
+                """
+
+                Args:
+                  tau:
+
+                Returns:
+
+                """
                 phi, _ = self.phi_torch(tau, (y_preds, y_true, prot_attr))
                 return phi.detach().cpu().numpy() * d_mul
         elif backend == "np":
@@ -84,8 +113,14 @@ class SavaniBase(ModelCorrectionMethod, ABC):
     def phi_torch(
         self, tau: torch.Tensor, cached: tuple | None = None
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Calculate the phi metric for a given threshold tau
+        """Calculate the phi metric for a given threshold tau
+
+        Args:
+          tau: torch.Tensor:
+          cached: tuple | None:  (Default value = None)
+
+        Returns:
+
         """
         if cached is None:
             y_probs, y_true, prot_attr = self.get_pred_true_prot()
@@ -102,7 +137,27 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         )
 
     def apply_hook(self, tau: float, temperature: float = 100) -> None:
+        """
+
+        Args:
+          tau: float:
+          temperature: float:  (Default value = 100)
+
+        Returns:
+
+        """
+
         def hook(module, input, output):
+            """
+
+            Args:
+              module:
+              input:
+              output:
+
+            Returns:
+
+            """
             # output = (output > tau).int() # doesn't allow gradients to flow
             # Assuming binary classification
 
@@ -133,6 +188,7 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         self.hooks = hooks
 
     def get_pred_true_prot(self) -> Batch:
+        """ """
         Y_preds, Y_true, ProtAttr = [], [], []
 
         with torch.no_grad():
@@ -157,6 +213,14 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         return Y_preds, Y_true, ProtAttr
 
     def check_layer_name_exists(self, layer_name: str) -> bool:
+        """
+
+        Args:
+          layer_name: str:
+
+        Returns:
+
+        """
         for name, _ in self.model.named_modules():
             if name == layer_name:
                 return True
@@ -181,6 +245,15 @@ class SavaniBase(ModelCorrectionMethod, ABC):
         return x, y, p
 
     def initialize_dataloader(self, dataloader: DataLoader, batch_size: int) -> None:
+        """
+
+        Args:
+          dataloader: DataLoader:
+          batch_size: int:
+
+        Returns:
+
+        """
         self.internal_dl = copy_data_loader(
             dataloader, batch_size=batch_size, shuffle=True, drop_last=True
         )

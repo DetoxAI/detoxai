@@ -29,5 +29,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "ipykernel>=6.29.5",
+    "sphinx>=8.2.3",
+    "sphinx-rtd-theme>=3.0.2",
+    "pre-commit>=4.2.0",
 ]

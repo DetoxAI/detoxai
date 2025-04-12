@@ -1,17 +1,47 @@
 import logging
+import random
+
 import torch
 from torch import nn
-import random
 
 logger = logging.getLogger(__name__)
 
 
 def stabilize(x: torch.Tensor, epsilon: float = 1e-8) -> torch.Tensor:
+    """
+
+    Args:
+      x: torch.Tensor:
+      epsilon: float:  (Default value = 1e-8)
+
+    Returns:
+
+    """
     return x + epsilon
 
 
 def mass_mean_probe_hook(probe: torch.Tensor, alpha: float):
+    """
+
+    Args:
+      probe: torch.Tensor:
+      alpha: float:
+
+    Returns:
+
+    """
+
     def hook(module: nn.Module, input: tuple, output: torch.Tensor):
+        """
+
+        Args:
+          module: nn.Module:
+          input: tuple:
+          output: torch.Tensor:
+
+        Returns:
+
+        """
         nonlocal probe, alpha
         o = output.clone().flatten(start_dim=1)
         perturbed = o - probe * alpha
@@ -25,17 +55,21 @@ def mass_mean_probe_hook(probe: torch.Tensor, alpha: float):
 def add_mass_mean_probe_hook(
     model: nn.Module, probe: torch.Tensor, layer_names: list, alpha: float = 1.0
 ) -> list:
-    """
-    Adds a probe to the specified layers of a PyTorch model.
+    """Adds a probe to the specified layers of a PyTorch model.
 
     Args:
-        model (nn.Module): The PyTorch model to be probed.
-        probe (torch.Tensor): The probe tensor to be added to the output.
-        layer_names (list): List of layer names (strings) to apply the hook on.
-        alpha (float): Scaling factor for the probe.
+      model(nn.Module): The PyTorch model to be probed.
+      probe(torch.Tensor): The probe tensor to be added to the output.
+      layer_names(list): List of layer names (strings) to apply the hook on.
+      alpha(float): Scaling factor for the probe.
+      model: nn.Module:
+      probe: torch.Tensor:
+      layer_names: list:
+      alpha: float:  (Default value = 1.0)
 
     Returns:
-        list: A list of hook handles. Keep them to remove hooks later if needed.
+      list: A list of hook handles. Keep them to remove hooks later if needed.
+
     """
     hooks = []
     for name, module in model.named_modules():
@@ -48,19 +82,31 @@ def add_mass_mean_probe_hook(
 
 
 def clarc_hook(cav: torch.Tensor, mean_length: torch.Tensor, alpha: float):
-    """
-    Creates a forward hook to adjust layer activations based on the CAV.
+    """Creates a forward hook to adjust layer activations based on the CAV.
 
     Args:
-        cav (torch.Tensor): Concept Activation Vector of shape (channels,).
-        mean_length (float): Desired mean alignment length.
+      cav(torch.Tensor): Concept Activation Vector of shape (channels,).
+      mean_length(float): Desired mean alignment length.
+      cav: torch.Tensor:
+      mean_length: torch.Tensor:
+      alpha: float:
 
     Returns:
-        function: A hook function to be registered with a PyTorch module.
+      function: A hook function to be registered with a PyTorch module.
 
     """
 
     def hook(module: nn.Module, input: tuple, output: torch.Tensor) -> torch.Tensor:
+        """
+
+        Args:
+          module: nn.Module:
+          input: tuple:
+          output: torch.Tensor:
+
+        Returns:
+
+        """
         nonlocal alpha, cav, mean_length
         output_shapes = output.shape
 
@@ -100,18 +146,23 @@ def add_clarc_hook(
     layer_name: str,
     alpha: float = 1.0,
 ) -> list:
-    """
-    Applies debiasing to the specified layers of a PyTorch model using the provided CAV.
+    """Applies debiasing to the specified layers of a PyTorch model using the provided CAV.
 
     Args:
-        model (nn.Module): The PyTorch model to be debiased.
-        cav (torch.Tensor): The Concept Activation Vector, shape (channels,).
-        mean_length (torch.Tensor): Mean activation length of the unaffected activations.
-        layer_names (list): List of layer names (strings) to apply the hook on.
-        alpha (float): Scaling factor for the debiasing.
+      model(nn.Module): The PyTorch model to be debiased.
+      cav(torch.Tensor): The Concept Activation Vector, shape (channels,).
+      mean_length(torch.Tensor): Mean activation length of the unaffected activations.
+      layer_names(list): List of layer names (strings) to apply the hook on.
+      alpha(float): Scaling factor for the debiasing.
+      model: nn.Module:
+      cav: torch.Tensor:
+      mean_length: torch.Tensor:
+      layer_name: str:
+      alpha: float:  (Default value = 1.0)
 
     Returns:
-        list: A list of hook handles. Keep them to remove hooks later if needed.
+      list: A list of hook handles. Keep them to remove hooks later if needed.
+
     """
     hooks = []
     for name, module in model.named_modules():

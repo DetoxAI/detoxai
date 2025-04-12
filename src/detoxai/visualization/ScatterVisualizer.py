@@ -6,6 +6,8 @@ from .Visualizer import Visualizer
 
 
 class ScatterVisualizer(Visualizer):
+    """ """
+
     def __init__(self, plots_config: dict = {}) -> None:
         self.set_up_plots_configuration(plots_config)
 
@@ -23,6 +25,25 @@ class ScatterVisualizer(Visualizer):
         ticks_y: int = 4,
         round_to: int = 3,
     ):
+        """
+
+        Args:
+          metrics: pd.DataFrame:
+          rows: list[str]:  (Default value = ["Accuracy")
+          "GMean":
+          "F1"]:
+          cols: list[str]:  (Default value = ["Equalized_odds")
+          "Demographic_parity":
+          "Equal_opportunity":
+          "Accuracy_parity":
+          ]:
+          ticks_x: int:  (Default value = 4)
+          ticks_y: int:  (Default value = 4)
+          round_to: int:  (Default value = 3)
+
+        Returns:
+
+        """
         n_rows = len(rows)
         n_cols = len(cols)
         fig, axes = self.get_canvas(n_rows, n_cols, shape=(n_cols * 4, n_rows * 3))
