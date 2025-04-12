@@ -12,7 +12,6 @@ from abc import ABC, abstractmethod
 
 # Project imports
 from ..model_correction import ModelCorrectionMethod
-from ...utils.dataloader import DetoxaiDataLoader
 from .utils import phi_torch
 from ...utils.dataloader import copy_data_loader
 

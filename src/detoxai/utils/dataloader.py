@@ -1,7 +1,6 @@
 import logging
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
 import itertools
+from torch.utils.data import DataLoader, Dataset
 
 from .datasets import DetoxaiDataset
 
@@ -59,26 +58,33 @@ def copy_data_loader(
     batch_size: int | None = None,
     shuffle: bool = False,
     drop_last: bool = False,
-) -> DetoxaiDataLoader:
+) -> DetoxaiDataLoader | WrappedDataLoader:
     """
     Copy the dataloader
     """
     if batch_size is None:
         batch_size = dataloader.batch_size
 
-    params = {
-        "batch_size": batch_size,
-        "num_workers": dataloader.num_workers,
-        "collate_fn": dataloader.collate_fn,
-    }
-
-    logger.debug(f"Copying dataloader with params: {params}")
-
-    return DetoxaiDataLoader(
-        dataset=dataloader.dataset,
-        batch_size=batch_size,
-        num_workers=dataloader.num_workers,
-        collate_fn=dataloader.collate_fn,
-        shuffle=shuffle,
-        drop_last=drop_last,
-    )
+    if isinstance(dataloader, DetoxaiDataLoader):
+        return DetoxaiDataLoader(
+            dataset=dataloader.dataset,
+            batch_size=batch_size,
+            num_workers=dataloader.num_workers,
+            collate_fn=dataloader.collate_fn,
+            shuffle=shuffle,
+            drop_last=drop_last,
+        )
+    elif isinstance(dataloader, WrappedDataLoader):
+        return WrappedDataLoader(
+            dataset=dataloader.dataset,
+            num_of_classes=dataloader.num_of_classes,
+            batch_size=batch_size,
+            num_workers=dataloader.num_workers,
+            shuffle=shuffle,
+            drop_last=drop_last,
+        )
+    else:
+        raise ValueError(
+            f"Unsupported DataLoader type: {type(dataloader)}. "
+            "Please use DetoxaiDataLoader or WrappedDataLoader."
+        )
