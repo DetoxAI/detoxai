@@ -33,9 +33,7 @@ SUPPORTED_ATTRIBUTTORS = ["Gradient", "SmoothGrad", "IntegratedGradients", "Occl
 
 
 class LRPHandler:
-    """
-    LRPHandler is a class that handles the calculation of input image attributions for a given model and dataset.
-    """
+    """LRPHandler is a class that handles the calculation of input image attributions for a given model and dataset."""
 
     def __init__(
         self,
@@ -67,18 +65,22 @@ class LRPHandler:
         batch_num: int | None,
         max_images: int | None = None,
     ) -> torch.Tensor:
-        """
-        Calculate LRP attribution
+        """Calculate LRP attribution
 
-        Parameters:
-            - `model` (nn.Module): The model to use for LRP
-            - `data_loader` (WrappedDataLoader | torch Dataloader): The data loader to use for LRP
-            - `batch_num` (int | None): The batch number to calculate LRP for. If `batch_num` is None, then
-            attribution is calculated for the entire datset.
+        Args:
+          model: nn
+          data_loader: WrappedDataLoader | torch Dataloader
+          batch_num: int
+          attribution: is calculated for the entire datset
+          model: nn.Module:
+          data_loader: object:
+          batch_num: int | None:
+          max_images: int | None:  (Default value = None)
 
         Returns:
-            - `torch.Tensor` of size (L, N, IMG_w, IMG_h), where N is the number of samples, L is the class on which
-            LRP was conditioned, IMG_w and IMG_h are the width and height of the image.
+          - `torch.Tensor` of size (L, N, IMG_w, IMG_h), where N is the number of samples, L is the class on which
+          LRP was conditioned, IMG_w and IMG_h are the width and height of the image.
+
         """
         # Figure out the shape of the tensor to return
         L = data_loader.get_num_classes()
@@ -96,6 +98,16 @@ class LRPHandler:
         imgs_w_attribution = torch.zeros(shape, device=model_device)
 
         def attr_output_fn(output, target, num_classes):
+            """
+
+            Args:
+              output:
+              target:
+              num_classes:
+
+            Returns:
+
+            """
             # output times one-hot encoding of the target labels of size (len(target), 1000)
             return output * nn.functional.one_hot(target, num_classes=num_classes)
 

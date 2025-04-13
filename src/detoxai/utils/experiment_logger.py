@@ -1,13 +1,25 @@
 import matplotlib.pyplot as plt
-from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 from clearml import Logger as ClearMLLogger
+from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 
 
 class ExperimentLogger:
+    """ """
+
     def __init__(self, logger: TensorBoardLogger | WandbLogger | ClearMLLogger) -> None:
         self.logger = logger
 
     def log_metric(self, metric: float, name: str, step: int = None):
+        """
+
+        Args:
+          metric: float:
+          name: str:
+          step: int:  (Default value = None)
+
+        Returns:
+
+        """
         if isinstance(self.logger, TensorBoardLogger):
             if step is None:
                 raise ValueError("Step must be provided for TensorBoardLogger")
@@ -24,6 +36,16 @@ class ExperimentLogger:
             )
 
     def log_image(self, figure: plt.Figure, name: str, step: int = None):
+        """
+
+        Args:
+          figure: plt.Figure:
+          name: str:
+          step: int:  (Default value = None)
+
+        Returns:
+
+        """
         if isinstance(self.logger, TensorBoardLogger):
             if step is None:
                 raise ValueError("Step must be provided for TensorBoardLogger")
@@ -44,6 +66,16 @@ class ExperimentLogger:
             )
 
     def log_table(self, table: dict, name: str, step: int = None):
+        """
+
+        Args:
+          table: dict:
+          name: str:
+          step: int:  (Default value = None)
+
+        Returns:
+
+        """
         if isinstance(self.logger, TensorBoardLogger):
             if step is None:
                 raise ValueError("Step must be provided for TensorBoardLogger")

@@ -1,15 +1,35 @@
-import torch
-import lightning as L
 from abc import ABC, abstractmethod
 
-from ...cavs import extract_activations, compute_mass_mean_probe, compute_cav
+import lightning as L
+import torch
+
+from ...cavs import compute_cav, compute_mass_mean_probe, extract_activations
 from ..model_correction import ModelCorrectionMethod
 from ..utils import ACTIVATIONS_DIR
 
 
 # Wrapper for requiring activations and CAVs to be computed before applying model correction
 def require_activations_and_cav(func):
+    """
+
+    Args:
+      func:
+
+    Returns:
+
+    """
+
     def wrapped(self, cav_layers: list[str], *args, **kwargs):
+        """
+
+        Args:
+          cav_layers: list[str]:
+          *args:
+          **kwargs:
+
+        Returns:
+
+        """
         if not hasattr(self, "activations"):
             raise ValueError(
                 "Activations must be computed before applying model correction"
@@ -24,6 +44,8 @@ def require_activations_and_cav(func):
 
 
 class CLARC(ModelCorrectionMethod, ABC):
+    """ """
+
     def __init__(
         self, model: L.LightningModule, experiment_name: str, device: str
     ) -> None:
@@ -47,6 +69,17 @@ class CLARC(ModelCorrectionMethod, ABC):
         use_cache: bool = True,
         save_dir: str = ACTIVATIONS_DIR,
     ) -> None:
+        """
+
+        Args:
+          dataloader: torch.utils.data.DataLoader:
+          layers: list:
+          use_cache: bool:  (Default value = True)
+          save_dir: str:  (Default value = ACTIVATIONS_DIR)
+
+        Returns:
+
+        """
         # Freeze the model
         self.model.eval()
 
@@ -61,6 +94,15 @@ class CLARC(ModelCorrectionMethod, ABC):
         )
 
     def compute_cavs(self, cav_type: str, cav_layers: list[str]) -> None:
+        """
+
+        Args:
+          cav_type: str:
+          cav_layers: list[str]:
+
+        Returns:
+
+        """
         labels = self.activations["labels"][:, 1]
 
         self.cav = dict()
@@ -89,10 +131,20 @@ class CLARC(ModelCorrectionMethod, ABC):
 
         # add logging of magnitudes of cavs
         for cav_layer in cav_layers:
-            print(f"DEBUG: Magnitude of CAV for layer {cav_layer}: {self.cav[cav_layer].norm()}")
+            print(
+                f"DEBUG: Magnitude of CAV for layer {cav_layer}: {self.cav[cav_layer].norm()}"
+            )
 
         self.activations = None
 
     @abstractmethod
     def apply_model_correction(self, cav_layer: str) -> None:
+        """
+
+        Args:
+          cav_layer: str:
+
+        Returns:
+
+        """
         raise NotImplementedError

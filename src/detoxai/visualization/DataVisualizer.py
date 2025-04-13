@@ -6,6 +6,8 @@ from .ImageVisualizer import ImageVisualizer
 
 
 class DataVisualizer(ImageVisualizer):
+    """ """
+
     def __init__(
         self,
         data_loader: DetoxaiDataLoader,
@@ -24,6 +26,17 @@ class DataVisualizer(ImageVisualizer):
         batch_preds: torch.Tensor | None = None,
         show_labels: bool = True,
     ) -> None:
+        """
+
+        Args:
+          batch_num: int:
+          max_images: int | None:  (Default value = 36)
+          batch_preds: torch.Tensor | None:  (Default value = None)
+          show_labels: bool:  (Default value = True)
+
+        Returns:
+
+        """
         images, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)
 
         # Check if the images are in the correct format (numpy)
@@ -85,6 +98,14 @@ class DataVisualizer(ImageVisualizer):
                     )
 
     def visualize_agg(self, batch_num: int) -> None:
+        """
+
+        Args:
+          batch_num: int:
+
+        Returns:
+
+        """
         images, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)
 
         assert isinstance(images, torch.Tensor), "Images must be a tensor"

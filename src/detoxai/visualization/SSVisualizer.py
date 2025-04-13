@@ -9,9 +9,7 @@ from .LRPHandler import LRPHandler
 
 
 class SSVisualizer(ImageVisualizer):
-    """
-    SS - Side by Side visualizer for Heatmaps and Data
-    """
+    """SS - Side by Side visualizer for Heatmaps and Data"""
 
     def __init__(
         self,
@@ -49,6 +47,18 @@ class SSVisualizer(ImageVisualizer):
         max_images: int | None = 36,
         show_labels: bool = True,
     ) -> None:
+        """
+
+        Args:
+          batch_num: int:
+          lrp_condition_on: ConditionOn:  (Default value = ConditionOn.PROPER_LABEL)
+          lrp_show_cbar: bool:  (Default value = True)
+          max_images: int | None:  (Default value = 36)
+          show_labels: bool:  (Default value = True)
+
+        Returns:
+
+        """
         self.lrp_vis.visualize_batch(
             batch_num, lrp_condition_on, lrp_show_cbar, max_images
         )
@@ -66,6 +76,14 @@ class SSVisualizer(ImageVisualizer):
         self.__build_plot()
 
     def visualize_agg(self, batch_num: int) -> None:
+        """
+
+        Args:
+          batch_num: int:
+
+        Returns:
+
+        """
         self.lrp_vis.visualize_agg(batch_num)
         self.data_vis.visualize_agg(batch_num)
 
@@ -76,7 +94,14 @@ class SSVisualizer(ImageVisualizer):
         f2 = self.data_vis.figure
 
         def figure_to_array(fig):
-            """Convert a Matplotlib figure to a numpy array."""
+            """Convert a Matplotlib figure to a numpy array.
+
+            Args:
+              fig:
+
+            Returns:
+
+            """
             fig.canvas.draw()  # Draw the figure
             # Get the image as an RGBA buffer and convert it to a numpy array
             img = np.asarray(fig.canvas.buffer_rgba())

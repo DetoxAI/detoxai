@@ -29,4 +29,3 @@ jobs:
 
       - name: Publish
         run: uv publish dist/* --token ${{ secrets.GA_UV_PUBLISH_TOKEN }}
-

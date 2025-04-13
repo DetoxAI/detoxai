@@ -1,29 +1,22 @@
+import logging
+from typing import Any, Callable, List, Optional, Tuple
+
+import lightning as L
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import Tuple, Optional, List, Any, Callable
-import logging
-import lightning as L
 
-from .posthoc_base import PosthocBase
-from ...utils.dataloader import DetoxaiDataLoader
-from ...metrics.metrics import balanced_accuracy_torch
 from ...metrics.bias_metrics import calculate_bias_metric_torch
+from ...metrics.metrics import balanced_accuracy_torch
+from ...utils.dataloader import DetoxaiDataLoader
+from .posthoc_base import PosthocBase
 
 logger = logging.getLogger(__name__)
 
 
 class NaiveThresholdOptimizer(PosthocBase):
-    """
-    Optimizes classification threshold using forward hooks.
-
-    Attributes:
-        threshold_range: Range for threshold optimization
-        threshold_steps: Number of steps for grid search
-        hooks: List of model hooks
-        best_threshold: Best threshold found during optimization
-    """
+    """Optimizes classification threshold using forward hooks."""
 
     def __init__(
         self,
@@ -42,7 +35,14 @@ class NaiveThresholdOptimizer(PosthocBase):
         self.outputs_are_logits = outputs_are_logits
 
     def _get_probabilities(self, outputs: torch.Tensor) -> torch.Tensor:
-        """Convert model outputs to probabilities."""
+        """Convert model outputs to probabilities.
+
+        Args:
+          outputs: torch.Tensor:
+
+        Returns:
+
+        """
         if isinstance(outputs, tuple):
             outputs = outputs[0]
 
@@ -59,9 +59,26 @@ class NaiveThresholdOptimizer(PosthocBase):
         return probs[:, 1]  # Return probabilities for positive class
 
     def _threshold_hook(self, threshold: float) -> Callable:
-        """Creates forward hook for threshold modification."""
+        """Creates forward hook for threshold modification.
+
+        Args:
+          threshold: float:
+
+        Returns:
+
+        """
 
         def hook(module: nn.Module, input: Any, output: torch.Tensor) -> torch.Tensor:
+            """
+
+            Args:
+              module: nn.Module:
+              input: Any:
+              output: torch.Tensor:
+
+            Returns:
+
+            """
             probs = self._get_probabilities(output)
             pos_probs = probs[:, 1]
 
@@ -85,6 +102,21 @@ class NaiveThresholdOptimizer(PosthocBase):
         objective_function: Optional[Callable[[float, float], float]] = None,
         bias_metric: str = "EO_GAP",
     ) -> float:
+        """
+
+        Args:
+          threshold: float:
+          probs: torch.Tensor:
+          targets: torch.Tensor:
+          sensitive_features: torch.Tensor:
+          objective_function: Optional[Callable[[float:
+          float]:
+          float]]:  (Default value = None)
+          bias_metric: str:  (Default value = "EO_GAP")
+
+        Returns:
+
+        """
         # Ensure correct shapes for binary classification
         predictions = (probs > threshold).float()
         predictions = predictions.view(-1)  # Flatten to 1D
@@ -115,7 +147,19 @@ class NaiveThresholdOptimizer(PosthocBase):
         objective_function: Optional[Callable[[float, float], float]],
         metric: str,
     ) -> float:
-        """Finds optimal threshold via grid search."""
+        """Finds optimal threshold via grid search.
+
+        Args:
+          threshold_range: Tuple[float:
+          float]:
+          threshold_steps: int:
+          objective_function: Optional[Callable[[float:
+          float]]:
+          metric: str:
+
+        Returns:
+
+        """
         thresholds = np.linspace(
             threshold_range[0], threshold_range[1], threshold_steps
         )
@@ -175,10 +219,25 @@ class NaiveThresholdOptimizer(PosthocBase):
         metric: str = "EO_GAP",
         **kwargs: Any,
     ) -> None:
-        """Applies threshold modification hook to model."""
+        """Applies threshold modification hook to model.
+
+        Args:
+          last_layer_name: str:
+          threshold_range: Tuple[float:
+          float]:  (Default value = (0.05)
+          0.95):
+          objective_function: Optional[Callable[[float:
+          float]]:  (Default value = None)
+          threshold_steps: int:  (Default value = 100)
+          metric: str:  (Default value = "EO_GAP")
+          **kwargs: Any:
+
+        Returns:
+
+        """
 
         if objective_function is None:
-            objective_function = lambda fairness, accuracy: -fairness
+            objective_function = lambda fairness, accuracy: -fairness  # noqa
             logger.info(
                 "No objective function provided. Using default fairness maximization."
             )
@@ -186,7 +245,7 @@ class NaiveThresholdOptimizer(PosthocBase):
             try:
                 logger.info(f"Using custom objective function: {objective_function}")
                 objective_function = eval(objective_function)
-            except:
+            except:  # noqa
                 raise ValueError("Objective function must be a valid lambda function.")
 
         threshold = self._optimize_threshold(

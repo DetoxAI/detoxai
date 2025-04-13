@@ -1,20 +1,24 @@
+import logging
 import sys
-import torch
+from copy import deepcopy
+
 import lightning as L
+import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from copy import deepcopy
 from tqdm import tqdm
-import logging
+
+from ...metrics.bias_metrics import BiasMetrics
 
 # Project imports
 from .savani_base import SavaniBase
-from ...metrics.bias_metrics import BiasMetrics
 
 logger = logging.getLogger(__name__)
 
 
 class SavaniRP(SavaniBase):
+    """ """
+
     def __init__(
         self,
         model: nn.Module | L.LightningModule,
@@ -41,11 +45,28 @@ class SavaniRP(SavaniBase):
         soft_thresh_temperature: float = 10.0,
         **kwargs,
     ) -> None:
-        """
-        Apply random weights perturbation to the model, then select threshold 'tau' that maximizes phi
+        """Apply random weights perturbation to the model, then select threshold 'tau' that maximizes phi
 
         To change perturbation parameters, you can pass the mean and std of the Gaussian noise
         options = {'mean': 1.0, 'std': 0.1}
+
+        Args:
+          dataloader: DataLoader:
+          last_layer_name: str:
+          epsilon: float:  (Default value = 0.1)
+          T_iters: int:  (Default value = 15)
+          bias_metric: BiasMetrics | str:  (Default value = BiasMetrics.EO_GAP)
+          optimizer_maxiter: int:  (Default value = 100)
+          tau_init: float:  (Default value = 0.5)
+          outputs_are_logits: bool:  (Default value = True)
+          options: dict:  (Default value = {})
+          eval_batch_size: int:  (Default value = 128)
+          n_eval_batches: int:  (Default value = 3)
+          soft_thresh_temperature: float:  (Default value = 10.0)
+          **kwargs:
+
+        Returns:
+
         """
         assert T_iters > 0, "T_iters must be a positive integer"
         assert self.check_layer_name_exists(last_layer_name), (
@@ -97,8 +118,16 @@ class SavaniRP(SavaniBase):
     def _perturb_weights(
         self, module: nn.Module, mean: float = 1.0, std: float = 0.1, **kwargs
     ) -> None:
-        """
-        Add Gaussian noise to the weights of the module by multiplying the weights with a number ~ N(mean, std)
+        """Add Gaussian noise to the weights of the module by multiplying the weights with a number ~ N(mean, std)
+
+        Args:
+          module: nn.Module:
+          mean: float:  (Default value = 1.0)
+          std: float:  (Default value = 0.1)
+          **kwargs:
+
+        Returns:
+
         """
         with torch.no_grad():
             for param in module.parameters():

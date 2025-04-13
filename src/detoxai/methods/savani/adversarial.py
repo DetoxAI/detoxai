@@ -1,23 +1,26 @@
-import torch
-import lightning as L
 import logging
+
+import lightning as L
+import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from torch.nn.functional import softmax
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-# Project imports
-from .savani_base import SavaniBase
 from ...metrics.bias_metrics import (
     BiasMetrics,
     calculate_bias_metric_torch,
 )
-from ...utils.dataloader import copy_data_loader
+
+# Project imports
+from .savani_base import SavaniBase
 
 logger = logging.getLogger(__name__)
 
 
 class SavaniAFT(SavaniBase):
+    """ """
+
     def __init__(
         self,
         model: nn.Module | L.LightningModule,
@@ -54,6 +57,31 @@ class SavaniAFT(SavaniBase):
         """backward
         Do layer-wise optimization to find the best weights for each layer and the best threshold tau
 
+        Args:
+          dataloader: DataLoader:
+          last_layer_name: str:
+          epsilon: float:  (Default value = 0.1)
+          bias_metric: BiasMetrics | str:  (Default value = BiasMetrics.EO_GAP)
+          iterations: int:  (Default value = 10)
+          critic_iterations: int:  (Default value = 5)
+          model_iterations: int:  (Default value = 5)
+          train_batch_size: int:  (Default value = 128)
+          thresh_optimizer_maxiter: int:  (Default value = 100)
+          tau_init: float:  (Default value = 0.5)
+          lam: float:  (Default value = 1.0)
+          delta: float:  (Default value = 0.01)
+          critic_lr: float:  (Default value = 1e-4)
+          model_lr: float:  (Default value = 1e-4)
+          critic_filters: list[int]:  (Default value = [8)
+          16:
+          32]:
+          critic_linear: list[int]:  (Default value = [32])
+          outputs_are_logits: bool:  (Default value = True)
+          n_eval_batches: int:  (Default value = 3)
+          soft_thresh_temperature: float:  (Default value = 10.0)
+          **kwargs:
+
+        Returns:
 
         """
         assert self.check_layer_name_exists(last_layer_name), (
@@ -143,6 +171,16 @@ class SavaniAFT(SavaniBase):
         self.apply_hook(tau, soft_thresh_temperature)
 
     def fair_loss(self, y_logits, y_true, input):
+        """
+
+        Args:
+          y_logits:
+          y_true:
+          input:
+
+        Returns:
+
+        """
         fair = torch.max(
             torch.tensor(1, dtype=torch.float32, device=self.device),
             self.lam * (self.critic(input).squeeze() - self.epsilon + self.delta) + 1,
@@ -156,6 +194,17 @@ class SavaniAFT(SavaniBase):
         critic_linear: list[int],
         batch_size: int,
     ) -> nn.Module:
+        """
+
+        Args:
+          channels: int:
+          critic_filters: list[int]:
+          critic_linear: list[int]:
+          batch_size: int:
+
+        Returns:
+
+        """
         encoder_layers = [
             nn.Conv2d(channels, critic_filters[0], 3, padding="same"),
             nn.ReLU(),

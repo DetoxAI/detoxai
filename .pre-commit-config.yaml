@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.5
+    hooks:
+      # Run the linter.
+      - id: ruff
+        types_or: [ python, pyi ] #avoid running on Jupyter Notebooks
+        args: [ --fix ]
+      - id: ruff
+        types_or: [ python, pyi ]
+        args: [ --select, I, --fix ] #sort imports with isort
+      # Run the formatter.
+      - id: ruff-format
+        types_or: [ python, pyi ]

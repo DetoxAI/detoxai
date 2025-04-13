@@ -1,5 +1,7 @@
 import logging
+
 import numpy as np
+
 from .results_class import CorrectionResult
 
 logger = logging.getLogger(__name__)
@@ -10,15 +12,21 @@ MINIMIZE = ["EOO", "DP", "EO"]
 
 # Faster than is_pareto_efficient_simple, but less readable.
 def is_pareto_efficient(costs: np.ndarray, return_mask: bool = True) -> np.ndarray:
-    """
-    Find the pareto-efficient points
-    :param costs: An (n_points, n_costs) array
-    :param return_mask: True to return a mask
-    :return: An array of indices of pareto-efficient points.
-        If return_mask is True, this will be an (n_points, ) boolean array
-        Otherwise it will be a (n_efficient_points, ) integer array of indices.
+    """Find the pareto-efficient points
 
-    Credit: https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
+    Args:
+      costs: An (n_points, n_costs) array
+      return_mask: True to return a mask
+      costs: np.ndarray:
+      return_mask: bool:  (Default value = True)
+
+    Returns:
+      An array of indices of pareto-efficient points.
+      If return_mask is True, this will be an (n_points, ) boolean array
+      Otherwise it will be a (n_efficient_points, ) integer array of indices.
+
+      Credit: https://stackoverflow.com/questions/32791911/fast-calculation-of-pareto-front-in-python
+
     """
     is_efficient = np.arange(costs.shape[0])
     n_points = costs.shape[0]
@@ -44,7 +52,11 @@ def filter_pareto_front(
     Filter the results to only include those on the pareto front
 
     Args:
-        results: List of CorrectionResult objects to filter
+      results: List of CorrectionResult objects to filter
+      results: list[CorrectionResult]:
+
+    Returns:
+
     """
 
     metrics = list(results.values())[0].get_all_metrics()["pareto"].keys()
@@ -71,7 +83,11 @@ def select_best_method(results: dict[str, CorrectionResult]) -> CorrectionResult
     Select the best correction method from the results using the ideal point method
 
     Args:
-        results: List of CorrectionResult objects to choose from
+      results: List of CorrectionResult objects to choose from
+      results: list[CorrectionResult]:
+
+    Returns:
+
     """
     pf = filter_pareto_front(results)
 

@@ -14,10 +14,19 @@ def phi_torch(
     epsilon: float = 0.05,
     bias_metric: BiasMetrics | str = BiasMetrics.TPR_GAP,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Calculate phi as in the paper
+    """Calculate phi as in the paper
 
     phi = balanced_accuracy(Y_true, Y_pred) if bias < epsilon else 0
+
+    Args:
+      Y_true: torch.Tensor:
+      Y_pred: torch.Tensor:
+      ProtAttr: torch.Tensor:
+      epsilon: float:  (Default value = 0.05)
+      bias_metric: BiasMetrics | str:  (Default value = BiasMetrics.TPR_GAP)
+
+    Returns:
+
     """
 
     assert Y_true.shape == Y_pred.shape == ProtAttr.shape, (

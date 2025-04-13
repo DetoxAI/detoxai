@@ -5,6 +5,8 @@ import torchvision.transforms.functional as F
 
 
 class SquarePad:
+    """ """
+
     def __init__(self, resize_to: int | None = None):
         self.resize_to = resize_to
 

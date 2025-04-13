@@ -2,9 +2,10 @@
 Credit: https://github.com/frederikpahde/rrclarc
 """
 
+import logging
+
 import numpy as np
 import torch
-import logging
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import LinearSVC
@@ -13,13 +14,19 @@ logger = logging.getLogger(__name__)
 
 
 def compute_cav(vecs: np.ndarray, targets: np.ndarray, cav_type: str = "svm") -> tuple:
-    """
-    Compute a concept activation vector (CAV) for a set of vectors and targets.
+    """Compute a concept activation vector (CAV) for a set of vectors and targets.
 
-    :param vecs:    torch.Tensor of shape (n_samples, n_features)
-    :param targets: torch.Tensor of shape (n_samples,)
-    :param cav_type:   str, type of CAV to compute. One of ["svm", "ridge", "signal", "mean"]
-    :return:       torch.Tensor of shape (1, n_features)
+    Args:
+      vecs: torch.Tensor of shape (n_samples, n_features)
+      targets: torch.Tensor of shape (n_samples,)
+      cav_type: str, type of CAV to compute. One of ["svm", "ridge", "signal", "mean"]
+      vecs: np.ndarray:
+      targets: np.ndarray:
+      cav_type: str:  (Default value = "svm")
+
+    Returns:
+      torch.Tensor of shape (1, n_features)
+
     """
 
     num_targets = (targets == 1).sum()

@@ -1,9 +1,9 @@
+import importlib.metadata
+import logging
 import os
 from pathlib import Path
-import logging
 
 logger = logging.getLogger(__name__)
-
 logger.info("Loading DETOXAI...")
 
 
@@ -22,11 +22,10 @@ logger.info(
     f"Detoxai paths: {os.getenv('DETOXAI_ROOT_PATH')}, {os.getenv('DETOXAI_DATASET_PATH')}"
 )
 
-from .datasets.catalog.download import download_datasets  # noqa
+# Import all modules in detoxai, must be done after setting the environment variables
 from .core.interface import debias  # noqa
 from .core.results_class import CorrectionResult  # noqa
-
-import importlib.metadata
+from .datasets.catalog.download import download_datasets  # noqa
 
 try:
     __version__ = importlib.metadata.version(__package__ or __name__)

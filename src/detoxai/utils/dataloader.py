@@ -1,5 +1,6 @@
-import logging
 import itertools
+import logging
+
 from torch.utils.data import DataLoader, Dataset
 
 from .datasets import DetoxaiDataset
@@ -8,22 +9,41 @@ logger = logging.getLogger(__name__)
 
 
 class DetoxaiDataLoader(DataLoader):
+    """ """
+
     def __init__(self, dataset: DetoxaiDataset, **kwargs):
         super().__init__(dataset, **kwargs)
 
     def get_class_names(self):
+        """ """
         assert isinstance(self.dataset, DetoxaiDataset), (
             "Dataset must be an instance of DetoxaiDataset, as we rely on its internal structure"
         )
         return self.dataset.get_class_names()
 
     def get_nth_batch(self, n: int) -> tuple:
+        """
+
+        Args:
+          n: int:
+
+        Returns:
+
+        """
         for i, batch in enumerate(self):
             if i == n:
                 return batch
         return None
 
     def get_nth_batch2(self, n: int) -> tuple:
+        """
+
+        Args:
+          n: int:
+
+        Returns:
+
+        """
         if n < 0 or n >= len(self):
             return None
 
@@ -59,8 +79,16 @@ def copy_data_loader(
     shuffle: bool = False,
     drop_last: bool = False,
 ) -> DetoxaiDataLoader | WrappedDataLoader:
-    """
-    Copy the dataloader
+    """Copy the dataloader
+
+    Args:
+      dataloader: DataLoader:
+      batch_size: int | None:  (Default value = None)
+      shuffle: bool:  (Default value = False)
+      drop_last: bool:  (Default value = False)
+
+    Returns:
+
     """
     if batch_size is None:
         batch_size = dataloader.batch_size

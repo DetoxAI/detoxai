@@ -1,14 +1,12 @@
 import importlib.util as iu
+import logging
 import multiprocessing as mp
 import os
-from typing import List
-import logging
+from pathlib import Path
+from typing import List, Union
 
 import gdown
 import yaml
-
-from typing import Union
-from pathlib import Path
 
 DETOXAI_DATASET_PATH = os.environ.get("DETOXAI_DATASET_PATH", os.path.expanduser("~"))
 
@@ -19,6 +17,16 @@ SUPPORTED_DATASETS = ["cifar10", "cifar100", "caltech101", "celeba", "fairface"]
 
 # Define download function
 def gdown_download(url, output, quiet=False):
+    """
+
+    Args:
+      url:
+      output:
+      quiet:  (Default value = False)
+
+    Returns:
+
+    """
     logger.debug(f"Downloading {url} to {output}...")
     if not os.path.exists(output):
         gdown.download(url, output, quiet=quiet, fuzzy=False)
@@ -26,6 +34,16 @@ def gdown_download(url, output, quiet=False):
 
 
 def curl_download(url, output, quiet=False):
+    """
+
+    Args:
+      url:
+      output:
+      quiet:  (Default value = False)
+
+    Returns:
+
+    """
     logger.debug(f"Downloading {url} to {output}...")
     if not os.path.exists(output):
         os.system(f"curl -L {url} -o {output}")
@@ -33,6 +51,16 @@ def curl_download(url, output, quiet=False):
 
 
 def download_stuff(folder, links, tmp_dir):
+    """
+
+    Args:
+      folder:
+      links:
+      tmp_dir:
+
+    Returns:
+
+    """
     logger.debug(f"Downloading data files for {folder}...")
 
     all_links = list()
@@ -67,6 +95,16 @@ def download_stuff(folder, links, tmp_dir):
 
 
 def run_handler(folder, dir_path, tmp_dir):
+    """
+
+    Args:
+      folder:
+      dir_path:
+      tmp_dir:
+
+    Returns:
+
+    """
     # Now import handler.py from 'folder'
     handler_path = os.path.join(dir_path, "handler.py")
     spec = iu.spec_from_file_location("handler", handler_path)
@@ -77,12 +115,17 @@ def run_handler(folder, dir_path, tmp_dir):
 def download_datasets(
     datasets: List[str], dataset_path: Union[str, Path] = DETOXAI_DATASET_PATH
 ) -> None:
-    """
-    Downloads datasets from the list and save them in directory specified by dataset_path.
+    """Downloads datasets from the list and save them in directory specified by dataset_path.
 
     Args:
-    - datasets: List of datasets to download e.g., ['celeba', 'fairface']
-    - dataset_path: Path to save the datasets.
+      - datasets: List of datasets to download e.g., ['celeba', 'fairface']
+      - dataset_path: Path to save the datasets.
+      datasets: List[str]:
+      dataset_path: Union[str:
+      Path]:  (Default value = DETOXAI_DATASET_PATH)
+
+    Returns:
+
     """
     os.environ["DETOXAI_DATASET_PATH"] = str(dataset_path)
 

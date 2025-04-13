@@ -1,6 +1,7 @@
+import numpy as np
 import pytest
 import torch
-import numpy as np
+
 from src.detoxai.metrics.metrics import comprehensive_metrics_torch
 
 

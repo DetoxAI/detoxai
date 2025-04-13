@@ -1,19 +1,21 @@
-import numpy as np
+import os
+import time
 from abc import ABC, abstractmethod
+
+import matplotlib.pyplot as plt
+import numpy as np
 import scipy.stats as stats
-import torch.nn as nn
 import torch
+import torch.nn as nn
 from tqdm import tqdm
 
-import time
-import matplotlib.pyplot as plt
-import os
-
 from ..utils.dataloader import DetoxaiDataLoader
-from ..visualization import LRPHandler, ConditionOn
+from ..visualization import ConditionOn, LRPHandler
 
 
 class XAIMetricsCalculator:
+    """ """
+
     def __init__(self, dataloader: DetoxaiDataLoader, lrphandler: LRPHandler) -> None:
         self.dataloader = dataloader
         self.lrphandler = lrphandler
@@ -21,6 +23,15 @@ class XAIMetricsCalculator:
     def _symmetrize(
         self, sailmaps: np.ndarray, neutral_point: float = 0.5
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          neutral_point: float:  (Default value = 0.5)
+
+        Returns:
+
+        """
         return np.abs(sailmaps - neutral_point)
 
     def calculate_metrics(
@@ -45,22 +56,42 @@ class XAIMetricsCalculator:
         neutral_point: float = 0.5,
         abs_on_neutral: bool = True,
     ) -> dict[str, float]:
-        """
-        Calculate the metrics for the given model and sailmaps
+        """Calculate the metrics for the given model and sailmaps
 
-        Parameters:
-            - `model` (nn.Module): The model to use for LRP
-            - `rect_pos` (tuple[int, int]): The position of the rectangle
-            - `rect_size` (tuple[int, int]): The size of the rectangle
-            - `vanilla_model` (nn.Module): The vanilla model to use for comparison
-            - `sailmap_metrics` (list[str]): The list of metrics to calculate
-            - `batches` (int): The number of batches to calculate
-            - `condition_on` (str): The condition to calculate the metrics on
-            - `verbose` (bool): Whether to show progress bar or not
+        Args:
+          model: nn
+          rect_pos: tuple
+          rect_size: tuple
+          vanilla_model: nn
+          sailmap_metrics: list
+          batches: int
+          condition_on: str
+          verbose: bool
+          model: nn.Module:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+          vanilla_model: nn.Module:  (Default value = None)
+          sailmap_metrics: list[str]:  (Default value = ["RRF")
+          "HRF":
+          "MRR":
+          "DET":
+          "ADR":
+          "DIF":
+          "RDDT":
+          ]:
+          batches: int:  (Default value = 2)
+          condition_on: str:  (Default value = ConditionOn.PROPER_LABEL.value)
+          verbose: bool:  (Default value = False)
+          # source_range: tuple[float:
+          float]:  (Default value = (0)
+          1):
+          neutral_point: float:  (Default value = 0.5)
+          abs_on_neutral: bool:  (Default value = True)
 
         Returns:
-            - `dict[str, float]`: The calculated metrics where the key is the metric name and
-                the value is the calculated metric
+          - `dict[str, float]`: The calculated metrics where the key is the metric name and
+          the value is the calculated metric
 
         """
         metrics_calcs: list["SailRectMetric"] = []
@@ -155,6 +186,17 @@ class SailRectMetric(ABC):
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+
+        Returns:
+
+        """
         assert isinstance(sailmaps, np.ndarray), "Sailmaps should be a numpy array"
 
         return sailmaps[
@@ -170,15 +212,31 @@ class SailRectMetric(ABC):
         rect_size: tuple[int, int],
         ret_format: tuple[str] = ("mean", "std"),
     ) -> dict[str, float]:
-        """
-        Calculate the metric for a single batch of sailmaps
+        """Calculate the metric for a single batch of sailmaps
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+          ret_format: tuple[str]:  (Default value = ("mean")
+          "std"):
+
+        Returns:
+
         """
         c = self._core(sailmaps, rect_pos, rect_size)
         return self.structure_output(c, ret_format)
 
     def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
-        """
-        Calculate the metric for already aggregated sailmaps
+        """Calculate the metric for already aggregated sailmaps
+
+        Args:
+          ret_format: tuple[str]:  (Default value = ("mean")
+          "std"):
+
+        Returns:
+
         """
         return self.structure_output(self.metvals, ret_format)
 
@@ -189,8 +247,17 @@ class SailRectMetric(ABC):
         rect_size: tuple[int, int],
         vanilla_sailmaps: np.ndarray = None,
     ):
-        """
-        Aggregate sailmaps for later calculation
+        """Aggregate sailmaps for later calculation
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+          vanilla_sailmaps: np.ndarray:  (Default value = None)
+
+        Returns:
+
         """
         if vanilla_sailmaps is not None:
             c = self._core(sailmaps, rect_pos, rect_size, vanilla_sailmaps)
@@ -207,11 +274,32 @@ class SailRectMetric(ABC):
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+
+        Returns:
+
+        """
         pass
 
     def structure_output(
         self, per_sample: np.ndarray[float], ret_format: tuple[str] = ("mean", "std")
     ) -> dict[str, float]:
+        """
+
+        Args:
+          per_sample: np.ndarray[float]:
+          ret_format: tuple[str]:  (Default value = ("mean")
+          "std"):
+
+        Returns:
+
+        """
         ret = {}
         if "mean" in ret_format:
             ret["mean"] = np.mean(per_sample)
@@ -241,13 +329,17 @@ class SailRectMetric(ABC):
 
 
 class RRF(SailRectMetric):
-    """
-    Rectangle Relevance Fraction
+    """Rectangle Relevance Fraction
     \begin{equation}
     \mathbf{RRF} = \frac{\displaystyle \sum_{(i,j) \in R} p_{ij}}{\displaystyle \sum_{i = 1}^N \sum_{j = 1}^M p_{ij}}
     \end{equation}
 
     Here, $\mathbf{RRF}$ measures the fraction of total relevance that falls within ROI.
+
+    Args:
+
+    Returns:
+
     """
 
     def __init__(self, **kwargs) -> None:
@@ -260,6 +352,17 @@ class RRF(SailRectMetric):
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+
+        Returns:
+
+        """
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         print(f"sm_rect shape: {sm_rect.shape}")
         # Sm_rectr is 32 x Width x Height, I want to matplotlib savefig this
@@ -282,13 +385,17 @@ class RRF(SailRectMetric):
 
 
 class HRF(SailRectMetric):
-    """
-    \subsection{High-Relevance Fraction (HRF)}
+    """\subsection{High-Relevance Fraction (HRF)}
     \begin{equation}
     \mathbf{HRF} = \displaystyle \frac{1}{\vert R \vert} \sum_{(i,j) \in R} \mathbbm{1}_{\{p_{ij} > \epsilon\}}
     \end{equation}
 
     $\mathbf{HRF}$ quantifies the proportion of pixels inside the ROI whose relevance exceeds a predefined threshold $\epsilon$, indicating how many pixels are highly important for prediction.
+
+    Args:
+
+    Returns:
+
     """
 
     def __init__(
@@ -307,6 +414,17 @@ class HRF(SailRectMetric):
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+
+        Returns:
+
+        """
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         sm_rect = sm_rect.reshape(len(sm_rect), -1)
         rect_size = sm_rect.shape[1]
@@ -316,13 +434,16 @@ class HRF(SailRectMetric):
 
 
 class MRR(SailRectMetric):
-    """
-        \subsection{Mean Relevance Ratio (MRR)}
+    """\subsection{Mean Relevance Ratio (MRR)}
 
     \begin{equation}
         \mathbf{MRR} = \frac{\displaystyle \frac{1}{\vert R \vert} \sum_{(i,j) \in R} p_{ij}}{\displaystyle \frac{1}{N M - \vert R \vert} \sum_{(i,j) \notin R} p_{ij}},
     \end{equation}
     $\mathbf{MRR}$ quantifies the ratio of the mean pixel value inside the ROI to the mean pixel value outside it. $\mathbf{MRR} = 1$ indicates that the mean values are equal, while $\mathbf{MRR} > 1$ says the mean pixel within the ROI has a higher intensity.
+
+    Args:
+
+    Returns:
 
     """
 
@@ -336,6 +457,17 @@ class MRR(SailRectMetric):
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+
+        Returns:
+
+        """
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         sm_outside = sailmaps.copy()
         sm_outside[
@@ -355,9 +487,7 @@ class MRR(SailRectMetric):
 
 
 class DET(SailRectMetric):
-    """ 
-    
-    \subsection{Distribution Equivalence Testing (DET)}
+    """\subsection{Distribution Equivalence Testing (DET)}
 
     The goal of the statistical test is to determine whether the pixels \textit{inside} the rectangle have higher intensity than those \textit{outside} the rectangle. Since the number of pixels and their intensity distributions inside and outside the ROI can vary, a non-parametric, unpaired statistical Mann-Whitney-Wilcoxon test is used. This permutation test assesses whether the intensity values from one group (inside) tend to be higher than those from the other (outside).
 
@@ -371,6 +501,10 @@ class DET(SailRectMetric):
 
     To perform the test, all pixel intensities are ranked, and the sum of ranks for each group (inside and outside the ROI) is computed. The test then evaluates the probability that the intensity values inside the rectangle are statistically higher than those outside. The final outcome of the DET is a binary decision: \textbf{TRUE} indicates that the null hypothesis is rejected (i.e., there is statistically significant evidence that the pixels inside the rectangle have higher intensity), while \textbf{FALSE} signifies that we fail to reject the null hypothesis, meaning that the evidence is inconclusive regarding a higher intensity inside the rectangle.
 
+    Args:
+
+    Returns:
+
     """
 
     def __init__(self, **kwargs) -> None:
@@ -383,6 +517,17 @@ class DET(SailRectMetric):
         rect_pos: tuple[int, int],
         rect_size: tuple[int, int],
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+
+        Returns:
+
+        """
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         sm_outside = sailmaps.copy()
         sm_outside[
@@ -398,8 +543,14 @@ class DET(SailRectMetric):
         return mean_sm - mean_outside
 
     def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
-        """
-        Calculate the metric for already aggregated sailmaps
+        """Calculate the metric for already aggregated sailmaps
+
+        Args:
+          ret_format: tuple[str]:  (Default value = ("mean")
+          "std"):
+
+        Returns:
+
         """
         ret = dict()
         _, p = stats.ttest_1samp(self.metvals, 0, alternative="greater")
@@ -411,12 +562,16 @@ class DET(SailRectMetric):
 
 
 class ADR(SailRectMetric):
-    """
-    Average Difference in Region (ADR)
+    """Average Difference in Region (ADR)
 
     ADR measures the mean pixel-wise difference between vanilla and debiased saliency maps
     within the region of interest (ROI). A positive value indicates that vanilla saliency
     values are generally higher than debiased ones in the region.
+
+    Args:
+
+    Returns:
+
     """
 
     def __init__(self, **kwargs) -> None:
@@ -430,6 +585,18 @@ class ADR(SailRectMetric):
         rect_size: tuple[int, int],
         vanilla_sailmaps: np.ndarray = None,
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+          vanilla_sailmaps: np.ndarray:  (Default value = None)
+
+        Returns:
+
+        """
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
 
@@ -439,12 +606,16 @@ class ADR(SailRectMetric):
 
 
 class DIF(SailRectMetric):
-    """
-    Decreased Intensity Fraction (DIF)
+    """Decreased Intensity Fraction (DIF)
 
     DIF measures the ratio of pixels showing decreased intensity in the debiased model
     compared to the vanilla model. It represents the fraction of pixels inside a rectangle
     that significantly flipped their saliency value.
+
+    Args:
+
+    Returns:
+
     """
 
     def __init__(self, eps: float = 1e-3, **kwargs) -> None:
@@ -459,6 +630,18 @@ class DIF(SailRectMetric):
         rect_size: tuple[int, int],
         vanilla_sailmaps: np.ndarray = None,
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+          vanilla_sailmaps: np.ndarray:  (Default value = None)
+
+        Returns:
+
+        """
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
 
@@ -469,13 +652,17 @@ class DIF(SailRectMetric):
 
 
 class RDDT(SailRectMetric):
-    """
-    Rectangle Difference Distribution Testing (RDDT)
+    """Rectangle Difference Distribution Testing (RDDT)
 
     Performs a Wilcoxon signed rank test to determine if pixels from the vanilla model
     have significantly higher intensity than those from the debiased model within the ROI.
     Returns 1 if the test rejects the null hypothesis (indicating vanilla has higher intensity),
     0 otherwise.
+
+    Args:
+
+    Returns:
+
     """
 
     def __init__(self, **kwargs) -> None:
@@ -489,6 +676,18 @@ class RDDT(SailRectMetric):
         rect_size: tuple[int, int],
         vanilla_sailmaps: np.ndarray = None,
     ) -> np.ndarray:
+        """
+
+        Args:
+          sailmaps: np.ndarray:
+          rect_pos: tuple[int:
+          int]:
+          rect_size: tuple[int:
+          vanilla_sailmaps: np.ndarray:  (Default value = None)
+
+        Returns:
+
+        """
         sm_rect = self._sailmaps_rect(sailmaps, rect_pos, rect_size)
         vanilla_sm_rect = self._sailmaps_rect(vanilla_sailmaps, rect_pos, rect_size)
 
@@ -499,6 +698,15 @@ class RDDT(SailRectMetric):
         return mean_vanilla_sm - mean_sm
 
     def reduce(self, ret_format: tuple[str] = ("mean", "std")) -> dict[str, float]:
+        """
+
+        Args:
+          ret_format: tuple[str]:  (Default value = ("mean")
+          "std"):
+
+        Returns:
+
+        """
         ret = dict()
         _, p = stats.ttest_1samp(self.metvals, 0, alternative="greater")
         ret["mean"] = p < 0.01

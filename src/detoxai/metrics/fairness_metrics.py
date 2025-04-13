@@ -84,10 +84,28 @@ DEFAULT_METRICS_CONFIG = {
 
 
 def stabilize(x, eps=1e-8):
+    """
+
+    Args:
+      x:
+      eps:  (Default value = 1e-8)
+
+    Returns:
+
+    """
     return x + eps
 
 
 def results_to_tidy_df(results, metrics_config):
+    """
+
+    Args:
+      results:
+      metrics_config:
+
+    Returns:
+
+    """
     tidy_results = {}
     for key, value in results.items():
         splitted_key = key.split("_")
@@ -146,10 +164,23 @@ def results_to_tidy_df(results, metrics_config):
 
 
 class PerformanceMetrics:
+    """ """
+
     @classmethod
     def infer_metrics(
         self, metrics_config: Dict[str, Dict[str, List[str]]], class_labels: List[str]
     ):
+        """
+
+        Args:
+          metrics_config: Dict[str:
+          Dict[str:
+          List[str]]]:
+          class_labels: List[str]:
+
+        Returns:
+
+        """
         num_classes = len(class_labels)
         metrics = {}
         for metric, config in metrics_config.items():
@@ -202,6 +233,8 @@ class PerformanceMetrics:
 
 
 class AllMetrics:
+    """ """
+
     def __init__(
         self,
         metrics_config: Dict[str, Dict[str, Dict[str, List[str]]]],
@@ -228,13 +261,17 @@ class AllMetrics:
         return f"AllMetrics(performance_metrics={self.performance_metrics}, fairness_metrics={self.fairness_metrics})"
 
     def get_performance_metrics(self) -> PerformanceMetrics:
+        """ """
         return self.performance_metrics
 
     def get_fairness_metrics(self) -> MetricCollection:
+        """ """
         return self.fairness_metrics
 
 
 class BinaryGroupStatRatesUnwrapped(BinaryGroupStatRates):
+    """ """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -244,9 +281,20 @@ class BinaryGroupStatRatesUnwrapped(BinaryGroupStatRates):
         target: torch.Tensor,
         sensitive_features: torch.Tensor,
     ):
+        """
+
+        Args:
+          preds: torch.Tensor:
+          target: torch.Tensor:
+          sensitive_features: torch.Tensor:
+
+        Returns:
+
+        """
         super().update(preds, target, sensitive_features)
 
     def compute(self):
+        """ """
         stats = super().compute()
         unwrapped_stats = {}
         for group in stats.keys():
@@ -263,20 +311,20 @@ metrics_spec_dict_type = Dict[str, Dict[str, List[Union[str, None]]]]
 
 
 class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
-    """
-    Computes derived metrics (like TPR, FPR, etc.) for each group and allows for ratio and difference
+    """Computes derived metrics (like TPR, FPR, etc.) for each group and allows for ratio and difference
     comparisons between groups to assess fairness. Supports various fairness metrics such as Equalized Odds.
 
     Args:
-        metrics_spec (metrics_spec_dict_type): Dictionary specifying metrics to calculate.
-        args, **kwargs: Additional arguments for the base class initialization.
-
+      metrics_spec(metrics_spec_dict_type): Dictionary specifying metrics to calculate.
+      args, **kwargs: Additional arguments for the base class initialization.
     Supported metrics:
     - True Positive Rate (TPR), False Positive Rate (FPR), Error Rate (ER), etc.
     - Equalized Odds can be calculated with either a 'ratio' or 'difference' reduction.
-
     Example usage:
-        >>> preds = torch.tensor([1, 1, 1, 0, 1, 0, 1, 0])
+
+    Returns:
+
+    >>> preds = torch.tensor([1, 1, 1, 0, 1, 0, 1, 0])
         >>> target = torch.tensor([1, 1, 1, 1, 0, 0, 0, 0])
         >>> sensitive_features = torch.tensor([1, 1, 1, 1, 0, 0, 0, 0])
 
@@ -357,10 +405,13 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
         assert (
             "TreatmentEquality" not in metrics_spec.keys()
             or not metrics_spec["TreatmentEquality"]["reduce"] == "per_group"
-        ), "TreatmentEquality must have a reduce option 'ratio' or 'difference' specified"
+        ), (
+            "TreatmentEquality must have a reduce option 'ratio' or 'difference' specified"
+        )
         self.metrics_spec = metrics_spec
 
     def compute(self):
+        """ """
         stats = super().compute()
 
         derived_metrics = self._calculate_derived_metrics(stats)
@@ -373,9 +424,9 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
                     group_name = str(group) + "_group"
                     out_metrics.update(
                         {
-                            metric
-                            + "_"
-                            + group_name: derived_metrics[metric + "_" + group_name]
+                            metric + "_" + group_name: derived_metrics[
+                                metric + "_" + group_name
+                            ]
                         }
                     )
             if "ratio" or "difference" in reduce_options:
@@ -417,6 +468,14 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
         return out_metrics
 
     def _calculate_derived_metrics(self, stats):
+        """
+
+        Args:
+          stats:
+
+        Returns:
+
+        """
         derived_metrics = {}
         for group in range(self.num_groups):
             group_name = str(group) + "_group"
@@ -457,6 +516,14 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
         return derived_metrics
 
     def calculate_equalized_odds(self, derived_metrics):
+        """
+
+        Args:
+          derived_metrics:
+
+        Returns:
+
+        """
         min_group_tpr = min(
             [
                 derived_metrics["TPR" + "_" + str(group) + "_group"]
@@ -488,6 +555,14 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
             return min_group_tpr, max_group_tpr
 
     def calculate_demographic_parity(self, derived_metrics):
+        """
+
+        Args:
+          derived_metrics:
+
+        Returns:
+
+        """
         min_group_ppr = min(
             [
                 derived_metrics["PPR" + "_" + str(group) + "_group"]
@@ -503,6 +578,14 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
         return min_group_ppr, max_group_ppr
 
     def calculate_equality_of_opportunity(self, derived_metrics):
+        """
+
+        Args:
+          derived_metrics:
+
+        Returns:
+
+        """
         min_group_tpr = min(
             [
                 derived_metrics["TPR" + "_" + str(group) + "_group"]
@@ -518,6 +601,14 @@ class FairnessMetrics(BinaryGroupStatRatesUnwrapped):
         return min_group_tpr, max_group_tpr
 
     def calculate_treatment_equality(self, stats):
+        """
+
+        Args:
+          stats:
+
+        Returns:
+
+        """
         min_group_fn_fp_ratio = min(
             [
                 stats["FN" + "_" + str(group) + "_group"]

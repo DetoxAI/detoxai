@@ -1,8 +1,11 @@
 import enum
+
 import torch
 
 
 class BiasMetrics(enum.Enum):
+    """ """
+
     TPR_GAP = "TPR_GAP"
     FPR_GAP = "FPR_GAP"
     TNR_GAP = "TNR_GAP"
@@ -12,6 +15,15 @@ class BiasMetrics(enum.Enum):
 
 
 def stabilize(x, epsilon=1e-4):
+    """
+
+    Args:
+      x:
+      epsilon:  (Default value = 1e-4)
+
+    Returns:
+
+    """
     return torch.max(x, torch.tensor(epsilon, dtype=x.dtype, device=x.device))
 
 
@@ -21,6 +33,17 @@ def calculate_bias_metric_torch(
     y_true: torch.Tensor,
     protected_attribute: torch.Tensor,
 ) -> torch.Tensor:
+    """
+
+    Args:
+      metric: BiasMetrics | str:
+      y_pred: torch.Tensor:
+      y_true: torch.Tensor:
+      protected_attribute: torch.Tensor:
+
+    Returns:
+
+    """
     if isinstance(metric, BiasMetrics):
         metric = metric.value
 

@@ -1,9 +1,9 @@
-import torch
-import numpy as np
 import logging
 from abc import ABC, abstractmethod
-from torch import nn
+
 import lightning as L
+import torch
+from torch import nn
 
 from ..model_correction import ModelCorrectionMethod
 
@@ -25,12 +25,20 @@ class PosthocBase(ModelCorrectionMethod, ABC):
 
     @abstractmethod
     def apply_model_correction(self) -> None:
+        """ """
         raise NotImplementedError
 
     def _get_model_predictions(
         self, dataloader: torch.utils.data.DataLoader
     ) -> torch.Tensor:
-        """Get model predictions on dataloader"""
+        """Get model predictions on dataloader
+
+        Args:
+          dataloader: torch.utils.data.DataLoader:
+
+        Returns:
+
+        """
         self.model.eval()
         predictions, labels, protected_attribute = [], [], []
         with torch.no_grad():

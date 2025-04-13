@@ -1,26 +1,30 @@
-import sys
-import torch
-import lightning as L
 import logging
-import torch.nn as nn
-import numpy as np
-from torch.utils.data import DataLoader
+import sys
 from copy import deepcopy
-from tqdm import tqdm
+
+import lightning as L
+import numpy as np
+import torch
+import torch.nn as nn
 from skopt import forest_minimize  # noqa
-from skopt.space import Real
 
 # from sklearn.ensemble import RandomForestRegressor
 from skopt.learning.forest import RandomForestRegressor
+from skopt.space import Real
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from ...metrics.bias_metrics import BiasMetrics
 
 # Project imports
 from .savani_base import SavaniBase
-from ...metrics.bias_metrics import BiasMetrics
 
 logger = logging.getLogger(__name__)
 
 
 class SavaniLWO(SavaniBase):
+    """ """
+
     def __init__(
         self,
         model: nn.Module | L.LightningModule,
@@ -53,9 +57,30 @@ class SavaniLWO(SavaniBase):
         soft_thresh_temperature: float = 10.0,
         **kwargs,
     ) -> None:
-        """
-        Do layer-wise optimization to find the best weights for each layer and the best threshold tau
+        """Do layer-wise optimization to find the best weights for each layer and the best threshold tau
 
+        Args:
+          dataloader: DataLoader:
+          last_layer_name: str:
+          epsilon: float:  (Default value = 0.1)
+          bias_metric: BiasMetrics | str:  (Default value = BiasMetrics.EO_GAP)
+          n_layers_to_optimize: int | str:  (Default value = "all")
+          thresh_optimizer_maxiter: int:  (Default value = 100)
+          beta: float:  (Default value = 2.2)
+          params_to_opt: int | float:  (Default value = 0.5)
+          never_more_than: int:  (Default value = 50_000)
+          tau_init: float:  (Default value = 0.5)
+          outputs_are_logits: bool:  (Default value = True)
+          n_eval_batches: int:  (Default value = 3)
+          eval_batch_size: int:  (Default value = 128)
+          skopt_verbose: bool:  (Default value = True)
+          skopt_njobs: int:  (Default value = 4)
+          skopt_npoints: int:  (Default value = 1000)
+          skopt_maxiter: int:  (Default value = 10)
+          soft_thresh_temperature: float:  (Default value = 10.0)
+          **kwargs:
+
+        Returns:
 
         """
         assert self.check_layer_name_exists(last_layer_name), (
@@ -188,22 +213,33 @@ class SavaniLWO(SavaniBase):
     def objective_LWO(
         self, o_params: torch.Tensor, tau: float, indices: list
     ) -> callable:
-        """
-        Objective function for the layer-wise optimization
+        """Objective function for the layer-wise optimization
 
         Args:
-            o_params: The original parameters (torch.Tensor)
-            tau: The threshold value (float)
-            indices: The indices of the selected neurons (list)
+          o_params: The original parameters (torch.Tensor)
+          tau: The threshold value (float)
+          indices: The indices of the selected neurons (list)
+          o_params: torch.Tensor:
+          tau: float:
+          indices: list:
 
         Returns:
-            The objective function
+          : The objective function
+
         """
 
         if not isinstance(tau, torch.Tensor):
             tau = torch.tensor(tau, device=self.device)
 
         def objective(new_params: list) -> float:
+            """
+
+            Args:
+              new_params: list:
+
+            Returns:
+
+            """
             nonlocal tau, o_params, indices
 
             # Update the weights
@@ -220,17 +256,21 @@ class SavaniLWO(SavaniBase):
     def flatten_select(
         self, params: torch.Tensor, select_cnt: float | int, total_params: int
     ) -> tuple[torch.Tensor, list]:
-        """
-        Take an n-dimensional array,
+        """Take an n-dimensional array,
 
         Args:
-            params: The parameters to flatten (N-dimensional array)
-            select_cnt: The number of neurons to select (float is a fraction of the total neurons, int is the number of neurons)
-            total_params: The total number of parameters
+
+        Args:
+          select_cnt: The number of neurons to select
+          total_params: The total number of parameters
+          params: torch.Tensor:
+          select_cnt: float | int:
+          total_params: int:
 
         Returns:
-            A 1-dimensional array of selected neurons
-            A 1-dimensional array of indices of the selected neurons
+          A 1-dimensional array of selected neurons
+          A 1-dimensional array of indices of the selected neurons
+
         """
 
         if isinstance(select_cnt, float):
@@ -247,16 +287,19 @@ class SavaniLWO(SavaniBase):
     def unflatten(
         self, o_params: torch.Tensor, f_params: torch.Tensor, indices: list
     ) -> torch.Tensor:
-        """
-        Unflatten the parameters
+        """Unflatten the parameters
 
         Args:
-            o_params: The original parameters
-            f_params: The flattened parameters
-            indices: The indices of the selected neurons
+          o_params: The original parameters
+          f_params: The flattened parameters
+          indices: The indices of the selected neurons
+          o_params: torch.Tensor:
+          f_params: torch.Tensor:
+          indices: list:
 
         Returns:
-            The unflattened parameters
+          : The unflattened parameters
+
         """
         o_shape = o_params.shape
         o_params = o_params.flatten()

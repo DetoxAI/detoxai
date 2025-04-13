@@ -8,7 +8,6 @@ import torchvision.transforms as transforms
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from torchvision_utils import create_structure2
 
-
 home = os.environ.get("DETOXAI_DATASET_PATH", os.path.expanduser("~"))
 directory = os.path.join(home, "cifar100")
 

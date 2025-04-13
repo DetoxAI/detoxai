@@ -1,4 +1,5 @@
 from abc import ABC
+
 import pandas as pd
 
 from .Visualizer import Visualizer
@@ -17,10 +18,21 @@ CANNONICAL_COLUMNS = [
 
 
 class MetricsVisualizer(Visualizer, ABC):
+    """ """
+
     metrics_config: dict | None = None
 
     @classmethod
     def canonize_results(cls, results: dict, metrics_config: dict) -> pd.DataFrame:
+        """
+
+        Args:
+          results: dict:
+          metrics_config: dict:
+
+        Returns:
+
+        """
         joint_df = pd.DataFrame()
 
         for method_name, res in results.items():
@@ -44,6 +56,15 @@ class MetricsVisualizer(Visualizer, ABC):
 
 
 def results_to_tidy_df(results, metrics_config):
+    """
+
+    Args:
+      results:
+      metrics_config:
+
+    Returns:
+
+    """
     tidy_results = {}
     for key, value in results.items():
         splitted_key = key.split("_")

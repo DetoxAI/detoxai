@@ -1,19 +1,22 @@
+import logging
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from typing import Tuple, Optional, Dict, List, Any, Callable
-import logging
 
-from .posthoc_base import PosthocBase
-from ...utils.dataloader import DetoxaiDataLoader
 from ...metrics.bias_metrics import calculate_bias_metric_torch
 from ...metrics.metrics import balanced_accuracy_torch
+from ...utils.dataloader import DetoxaiDataLoader
+from .posthoc_base import PosthocBase
 
 logger = logging.getLogger(__name__)
 
 
 class ROCModelWrapper(nn.Module):
+    """ """
+
     def __init__(self, base_model: nn.Module, theta: float, L_values: Dict[int, int]):
         super().__init__()
         self.base_model = base_model
@@ -21,10 +24,27 @@ class ROCModelWrapper(nn.Module):
         self.L_values = L_values
 
     def _is_in_critical_region(self, probs: torch.Tensor) -> torch.Tensor:
+        """
+
+        Args:
+          probs: torch.Tensor:
+
+        Returns:
+
+        """
         max_probs, _ = torch.max(probs, dim=1)
         return max_probs <= self.theta
 
     def forward(self, input, sensitive_features):
+        """
+
+        Args:
+          input:
+          sensitive_features:
+
+        Returns:
+
+        """
         # Get base model predictions
         output = self.base_model(input)
         if isinstance(output, tuple):
@@ -44,31 +64,16 @@ class ROCModelWrapper(nn.Module):
 
 
 class RejectOptionClassification(PosthocBase):
-    """
-    Implements Reject Option Classification (ROC) for fairness optimization.
+    """Implements Reject Option Classification (ROC) for fairness optimization.
 
     This class implements a post-hoc fairness optimization method that modifies model predictions
     based on a confidence threshold (theta). Predictions with confidence below theta are flipped
     to optimize for both accuracy and fairness.
 
-    Attributes:
-        dataloader (DetoxaiDataLoader): Dataloader containing the dataset
-        theta_range (Tuple[float, float]): Range for threshold optimization, must be between 0.5 and 1.0
-        theta_steps (int): Number of steps for threshold grid search
-        hooks (List): Stores model forward hooks for prediction modification
-        metric (str): Metric to optimize for, defaults to Equalized Odds
-        objective_function (Callable): Function combining fairness and accuracy scores, defaults to their product
+    Args:
 
-    Methods:
-        _optimize_theta(): Finds optimal threshold by grid search
-        _is_in_critical_region(): Identifies predictions below confidence threshold
-        _modified_prediction(): Applies ROC algorithm to modify predictions
-        apply_model_correction(): Implements prediction modification via model hook
+    Returns:
 
-    Input Shapes:
-        - Probabilities: (batch_size, 2) - Binary classification probabilities
-        - Targets: (batch_size,) - Binary targets (0 or 1)
-        - Protected attributes: (batch_size,) - Binary protected features (0 or 1)
     """
 
     def __init__(
@@ -114,7 +119,19 @@ class RejectOptionClassification(PosthocBase):
         theta: float,
         L_values: Dict[int, int],
     ) -> float:
-        """Evaluates a specific parameter configuration."""
+        """Evaluates a specific parameter configuration.
+
+        Args:
+          preds: torch.Tensor:
+          targets: torch.Tensor:
+          sensitive_features: torch.Tensor:
+          theta: float:
+          L_values: Dict[int:
+          int]:
+
+        Returns:
+
+        """
         # Validate theta
         if not (0.5 <= theta <= 1.0):
             raise AssertionError(f"Theta must be between 0.5 and 1.0, got {theta}")
@@ -146,9 +163,7 @@ class RejectOptionClassification(PosthocBase):
         return float(self.objective_function(fairness_score, accuracy_score))
 
     def _optimize_parameters(self) -> Tuple[float, Dict[int, int]]:
-        """
-        Optimizes both theta and L values for each protected attribute value.
-        """
+        """Optimizes both theta and L values for each protected attribute value."""
         thetas = np.linspace(self.theta_range[0], self.theta_range[1], self.theta_steps)
         best_score = float("-inf")
 
@@ -157,13 +172,13 @@ class RejectOptionClassification(PosthocBase):
         )
 
         # Validate shapes
-        assert (
-            preds.shape[1] == 2
-        ), f"Expected binary classification, got {preds.shape[1]} classes"
+        assert preds.shape[1] == 2, (
+            f"Expected binary classification, got {preds.shape[1]} classes"
+        )
         assert targets.dim() == 1, f"Expected 1D targets, got {targets.dim()}D"
-        assert (
-            sensitive_features.dim() == 1
-        ), f"Expected 1D protected features, got {sensitive_features.dim()}D"
+        assert sensitive_features.dim() == 1, (
+            f"Expected 1D protected features, got {sensitive_features.dim()}D"
+        )
 
         # Grid search over theta and L values
         for theta in thetas:
@@ -182,19 +197,21 @@ class RejectOptionClassification(PosthocBase):
         return self.best_config["theta"], self.best_config["L_values"]
 
     def _is_in_critical_region(self, theta: float, probs: torch.Tensor) -> torch.Tensor:
-        """
-        Determines which predictions fall in the critical region (confidence ≤ theta).
+        """Determines which predictions fall in the critical region (confidence ≤ theta).
 
         Args:
-            theta: Confidence threshold
-            probs: Prediction probabilities (batch_size, 2)
+          theta: Confidence threshold
+          probs: Prediction probabilities (batch_size, 2)
+          theta: float:
+          probs: torch.Tensor:
 
         Returns:
-            torch.Tensor: Boolean mask (batch_size,) indicating critical region predictions
+          torch.Tensor: Boolean mask (batch_size,) indicating critical region predictions
+
         """
-        assert (
-            probs.shape[1] == 2
-        ), f"Expected binary classification, got {probs.shape[1]} classes"
+        assert probs.shape[1] == 2, (
+            f"Expected binary classification, got {probs.shape[1]} classes"
+        )
         max_probs, _ = torch.max(probs, dim=1)
         return max_probs <= theta
 
@@ -205,17 +222,22 @@ class RejectOptionClassification(PosthocBase):
         sensitive_features: torch.Tensor,
         L_values: Dict[int, int],
     ) -> torch.Tensor:
-        """
-        Modifies predictions based on critical region and protected attributes.
+        """Modifies predictions based on critical region and protected attributes.
 
         Args:
-            theta: Confidence threshold
-            probs: Prediction probabilities (batch_size, 2)
-            sensitive_features: Protected attributes (batch_size,)
-            L_values: Dictionary mapping protected attribute values to labels
+          theta: Confidence threshold
+          probs: Prediction probabilities (batch_size, 2)
+          sensitive_features: Protected attributes (batch_size,)
+          L_values: Dictionary mapping protected attribute values to labels
+          theta: float:
+          probs: torch.Tensor:
+          sensitive_features: torch.Tensor:
+          L_values: Dict[int:
+          int]:
 
         Returns:
-            torch.Tensor: Modified predictions (batch_size,)
+          torch.Tensor: Modified predictions (batch_size,)
+
         """
         assert probs.shape[1] == 2, "Expected binary classification"
         assert sensitive_features.dim() == 1, "Expected 1D protected features"
@@ -231,6 +253,13 @@ class RejectOptionClassification(PosthocBase):
         return predictions
 
     def apply_model_correction(self, **kwargs) -> nn.Module:
-        """Returns a wrapped model that applies ROC correction during inference."""
+        """Returns a wrapped model that applies ROC correction during inference.
+
+        Args:
+          **kwargs:
+
+        Returns:
+
+        """
         theta, L_values = self._optimize_parameters()
         return ROCModelWrapper(self.model, theta, L_values)
