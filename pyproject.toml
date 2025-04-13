@@ -29,7 +29,9 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.2.0",
+]
+docs = [
     "sphinx>=8.2.3",
     "sphinx-rtd-theme>=3.0.2",
-    "pre-commit>=4.2.0",
 ]
