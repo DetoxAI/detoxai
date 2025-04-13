@@ -72,20 +72,12 @@ class XAIMetricsCalculator:
           int]:
           rect_size: tuple[int:
           vanilla_model: nn.Module:  (Default value = None)
-          sailmap_metrics: list[str]:  (Default value = ["RRF")
-          "HRF":
-          "MRR":
-          "DET":
-          "ADR":
-          "DIF":
-          "RDDT":
-          ]:
+          sailmap_metrics: list[str]:
           batches: int:  (Default value = 2)
           condition_on: str:  (Default value = ConditionOn.PROPER_LABEL.value)
           verbose: bool:  (Default value = False)
           # source_range: tuple[float:
-          float]:  (Default value = (0)
-          1):
+          float]:  (Default value = (0))
           neutral_point: float:  (Default value = 0.5)
           abs_on_neutral: bool:  (Default value = True)
 

@@ -1,5 +1,10 @@
 import matplotlib.pyplot as plt
-from clearml import Logger as ClearMLLogger
+
+try:
+    from clearml import Logger as ClearMLLogger
+except ImportError:
+    ClearMLLogger = None
+
 from lightning.pytorch.loggers import TensorBoardLogger, WandbLogger
 
 
