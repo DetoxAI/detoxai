@@ -1,9 +1,14 @@
-import detoxai
+import tomllib
+
+with open("../pyproject.toml", "rb") as f:
+    pyproject = tomllib.load(f)
+
+release = pyproject["project"]["version"]
 
 project = "DetoxAI"
 copyright = "2025, Ignacy Stepka, Lukasz Sztukiewicz, Michal Wilinski"
 author = "Ignacy Stepka, Lukasz Sztukiewicz, Michal Wilinski"
-release = detoxai.__version__
+release = pyproject["project"]["version"]
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",  # For Google docstring support
