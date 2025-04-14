@@ -10,7 +10,7 @@ logger.info("Loading DETOXAI...")
 # Only if the environment variables are not set
 if "DETOXAI_ROOT_PATH" not in os.environ:
     DETOXAI_ROOT_PATH = Path(os.path.expanduser("~")) / ".detoxai"
-    print(f"DETOXAI_ROOT_PATH: {DETOXAI_ROOT_PATH}")
+    logging.info(f"DETOXAI_ROOT_PATH: {DETOXAI_ROOT_PATH}")
     os.environ["DETOXAI_ROOT_PATH"] = str(DETOXAI_ROOT_PATH)
 
 if "DETOXAI_DATASET_PATH" not in os.environ:
@@ -23,7 +23,7 @@ logger.info(
 )
 
 # Import all modules in detoxai, must be done after setting the environment variables
-from .core.interface import debias  # noqa
+from .core.interface import debias, get_supported_methods  # noqa
 from .core.results_class import CorrectionResult  # noqa
 from .datasets.catalog.download import download_datasets  # noqa
 
