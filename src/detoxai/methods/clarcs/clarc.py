@@ -129,12 +129,6 @@ class CLARC(ModelCorrectionMethod, ABC):
 
         self.cav_type = cav_type
 
-        # add logging of magnitudes of cavs
-        for cav_layer in cav_layers:
-            print(
-                f"DEBUG: Magnitude of CAV for layer {cav_layer}: {self.cav[cav_layer].norm()}"
-            )
-
         self.activations = None
 
     @abstractmethod
