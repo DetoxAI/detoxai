@@ -18,12 +18,12 @@ The snippet below shows the high-level API of DetoxAI and how to use it.
 import detoxai
 
 model = ...
-dataloader = ... # has to output three tensors (x, y, protected attributes)
+dataloader = ... # has to output a tuple of three tensors: (x, y, protected attributes)
 
 corrected = detoxai.debias(model, dataloader)
 
-metrics = corrected.get_all_metrics()
-model = corrected.get_model()
+metrics = corrected["SAVANIAFT"].get_all_metrics() # Get metrics for the model debiased with SavaniAFT method
+model = corrected["SAVANIAFT"].get_model()
 ```
 
 A shortest snippet that would actually run and shows how to plug DetoxAI into your code is below. 
@@ -31,11 +31,11 @@ A shortest snippet that would actually run and shows how to plug DetoxAI into yo
 import torch
 import torch.nn as nn
 import torchvision
-import src.modules.detoxai.src.detoxai as detoxai  # import detoxai
+import detoxai
 
 
 model = torchvision.models.resnet18(pretrained=True)
-model.fc = nn.Linear(model.fc.in_features, 2)  # Make it binary classification
+model.fc = nn.Linear(model.fc.in_features, 2)  # Change last layer to binary output
 
 X = torch.rand(128, 3, 224, 224)
 Y = torch.randint(0, 2, size=(128,))
