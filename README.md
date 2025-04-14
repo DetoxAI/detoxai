@@ -4,7 +4,14 @@
 
 DetoxAI is a Python package for debiasing neural networks. It provides a simple and efficient way to remove bias from your models while maintaining their performance. The package is designed to be easy to use and integrate into existing projects. We hosted a website with a demo and an overview of the package, which can be found at [https://detoxai.github.io](https://detoxai.github.io).  
 
-# Quickstart
+## Installation
+
+DetoxAI is available on PyPI, and can be installed by running the following command:
+ ```bash
+  pip install detoxai
+  ```
+
+## Quickstart
 
 The snippet below shows the high-level API of DetoxAI and how to use it. 
 ```python
@@ -41,16 +48,10 @@ results: dict[str, detoxai.CorrectionResult] = detoxai.debias(model, dataloader)
 
 Too see more examples of detoxai in use, see `examples/` folder.
 
-# Installation
-
-DetoxAI is available on PyPI, and can be installed by running the following command:
- ```bash
-  pip install detoxai
-  ```
 
 
-# Dev
-## Using uv (recommended)
+## Development
+### Install the environment using uv (recommended)
   We recommend using `uv` to install DetoxAI. You can install `uv` by running the following command:
   ```bash
   curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -71,8 +72,11 @@ DetoxAI is available on PyPI, and can be installed by running the following comm
 
   python main.py
   ```
-
-## Development
+### Alternatively, install the environment using pip
+  You can also install DetoxAI using pip. To do this, run the following command:
+  ```bash
+  pip install . # or pip install -e . for editable install
+  ```
 
 ### Install pre-commit hooks
 ```bash
@@ -91,14 +95,9 @@ DetoxAI is available on PyPI, and can be installed by running the following comm
     sphinx-apidoc -o . ../src/detoxai
     make html
 ```
-## Using pip
-  You can also install DetoxAI using pip. To do this, run the following command:
-  ```bash
-  pip install . # or pip install -e . for editable install
-  ```
 
 
-# Acknowledgment
+## Acknowledgment
 If you use this library in your work please cite as:
 ```
 @misc{detoxai,
@@ -108,5 +107,5 @@ If you use this library in your work please cite as:
 ```
 
 
-# License
+## License
 MIT License
