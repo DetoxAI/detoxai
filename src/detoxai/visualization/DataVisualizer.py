@@ -76,24 +76,24 @@ class DataVisualizer(ImageVisualizer):
             if show_labels:
                 # Add label in the upper left corner
                 ax[i // cols, i % cols].text(
-                    0.05,
-                    0.05,
+                    0.08,
+                    0.9,
                     f"Label: {labels[i].item()}",
                     color="green",
                     transform=ax[i // cols, i % cols].transAxes,
-                    fontsize=self.fontsize,
+                    fontsize=self.fontsize - 4,
                     fontweight="bold",
                 )
 
                 # Add prediction in the upper right corner
                 if batch_preds is not None:
                     ax[i // cols, i % cols].text(
-                        0.05,
-                        0.15,
+                        0.08,
+                        0.8,
                         f"Pred: {batch_preds[i].item()}",
                         color="red",
                         transform=ax[i // cols, i % cols].transAxes,
-                        fontsize=self.fontsize,
+                        fontsize=self.fontsize - 4,
                         fontweight="bold",
                     )
 
@@ -117,15 +117,15 @@ class DataVisualizer(ImageVisualizer):
         ulab = labels.unique()
         uprot = prot_attr.unique()
 
-        fig, ax = self.get_canvas(rows=4, cols=1, shape=(3, 10))
+        fig, ax = self.get_canvas(
+            rows=len(ulab), cols=len(uprot), shape=(len(ulab) * 3, len(uprot) * 3)
+        )
 
-        i = 0
         for row, label in enumerate(ulab):
             for col, prot_a in enumerate(uprot):
                 mask = (labels == label) & (prot_attr == prot_a)
 
                 img = images[mask].mean(dim=0).cpu().detach().numpy()
-                ax[i].imshow(img.transpose((1, 2, 0)))
+                ax[row, col].imshow(img.transpose((1, 2, 0)))
 
-                self.maybe_paint_rectangle(ax[i])
-                i += 1
+                self.maybe_paint_rectangle(ax[row, col])

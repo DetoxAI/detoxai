@@ -27,6 +27,8 @@ from .core.interface import debias  # noqa
 from .core.results_class import CorrectionResult  # noqa
 from .datasets.catalog.download import download_datasets  # noqa
 
+from . import cavs, core, datasets, methods, metrics, utils, visualization  # noqa
+
 try:
     __version__ = importlib.metadata.version(__package__ or __name__)
 except importlib.metadata.PackageNotFoundError:
