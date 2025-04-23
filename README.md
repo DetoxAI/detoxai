@@ -49,7 +49,6 @@ results: dict[str, detoxai.CorrectionResult] = detoxai.debias(model, dataloader)
 Too see more examples of detoxai in use, see `examples/` folder.
 
 
-
 ## Development
 ### Install the environment using uv (recommended)
   We recommend using `uv` to install DetoxAI. You can install `uv` by running the following command:

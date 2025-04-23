@@ -20,6 +20,8 @@ from zennit.composites import (  # noqa
     MixedComposite,
 )
 
+from .utils import get_nth_batch
+
 SUPPORTED_CANONIZERS = ["SequentialMergeBatchNorm"]
 SUPPORTED_COMPOSITES = [
     "EpsilonPlus",
@@ -116,7 +118,7 @@ class LRPHandler:
                 raise NotImplementedError()
             else:
                 # Get a proper batch and calculate LRP
-                batched_img, _, _ = data_loader.get_nth_batch(batch_num)
+                batched_img, _, _ = get_nth_batch(data_loader, batch_num)
 
                 # Take only N images
                 batched_img = batched_img[:N]

@@ -9,10 +9,20 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 # Project imports
-from ..methods import (ACLARC, LEACE, PCLARC, RRCLARC, FineTune,
-                       ModelCorrectionMethod, NaiveThresholdOptimizer,
-                       RejectOptionClassification, SavaniAFT, SavaniLWO,
-                       SavaniRP, ZhangM)
+from ..methods import (
+    ACLARC,
+    LEACE,
+    PCLARC,
+    RRCLARC,
+    FineTune,
+    ModelCorrectionMethod,
+    NaiveThresholdOptimizer,
+    RejectOptionClassification,
+    SavaniAFT,
+    SavaniLWO,
+    SavaniRP,
+    ZhangM,
+)
 from ..metrics.fairness_metrics import AllMetrics
 from ..utils.dataloader import DetoxaiDataLoader, WrappedDataLoader
 from .evaluation import evaluate_model
@@ -485,3 +495,13 @@ def _mp_apply_model_correction_w_timeout(
             f"Error running correction method {corrector.__class__.__name__}: {e}"
         )
         return False
+
+
+def get_supported_methods() -> list[str]:
+    """Get a list of supported methods
+
+    Returns:
+      list[str]: List of supported methods
+
+    """
+    return SUPPORTED_METHODS

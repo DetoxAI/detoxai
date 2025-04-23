@@ -6,6 +6,7 @@ from .DataVisualizer import DataVisualizer
 from .HeatmapVisualizer import ConditionOn, HeatmapVisualizer
 from .ImageVisualizer import ImageVisualizer
 from .LRPHandler import LRPHandler
+from .utils import get_nth_batch
 
 
 class SSVisualizer(ImageVisualizer):
@@ -64,7 +65,7 @@ class SSVisualizer(ImageVisualizer):
         )
 
         if show_labels:
-            data = self.data_loader.get_nth_batch(batch_num)[0].to(self.model_device)
+            data = get_nth_batch(self.data_loader, batch_num)[0].to(self.model_device)
             preds = self.model(data).argmax(dim=1)
         else:
             preds = None
