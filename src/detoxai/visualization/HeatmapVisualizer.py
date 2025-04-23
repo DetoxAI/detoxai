@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
 
 from ..utils.dataloader import DetoxaiDataLoader
 from .enums import ConditionOn
@@ -14,7 +15,7 @@ class HeatmapVisualizer(ImageVisualizer):
 
     def __init__(
         self,
-        data_loader: DetoxaiDataLoader,
+        data_loader: DetoxaiDataLoader | DataLoader,
         model: nn.Module,
         lrp_object: LRPHandler = None,
         plot_config: dict = {},
@@ -23,6 +24,14 @@ class HeatmapVisualizer(ImageVisualizer):
     ) -> None:
         self.data_loader = data_loader
         self.model = model
+        
+        if not isinstance(data_loader, DetoxaiDataLoader):
+            # Check if the user passed an LRPHandler object with n_classes != None
+            if lrp_object is None or lrp_object.n_classes is None:
+                raise ValueError(
+                    "If you pass a DataLoader that is not a subclass of `DetoxaiDataLoader`, you must pass an LRPHandler with `n_classes` set."
+                )
+            
 
         if lrp_object is None:
             lrp_object = LRPHandler()  # Default LRPHandler
