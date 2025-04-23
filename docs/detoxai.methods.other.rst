@@ -1,11 +1,11 @@
-detoxai.methods.other package
+detoxai.methods.other
 =============================
 
 Submodules
 ----------
 
-detoxai.methods.other.fine\_tune module
----------------------------------------
+detoxai.methods.other.fine\_tune submodule
+----------------------------------------------
 
 .. automodule:: detoxai.methods.other.fine_tune
    :members:

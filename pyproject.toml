@@ -1,6 +1,6 @@
 [project]
 name = "detoxai"
-version = "0.3.0"
+version = "0.3.3"
 description = "todo"
 readme = "README_pypi.md"
 requires-python = ">=3.11"
@@ -29,7 +29,12 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "ipykernel>=6.29.5",
+    "pre-commit>=4.2.0",
+]
+docs = [
+    "nbsphinx>=0.9.6",
+    "pandoc>=2.4",
     "sphinx>=8.2.3",
     "sphinx-rtd-theme>=3.0.2",
-    "pre-commit>=4.2.0",
 ]

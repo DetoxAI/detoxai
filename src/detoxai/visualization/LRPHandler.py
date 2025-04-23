@@ -20,6 +20,8 @@ from zennit.composites import (  # noqa
     MixedComposite,
 )
 
+from .utils import get_nth_batch
+
 SUPPORTED_CANONIZERS = ["SequentialMergeBatchNorm"]
 SUPPORTED_COMPOSITES = [
     "EpsilonPlus",
@@ -40,6 +42,7 @@ class LRPHandler:
         attributor_name: str = "Gradient",
         composite_name: str = "EpsilonPlus",
         canonizers: list[str] = [],
+        n_classes: int | None = None,
         **kwargs,
     ) -> None:
         """
@@ -50,11 +53,13 @@ class LRPHandler:
             - `composite_name` (str): The name of the composite to use for LRP
             - `canonizers` (list[str]): The list of canonizers to use
             - `**kwargs`: Additional keyword arguments to pass to the composite or attributor
+            
         """
         self.composite_name = composite_name
         self.canonizers = [self.__get_canonizer(c) for c in canonizers]
         self.attributor_name = attributor_name
         self.kwargs = kwargs
+        self.n_classes = n_classes
 
         self.composite = self.__get_composite(**kwargs)
 
@@ -83,7 +88,14 @@ class LRPHandler:
 
         """
         # Figure out the shape of the tensor to return
-        L = data_loader.get_num_classes()
+        if not hasattr(data_loader, "get_num_classes"):
+            raise ValueError(
+                """Data loader must have a method get_num_classes() to get the number of classes. Preferably, use a `WrappedDataLoader` from detoxai.utils.dataloader.
+                Alternatively, you can pass the number of classes as an argument to the LRPHandler constructor."""
+            )
+        else:
+            L = data_loader.get_num_classes()
+        
         batch_shape = next(iter(data_loader))[0].shape
 
         model_device = next(model.parameters()).device
@@ -116,7 +128,7 @@ class LRPHandler:
                 raise NotImplementedError()
             else:
                 # Get a proper batch and calculate LRP
-                batched_img, _, _ = data_loader.get_nth_batch(batch_num)
+                batched_img, _, _ = get_nth_batch(data_loader, batch_num)
 
                 # Take only N images
                 batched_img = batched_img[:N]

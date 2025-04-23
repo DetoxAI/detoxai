@@ -7,3 +7,4 @@ from .TableVisualizer import TableVisualizer  # noqa
 from .Visualizer import Visualizer  # noqa
 from .ScatterVisualizer import ScatterVisualizer  # noqa
 from .SSVisualizer import SSVisualizer  # noqa
+from .utils import get_nth_batch  # noqa

@@ -1,43 +1,43 @@
-detoxai.utils package
+detoxai.utils
 =====================
 
 Submodules
 ----------
 
-detoxai.utils.dataloader module
--------------------------------
+detoxai.utils.dataloader submodule
+-----------------------------------
 
 .. automodule:: detoxai.utils.dataloader
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.utils.datasets module
------------------------------
+detoxai.utils.datasets submodule
+---------------------------------
 
 .. automodule:: detoxai.utils.datasets
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.utils.decorators module
--------------------------------
+detoxai.utils.decorators submodule
+-----------------------------------
 
 .. automodule:: detoxai.utils.decorators
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.utils.experiment\_logger module
----------------------------------------
+detoxai.utils.experiment\_logger submodule
+----------------------------------------------
 
 .. automodule:: detoxai.utils.experiment_logger
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.utils.transformations module
-------------------------------------
+detoxai.utils.transformations submodule
+-------------------------------------------
 
 .. automodule:: detoxai.utils.transformations
    :members:

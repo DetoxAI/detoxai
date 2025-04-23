@@ -1,11 +1,13 @@
 import numpy as np
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
 
 from ..utils.dataloader import DetoxaiDataLoader
 from .enums import ConditionOn
 from .ImageVisualizer import ImageVisualizer
 from .LRPHandler import LRPHandler
+from .utils import get_nth_batch
 
 
 class HeatmapVisualizer(ImageVisualizer):
@@ -13,7 +15,7 @@ class HeatmapVisualizer(ImageVisualizer):
 
     def __init__(
         self,
-        data_loader: DetoxaiDataLoader,
+        data_loader: DetoxaiDataLoader | DataLoader,
         model: nn.Module,
         lrp_object: LRPHandler = None,
         plot_config: dict = {},
@@ -22,6 +24,14 @@ class HeatmapVisualizer(ImageVisualizer):
     ) -> None:
         self.data_loader = data_loader
         self.model = model
+        
+        if not isinstance(data_loader, DetoxaiDataLoader):
+            # Check if the user passed an LRPHandler object with n_classes != None
+            if lrp_object is None or lrp_object.n_classes is None:
+                raise ValueError(
+                    "If you pass a DataLoader that is not a subclass of `DetoxaiDataLoader`, you must pass an LRPHandler with `n_classes` set."
+                )
+            
 
         if lrp_object is None:
             lrp_object = LRPHandler()  # Default LRPHandler
@@ -53,8 +63,6 @@ class HeatmapVisualizer(ImageVisualizer):
         """
         images = self._get_heatmaps(batch_num, condition_on, max_images)
 
-        print(images.shape)
-
         if max_images is None:
             max_images = images.shape[0]
 
@@ -78,8 +86,8 @@ class HeatmapVisualizer(ImageVisualizer):
 
         if show_cbar:
             # Show colorbar at the bottom
-            fig.subplots_adjust(right=0.9)
-            cbar_ax = fig.add_axes([0.92, 0.15, 0.05, 0.7])
+            fig.subplots_adjust(right=0.85)
+            cbar_ax = fig.add_axes([0.89, 0.15, 0.05, 0.7])
 
             cbar = fig.colorbar(im, cax=cbar_ax)
 
@@ -107,7 +115,7 @@ class HeatmapVisualizer(ImageVisualizer):
         Returns:
 
         """
-        _, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)  # noqa
+        _, labels, prot_attr = get_nth_batch(self.data_loader, batch_num)  # noqa
 
         images = self._get_heatmaps(batch_num, condition_on, None)
 
@@ -121,19 +129,18 @@ class HeatmapVisualizer(ImageVisualizer):
         ulab = labels.unique()
         uprot = prot_attr.unique()
 
-        fig, ax = self.get_canvas(rows=4, cols=1, shape=(3, 10))
+        fig, ax = self.get_canvas(
+            rows=len(ulab), cols=len(uprot), shape=(len(ulab) * 3, len(uprot) * 3)
+        )
 
-        i = 0
         for row, label in enumerate(ulab):
             for col, prot_a in enumerate(uprot):
                 mask = (labels == label) & (prot_attr == prot_a)
 
                 img = images[mask].mean(dim=0).cpu().detach().numpy()
-                ax[i].imshow(img, cmap="seismic", vmin=0, vmax=1)
+                ax[row, col].imshow(img, cmap="seismic", vmin=0, vmax=1)
 
-                self.maybe_paint_rectangle(ax[i])
-
-                i += 1
+                self.maybe_paint_rectangle(ax[row, col])
 
     def _get_heatmaps(
         self, batch_num: int, condition_on: ConditionOn, max_images: int | None
@@ -148,7 +155,7 @@ class HeatmapVisualizer(ImageVisualizer):
         Returns:
 
         """
-        images, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)  # noqa
+        images, labels, prot_attr = get_nth_batch(self.data_loader, batch_num)  # noqa
 
         if max_images is None:
             max_images = images.shape[0]

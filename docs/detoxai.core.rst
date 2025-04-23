@@ -1,59 +1,59 @@
-detoxai.core package
+detoxai.core
 ====================
 
 Submodules
 ----------
 
-detoxai.core.evaluation module
-------------------------------
+detoxai.core.evaluation submodule
+----------------------------------
 
 .. automodule:: detoxai.core.evaluation
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.core.interface module
------------------------------
+detoxai.core.interface submodule
+---------------------------------
 
 .. automodule:: detoxai.core.interface
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.core.interface\_helpers module
---------------------------------------
+detoxai.core.interface\_helpers submodule
+---------------------------------------------
 
 .. automodule:: detoxai.core.interface_helpers
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.core.mcda\_helpers module
----------------------------------
+detoxai.core.mcda\_helpers submodule
+-------------------------------------
 
 .. automodule:: detoxai.core.mcda_helpers
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.core.model\_wrappers module
------------------------------------
+detoxai.core.model\_wrappers submodule
+---------------------------------------
 
 .. automodule:: detoxai.core.model_wrappers
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.core.results\_class module
-----------------------------------
+detoxai.core.results\_class submodule
+--------------------------------------
 
 .. automodule:: detoxai.core.results_class
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.core.xai module
------------------------
+detoxai.core.xai submodule
+------------------------------
 
 .. automodule:: detoxai.core.xai
    :members:

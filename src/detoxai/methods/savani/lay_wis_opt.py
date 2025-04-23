@@ -50,7 +50,7 @@ class SavaniLWO(SavaniBase):
         outputs_are_logits: bool = True,
         n_eval_batches: int = 3,
         eval_batch_size: int = 128,
-        skopt_verbose: bool = True,
+        skopt_verbose: bool = False,
         skopt_njobs: int = 4,
         skopt_npoints: int = 1000,
         skopt_maxiter: int = 10,
@@ -73,7 +73,7 @@ class SavaniLWO(SavaniBase):
           outputs_are_logits: bool:  (Default value = True)
           n_eval_batches: int:  (Default value = 3)
           eval_batch_size: int:  (Default value = 128)
-          skopt_verbose: bool:  (Default value = True)
+          skopt_verbose: bool:  (Default value = False)
           skopt_njobs: int:  (Default value = 4)
           skopt_npoints: int:  (Default value = 1000)
           skopt_maxiter: int:  (Default value = 10)

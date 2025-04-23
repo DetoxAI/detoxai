@@ -1,4 +1,4 @@
-detoxai.methods package
+detoxai.methods
 =======================
 
 Subpackages
@@ -16,16 +16,16 @@ Subpackages
 Submodules
 ----------
 
-detoxai.methods.model\_correction module
-----------------------------------------
+detoxai.methods.model\_correction submodule
+-----------------------------------------------
 
 .. automodule:: detoxai.methods.model_correction
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.methods.utils module
-----------------------------
+detoxai.methods.utils submodule
+----------------------------------
 
 .. automodule:: detoxai.methods.utils
    :members:

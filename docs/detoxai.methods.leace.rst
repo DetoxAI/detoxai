@@ -1,11 +1,11 @@
-detoxai.methods.leace package
+detoxai.methods.leace
 =============================
 
 Submodules
 ----------
 
-detoxai.methods.leace.leace module
-----------------------------------
+detoxai.methods.leace.leace submodule
+----------------------------------------
 
 .. automodule:: detoxai.methods.leace.leace
    :members:

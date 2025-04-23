@@ -1,11 +1,14 @@
 import numpy as np
 from torch import nn
+from torch.utils.data import DataLoader
 
 from ..utils.dataloader import DetoxaiDataLoader
+from ..utils.datasets import DetoxaiDataset
 from .DataVisualizer import DataVisualizer
 from .HeatmapVisualizer import ConditionOn, HeatmapVisualizer
 from .ImageVisualizer import ImageVisualizer
 from .LRPHandler import LRPHandler
+from .utils import get_nth_batch
 
 
 class SSVisualizer(ImageVisualizer):
@@ -13,17 +16,46 @@ class SSVisualizer(ImageVisualizer):
 
     def __init__(
         self,
-        data_loader: DetoxaiDataLoader,
+        data_loader: DetoxaiDataLoader | DataLoader,
         model: nn.Module,
         lrp_object: LRPHandler = None,
         plot_config: dict = {},
         draw_rectangles: bool = False,
         rectangle_config: dict = {},
     ) -> None:
+        """
+        Args:
+          data_loader: DetoxaiDataLoader | DataLoader:
+          model: nn.Module:
+          lrp_object: LRPHandler = None:
+          plot_config: dict = {}:
+          draw_rectangles: bool = False:
+          rectangle_config: dict = {}:
+
+        Returns:
+            None
+
+        If you pass a DataLoader that is not a subclass of `DetoxaiDataLoader`, you must pass an LRPHandler with `n_classes` set!
+        """
+
         self.data_loader = data_loader
         self.model = model
         self.set_up_plots_configuration(plot_config)
         self.init_rectangle_painter(draw_rectangles, rectangle_config)
+
+        if not isinstance(data_loader, DetoxaiDataLoader):
+            # Check if the user passed an LRPHandler object with n_classes != None
+            if lrp_object is None or lrp_object.n_classes is None:
+                raise ValueError(
+                    "If you pass a DataLoader that is not a subclass of `DetoxaiDataLoader`, you must pass an LRPHandler with `n_classes` set."
+                )
+
+        if not isinstance(data_loader.dataset, DetoxaiDataset):
+            # Check if the user passed an LRPHandler object with n_classes != None
+            if lrp_object is None or lrp_object.n_classes is None:
+                raise ValueError(
+                    "If you pass a DataLoader that has a dataset that is not a subclass of `DetoxaiDataset`, you must pass an LRPHandler with `n_classes` set."
+                )
 
         self.lrp_vis = HeatmapVisualizer(
             data_loader,
@@ -64,7 +96,7 @@ class SSVisualizer(ImageVisualizer):
         )
 
         if show_labels:
-            data = self.data_loader.get_nth_batch(batch_num)[0].to(self.model_device)
+            data = get_nth_batch(self.data_loader, batch_num)[0].to(self.model_device)
             preds = self.model(data).argmax(dim=1)
         else:
             preds = None

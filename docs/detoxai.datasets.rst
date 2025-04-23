@@ -1,4 +1,4 @@
-detoxai.datasets package
+detoxai.datasets
 ========================
 
 Subpackages

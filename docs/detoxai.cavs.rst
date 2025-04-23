@@ -1,27 +1,27 @@
-detoxai.cavs package
+detoxai.cavs 
 ====================
 
 Submodules
 ----------
 
-detoxai.cavs.cav module
------------------------
+detoxai.cavs.cav submodule
+----------------------------
 
 .. automodule:: detoxai.cavs.cav
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.cavs.extract\_activations module
-----------------------------------------
+detoxai.cavs.extract\_activations submodule
+-----------------------------------------------
 
 .. automodule:: detoxai.cavs.extract_activations
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.cavs.mass\_mean\_probe module
--------------------------------------
+detoxai.cavs.mass\_mean\_probe submodule
+--------------------------------------------
 
 .. automodule:: detoxai.cavs.mass_mean_probe
    :members:

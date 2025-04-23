@@ -7,23 +7,7 @@ from ..cavs.extract_activations import get_layer_by_name
 
 
 def load_supported_tags() -> dict:
-    """From ./datasets/catalog/<dataset_name>/labels_mapping.yaml, load the dicts
-
-    ***
-    STRUCTURE:
-    {
-        "datasets": [a, b, c],
-        "attributes": [x, y, z],
-        "mapping": {
-            "dataset_name": labels_mapping...
-            }
-    }
-
-    Args:
-
-    Returns:
-
-    """
+    """From ./datasets/catalog/<dataset_name>/labels_mapping.yaml, load the dicts."""
     mapping = {}
     datasets = []
     attributes = set()
@@ -114,14 +98,14 @@ def resolve_layer(model, layer) -> nn.Module | None:
 def infer_layers(corrector, layers: list[str] | str) -> list[str]:
     """Infer the layers to use for the correction method
 
+    There are wildcards available:
+    - 'last': Use the last layer
+    - 'penultimate': Use the penultimate layer
+    Otherwise, a list of actual layer names can be passed
+
     Args:
       corrector: Correction method object
       layers: Layer specification
-    There are wildcards available:
-    - "last": Use the last layer
-    - "penultimate": Use the penultimate layer
-    Otherwise, a list of *actual* layer names can be passed
-      layers: list[str] | str:
 
     Returns:
 
