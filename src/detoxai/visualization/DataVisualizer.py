@@ -3,6 +3,7 @@ import torch
 
 from ..utils.dataloader import DetoxaiDataLoader
 from .ImageVisualizer import ImageVisualizer
+from .utils import get_nth_batch
 
 
 class DataVisualizer(ImageVisualizer):
@@ -37,7 +38,7 @@ class DataVisualizer(ImageVisualizer):
         Returns:
 
         """
-        images, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)
+        images, labels, prot_attr = get_nth_batch(self.data_loader, batch_num)
 
         # Check if the images are in the correct format (numpy)
         if isinstance(images, torch.Tensor):
@@ -106,7 +107,7 @@ class DataVisualizer(ImageVisualizer):
         Returns:
 
         """
-        images, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)
+        images, labels, prot_attr = get_nth_batch(self.data_loader, batch_num)
 
         assert isinstance(images, torch.Tensor), "Images must be a tensor"
         assert isinstance(labels, torch.Tensor), "Labels must be a tensor"

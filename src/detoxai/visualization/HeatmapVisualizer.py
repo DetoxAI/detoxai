@@ -6,6 +6,7 @@ from ..utils.dataloader import DetoxaiDataLoader
 from .enums import ConditionOn
 from .ImageVisualizer import ImageVisualizer
 from .LRPHandler import LRPHandler
+from .utils import get_nth_batch
 
 
 class HeatmapVisualizer(ImageVisualizer):
@@ -105,7 +106,7 @@ class HeatmapVisualizer(ImageVisualizer):
         Returns:
 
         """
-        _, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)  # noqa
+        _, labels, prot_attr = get_nth_batch(self.data_loader, batch_num)  # noqa
 
         images = self._get_heatmaps(batch_num, condition_on, None)
 
@@ -145,7 +146,7 @@ class HeatmapVisualizer(ImageVisualizer):
         Returns:
 
         """
-        images, labels, prot_attr = self.data_loader.get_nth_batch(batch_num)  # noqa
+        images, labels, prot_attr = get_nth_batch(self.data_loader, batch_num)  # noqa
 
         if max_images is None:
             max_images = images.shape[0]
