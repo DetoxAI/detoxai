@@ -1,43 +1,43 @@
-detoxai.methods.clarcs package
+detoxai.methods.clarcs
 ==============================
 
 Submodules
 ----------
 
-detoxai.methods.clarcs.aclarc module
-------------------------------------
+detoxai.methods.clarcs.aclarc submodule
+-----------------------------------------
 
 .. automodule:: detoxai.methods.clarcs.aclarc
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.methods.clarcs.clarc module
------------------------------------
+detoxai.methods.clarcs.clarc submodule
+-----------------------------------------
 
 .. automodule:: detoxai.methods.clarcs.clarc
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.methods.clarcs.hooks module
------------------------------------
+detoxai.methods.clarcs.hooks submodule
+-----------------------------------------
 
 .. automodule:: detoxai.methods.clarcs.hooks
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.methods.clarcs.pclarc module
-------------------------------------
+detoxai.methods.clarcs.pclarc submodule
+-------------------------------------------
 
 .. automodule:: detoxai.methods.clarcs.pclarc
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.methods.clarcs.rrclarc module
--------------------------------------
+detoxai.methods.clarcs.rrclarc submodule
+--------------------------------------------
 
 .. automodule:: detoxai.methods.clarcs.rrclarc
    :members:

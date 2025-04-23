@@ -87,10 +87,8 @@ Too see more examples of detoxai in use, see `examples/` folder.
 
 ### Rebuild documentation
 ```bash
-    cd docs
-    make clean
-    sphinx-apidoc -o . ../src/detoxai
-    make html
+    chmod u+x ./build_docs.sh
+    ./build_docs.sh
 ```
 
 

@@ -1,19 +1,19 @@
-detoxai.datasets.catalog package
+detoxai.datasets.catalog
 ================================
 
 Submodules
 ----------
 
-detoxai.datasets.catalog.download module
-----------------------------------------
+detoxai.datasets.catalog.download submodule
+-----------------------------------------------
 
 .. automodule:: detoxai.datasets.catalog.download
    :members:
    :show-inheritance:
    :undoc-members:
 
-detoxai.datasets.catalog.torchvision\_utils module
---------------------------------------------------
+detoxai.datasets.catalog.torchvision\_utils submodule
+---------------------------------------------------------
 
 .. automodule:: detoxai.datasets.catalog.torchvision_utils
    :members:

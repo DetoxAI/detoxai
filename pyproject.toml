@@ -34,6 +34,7 @@ dev = [
 ]
 docs = [
     "nbsphinx>=0.9.6",
+    "pandoc>=2.4",
     "sphinx>=8.2.3",
     "sphinx-rtd-theme>=3.0.2",
 ]

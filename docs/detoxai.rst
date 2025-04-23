@@ -1,7 +1,7 @@
-detoxai package
+DetoxAI
 ===============
 
-Subpackages
+Modules
 -----------
 
 .. toctree::
