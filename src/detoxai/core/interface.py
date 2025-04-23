@@ -25,6 +25,7 @@ from ..methods import (
 )
 from ..metrics.fairness_metrics import AllMetrics
 from ..utils.dataloader import DetoxaiDataLoader, WrappedDataLoader
+from ..utils.datasets import DetoxaiDataset
 from .evaluation import evaluate_model
 from .interface_helpers import construct_metrics_config, infer_layers
 from .mcda_helpers import filter_pareto_front, select_best_method
@@ -125,7 +126,7 @@ def parse_methods_config(methods_config: dict) -> dict:
 
 def debias(
     model: nn.Module,
-    dataloader: DataLoader,
+    dataloader: DetoxaiDataLoader | DataLoader,
     methods: list[str] | str = "all",
     metrics: list[str] | str = "all",
     methods_config: dict = {},
@@ -133,7 +134,7 @@ def debias(
     return_type: str = "pareto-front",
     device: str = "cpu",
     include_vanila_in_results: bool = True,
-    test_dataloader: DetoxaiDataLoader = None,
+    test_dataloader: DetoxaiDataLoader | DataLoader = None,
     num_of_classes: int | None = None,
 ) -> CorrectionResult | dict[str, CorrectionResult]:
     """
@@ -157,7 +158,9 @@ def debias(
         `num_of_classes` (optional): Number of classes in the dataset. Default is None, which means the number of classes will be inferred from the dataloader
     """
 
-    if not isinstance(dataloader, DetoxaiDataLoader):
+    if not isinstance(dataloader, DetoxaiDataLoader) or not isinstance(
+        dataloader.dataset, DetoxaiDataset
+    ):
         unique_classes = set()
         if num_of_classes is None:
             logger.warning(

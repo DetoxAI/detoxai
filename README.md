@@ -1,6 +1,6 @@
 # DetoxAI
 
-[![Python tests](https://github.com/FairUnlearn/detoxai/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/FairUnlearn/detoxai/actions/workflows/python-tests.yml)
+[![Python tests](https://github.com/DetoxAI/detoxai/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/DetoxAI/detoxai/actions/workflows/python-tests.yml)
 
 DetoxAI is a Python package for debiasing neural networks. It provides a simple and efficient way to remove bias from your models while maintaining their performance. The package is designed to be easy to use and integrate into existing projects. We hosted a website with a demo and an overview of the package, which can be found at [https://detoxai.github.io](https://detoxai.github.io).  
 
@@ -29,13 +29,11 @@ model = corrected["SAVANIAFT"].get_model()
 A shortest snippet that would actually run and shows how to plug DetoxAI into your code is below. 
 ```python
 import torch
-import torch.nn as nn
 import torchvision
 import detoxai
 
-
 model = torchvision.models.resnet18(pretrained=True)
-model.fc = nn.Linear(model.fc.in_features, 2)  # Change last layer to binary output
+model.fc = torch.nn.Linear(model.fc.in_features, 2)  # Make it binary classification
 
 X = torch.rand(128, 3, 224, 224)
 Y = torch.randint(0, 2, size=(128,))
