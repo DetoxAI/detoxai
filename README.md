@@ -96,7 +96,7 @@ Too see more examples of detoxai in use, see `examples/` folder.
 If you use this library in your work please cite as:
 ```
 @misc{detoxai2025,
-  author={Ignacy Stepka and Lukasz Sztukiewicz and Michal Wilinski and Jerzy Stefanowski},
+  author={Ignacy St\k{e}pka and Lukasz Sztukiewicz and Micha\l{} Wili\'{n}ski and Jerzy Stefanowski},
   title={{DetoxAI}: a {Python} Package for Debiasing Neural Networks},
     year={2025},
   url={https://github.com/DetoxAI/detoxai},
