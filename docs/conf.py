@@ -25,6 +25,8 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",  # For Google docstring support
     "sphinx.ext.viewcode",
+    'sphinx.ext.mathjax',
+    'sphinx.ext.autodoc',
     "nbsphinx",
 ]
 templates_path = ["_templates"]

@@ -25,10 +25,19 @@ DetoxAI is available on PyPI, and can be installed by running the following comm
 To get started with DetoxAI, please refer to the following examples:
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Examples
+   :maxdepth: 1
+   :caption: Notebooks
 
    examples
+
+We have also put together a bunch small tutorials to help you get started with DetoxAI in your own projects:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
+   
+   
+   tutorials
 
 
 **API Reference**

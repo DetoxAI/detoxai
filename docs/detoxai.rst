@@ -5,7 +5,7 @@ Modules
 -----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 5
 
    detoxai.cavs
    detoxai.core
