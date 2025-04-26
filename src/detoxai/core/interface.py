@@ -34,20 +34,23 @@ from .results_class import CorrectionResult
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_METHODS = [
-    "SAVANIRP",
-    "SAVANILWO",
-    "SAVANIAFT",
-    "ZHANGM",
-    "RRCLARC",
-    "PCLARC",
-    "ACLARC",
-    "LEACE",
-    "ROC",
-    "NT",
-    "FINETUNE",
-]
 
+
+_method_mapping = {
+    "SAVANIRP": SavaniRP,
+    "SAVANILWO": SavaniLWO,
+    "SAVANIAFT": SavaniAFT,
+    "ZHANGM": ZhangM,
+    "RRCLARC": RRCLARC,
+    "PCLARC": PCLARC,
+    "ACLARC": ACLARC,
+    "LEACE": LEACE,
+    "ROC": RejectOptionClassification,
+    "NT": NaiveThresholdOptimizer,
+    "FINETUNE": FineTune,
+}
+
+SUPPORTED_METHODS = list(_method_mapping.keys())
 
 DEFAULT_METHODS_CONFIG = {
     "global": {
@@ -280,32 +283,13 @@ def run_correction(
     __cfg_copy.pop("model")
     logging.debug(f"Running correction method {method} with kwargs: \n {__cfg_copy}")
 
-    match method.upper():
-        case "SAVANIRP":
-            corrector = SavaniRP(**method_kwargs)
-        case "SAVANILWO":
-            corrector = SavaniLWO(**method_kwargs)
-        case "SAVANIAFT":
-            corrector = SavaniAFT(**method_kwargs)
-        case "ZHANGM":
-            corrector = ZhangM(**method_kwargs)
-        case "RRCLARC":
-            corrector = RRCLARC(**method_kwargs)
-        case "PCLARC":
-            corrector = PCLARC(**method_kwargs)
-        case "ACLARC":
-            corrector = ACLARC(**method_kwargs)
-        case "LEACE":
-            corrector = LEACE(**method_kwargs)
-        case "ROC":
-            corrector = RejectOptionClassification(**method_kwargs)
-        case "NT":
-            corrector = NaiveThresholdOptimizer(**method_kwargs)
-        case "FINETUNE":
-            corrector = FineTune(**method_kwargs)
-        case _:
-            logger.error(ValueError(f"Correction method {method} not found"))
-            failed = True
+    # Resolve the method and create the corrector
+    try:
+        corrector_class = _method_mapping[method.upper()]
+        corrector = corrector_class(**method_kwargs)
+    except KeyError:
+        logger.error(ValueError(f"Correction method {method} not found"))
+        failed = True
 
     if not failed:
         # Parse intervention layers
