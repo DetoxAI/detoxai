@@ -1,4 +1,5 @@
-DetoxAI is a Python package for debiasing neural networks. It provides a simple and efficient way to remove bias from your models while maintaining their performance. The package is designed to be easy to use and integrate into existing projects. We hosted a website with a demo and an overview of the package, which can be found at [https://detoxai.github.io](https://detoxai.github.io).  
+DetoxAI is a Python package for debiasing neural networks. It provides a simple and efficient way to remove bias from your models while maintaining their performance. The package is designed to be easy to use and integrate into existing projects. 
+For more information about the package, see the website [https://detoxai.github.io](https://detoxai.github.io) and documentation [https://detoxai.readthedocs.io](https://detoxai.readthedocs.io)  
 
 ## Installation
 
@@ -48,9 +49,9 @@ Too see more examples of detoxai in use, navigate to the github repo [https://gi
 If you use this library in your work please cite as:
 ```
 @misc{detoxai2025,
-  author={Ignacy Stepka and Lukasz Sztukiewicz and Michal Wilinski and Jerzy Stefanowski},
+  author={Ignacy St\k{e}pka and Lukasz Sztukiewicz and Micha\l{} Wili\'{n}ski and Jerzy Stefanowski},
   title={{DetoxAI}: a {Python} Package for Debiasing Neural Networks},
-    year={2025},
+  year={2025},
   url={https://github.com/DetoxAI/detoxai},
 }
 ```
