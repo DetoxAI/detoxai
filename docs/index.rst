@@ -11,15 +11,25 @@ We hosted a website with a demo and an overview of the package, which can be fou
 DetoxAI is also available on GitHub at `https://github.com/DetoxAI/detoxai <https://github.com/DetoxAI/detoxai>`_.
 
 
-**Getting Started**
-
-Installation
+Getting Started
+====================
 
 DetoxAI is available on PyPI, and can be installed by running the following command:
 
 .. code-block:: bash
 
    pip install detoxai
+
+
+Then, import the library and debias your model using the api:
+
+.. code-block:: python 
+
+   import detoxai
+
+   model = ... # your torch model
+   dataloader = ... # your torch dataloader returning (image, label, prot. attr) tuples
+   results = detoxai.debias(model, dataloader) 
 
 
 To get started with DetoxAI, please refer to the following examples:
@@ -52,7 +62,7 @@ For detailed information on the library's functions and classes, see the API ref
 
 **Contributing**
 
-Interested in contributing to DetoxAI? Check out our contribution guidelines. 
+Interested in contributing to DetoxAI? Check out our contribution guidelines on GitHub.  
 
 **License**
 

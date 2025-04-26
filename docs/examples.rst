@@ -1,7 +1,7 @@
 Here you can find some example notebooks that demonstrate how to use the library.
 
 
-Short example
+A short example
 ===================
 
 The first one is a shortest possible snippet that shows how to use the library.
