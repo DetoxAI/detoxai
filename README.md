@@ -1,39 +1,50 @@
-# DetoxAI
+
+
+
+
+
+| |  |
+|:-------------------------:|:----------------------------:|
+| ![thumbnail](images/thumbnail_detoxai.png) | **DetoxAI** is a Python package for debiasing neural networks in image classification tasks. It transforms biased models into fair and balanced ones with minimal code changes.  |
+
+
+Website and demo: [https://detoxai.github.io](https://detoxai.github.io)  
+Documentation: [https://detoxai.readthedocs.io](https://detoxai.readthedocs.io)
 
 [![Python tests](https://github.com/DetoxAI/detoxai/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/DetoxAI/detoxai/actions/workflows/python-tests.yml)
 
-DetoxAI is a Python package for debiasing neural networks. It provides a simple and efficient way to remove bias from your models while maintaining their performance. The package is designed to be easy to use and integrate into existing projects. We hosted a website with a demo and an overview of the package, which can be found at [https://detoxai.github.io](https://detoxai.github.io).  
 
 ## Installation
 
-DetoxAI is available on PyPI, and can be installed by running the following command:
- ```bash
-  pip install detoxai
-  ```
+Install DetoxAI from PyPI:
+
+```bash
+pip install detoxai
+```
 
 ## Quickstart
 
-The snippet below shows the high-level API of DetoxAI and how to use it. 
 ```python
 import detoxai
 
 model = ...
-dataloader = ... # has to output a tuple of three tensors: (x, y, protected attributes)
+dataloader = ...  # should output (input, label, protected attributes)
 
 corrected = detoxai.debias(model, dataloader)
 
-metrics = corrected["SAVANIAFT"].get_all_metrics() # Get metrics for the model debiased with SavaniAFT method
+metrics = corrected["SAVANIAFT"].get_all_metrics()
 model = corrected["SAVANIAFT"].get_model()
 ```
 
-A shortest snippet that would actually run and shows how to plug DetoxAI into your code is below. 
+Minimal runnable example:
+
 ```python
 import torch
 import torchvision
 import detoxai
 
 model = torchvision.models.resnet18(pretrained=True)
-model.fc = torch.nn.Linear(model.fc.in_features, 2)  # Make it binary classification
+model.fc = torch.nn.Linear(model.fc.in_features, 2)
 
 X = torch.rand(128, 3, 224, 224)
 Y = torch.randint(0, 2, size=(128,))
@@ -42,67 +53,114 @@ PA = torch.randint(0, 2, size=(128,))
 dataloader = torch.utils.data.DataLoader(list(zip(X, Y, PA)), batch_size=32)
 
 results: dict[str, detoxai.CorrectionResult] = detoxai.debias(model, dataloader)
-``` 
+```
 
-Too see more examples of detoxai in use, see `examples/` folder.
+More examples: see `examples/` folder.
 
 
-## Development
-### Install the environment using uv (recommended)
-  We recommend using `uv` to install DetoxAI. You can install `uv` by running the following command:
-  ```bash
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  # Or you can install it via PIP pip install uv
-  ```
+# How DetoxAI Works
 
-  Once you have `uv` installed, you can set up local environment by running the following command:
+![Workflow](images/flow.png)
 
-  ```bash
-  # create a virtual environment with the required dependencies
-  uv venv 
+DetoxAI transforms biased neural networks into fair models with simple code integration.
 
-  # install the dependencies in the virtual environment
-  uv pip install -r pyproject.toml
+# Key Features
 
-  # activate the virtual environment
-  source .venv/bin/activate
+## 🛠️ Multiple Debiasing Methods
 
-  python main.py
-  ```
+- ClArC family ([paper](https://www.sciencedirect.com/science/article/pii/S1566253521001573))
+- Zhang et al. ([paper](https://arxiv.org/abs/1801.07593))
+- Savani et al. ([paper](https://arxiv.org/abs/2006.08564))
+- Belrose et al. ([paper](https://arxiv.org/abs/2306.03819))
+
+[Learn how to add your own method →](https://detoxai.readthedocs.io/en/latest/tutorials.adding_a_method.html)
+
+## 📀 Dataset Integration
+
+- CelebA ([dataset](https://mmlab.ie.cuhk.edu.hk/projects/CelebA.html))
+- FairFace ([paper](https://arxiv.org/abs/1908.04913))
+- CIFAR-10/100 ([dataset](https://www.cs.toronto.edu/~kriz/cifar.html))
+- Caltech101 ([dataset](https://data.caltech.edu/records/mzrjq-6wc02))
+
+[Learn how to use datasets →](https://detoxai.readthedocs.io/en/latest/tutorials.dataset.html)
+
+## 📊 Visualization Tools
+
+- Saliency maps with Layer-wise Relevance Propagation ([paper](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0130140))
+- Side-by-side comparisons of original vs. debiased models
+- Aggregate visualizations to track model focus shift
+
+[Explore visualization tools →](https://detoxai.readthedocs.io/en/latest/detoxai.visualization.html)
+
+| Before/After Saliency Map | Aggregate Bias Visualization |
+|:-------------------------:|:----------------------------:|
+| ![Side-by-side LRP](images/side-by-side.png) | ![Aggregate visualization](images/aggregate.png) |
+| Saliency maps show model focus during classification. |Aggregate visualizations show focus shift after debiasing. |
+
+
+## 💻 Simple API
+
+- Works with existing PyTorch models
+- Standard dataloaders
+- Single function call for multiple debiasing methods
+
+[See a complete example →](https://detoxai.readthedocs.io/en/latest/examples/example.html)
+
+
+
+
+
+# Development
+
+### Install the environment using `uv` (recommended)
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or pip install uv
+
+uv venv
+uv pip install -r pyproject.toml
+source .venv/bin/activate
+
+python main.py
+```
+
 ### Alternatively, install the environment using pip
-  You can also install DetoxAI using pip. To do this, run the following command:
-  ```bash
-  pip install . # or pip install -e . for editable install
-  ```
-
-### Install pre-commit hooks
-```bash
-    pre-commit install
-```
 
 ```bash
-    pre-commit run --all-files
+pip install .
+# or pip install -e . for editable install
 ```
 
+### Pre-commit hooks
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
 
 ### Rebuild documentation
+
 ```bash
-    chmod u+x ./build_docs.sh
-    ./build_docs.sh
+chmod u+x ./build_docs.sh
+./build_docs.sh
 ```
 
+---
 
-## Acknowledgment
-If you use this library in your work please cite as:
-```
+# Acknowledgment
+
+If you use DetoxAI, please cite:
+
+```bibtex
 @misc{detoxai2025,
-  author={Ignacy St\k{e}pka and Lukasz Sztukiewicz and Micha\l{} Wili\'{n}ski and Jerzy Stefanowski},
-  title={{DetoxAI}: a {Python} Package for Debiasing Neural Networks},
-    year={2025},
+  author={Ignacy Stepka and Lukasz Sztukiewicz and Michal Wilinski and Jerzy Stefanowski},
+  title={DetoxAI: a Python Package for Debiasing Neural Networks},
+  year={2025},
   url={https://github.com/DetoxAI/detoxai},
 }
 ```
 
+# License
 
-## License
 MIT License
