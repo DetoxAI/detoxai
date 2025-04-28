@@ -3,13 +3,10 @@
 
 
 
-| |  |
+
+| ![thumbnail](images/thumbnail_detoxai.png) | **DetoxAI** is a Python package for debiasing neural networks in image classification tasks. It transforms biased models into fair and balanced ones with minimal code changes.  | 
 |:-------------------------:|:----------------------------:|
-| ![thumbnail](images/thumbnail_detoxai.png) | **DetoxAI** is a Python package for debiasing neural networks in image classification tasks. It transforms biased models into fair and balanced ones with minimal code changes.  |
-
-
-Website and demo: [https://detoxai.github.io](https://detoxai.github.io)  
-Documentation: [https://detoxai.readthedocs.io](https://detoxai.readthedocs.io)
+|  Website and demo: [https://detoxai.github.io](https://detoxai.github.io)|  Documentation: [https://detoxai.readthedocs.io](https://detoxai.readthedocs.io) |
 
 [![Python tests](https://github.com/DetoxAI/detoxai/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/DetoxAI/detoxai/actions/workflows/python-tests.yml)
 
