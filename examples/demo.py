@@ -11,6 +11,8 @@ results = detoxai.debias(
     return_type="pareto-front",
 )
 
+debiased_model = results["SAVANIAFT"].get_model()
+
 sail_vis = detoxai.visualization.SSVisualizer(dl_test, model)
 sail_vis.visualize_agg(batch_num=0)
 sail_vis.show()
