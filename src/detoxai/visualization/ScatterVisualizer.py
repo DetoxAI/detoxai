@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 
 from .Visualizer import Visualizer
+from ..core.results_class import CorrectionResult
 
 
 class ScatterVisualizer(Visualizer):
@@ -13,7 +14,7 @@ class ScatterVisualizer(Visualizer):
 
     def create_plot(
         self,
-        metrics: pd.DataFrame,
+        results: pd.DataFrame | dict[str, CorrectionResult],
         rows: list[str] = ["Accuracy", "GMean", "F1"],
         cols: list[str] = [
             "Equalized_odds",
@@ -28,7 +29,7 @@ class ScatterVisualizer(Visualizer):
         """
 
         Args:
-          metrics: pd.DataFrame:
+          results:  pd.DataFrame | dict[str, CorrectionResult]
           rows: list[str]:  (Default value = ["Accuracy")
           "GMean":
           "F1"]:
@@ -47,6 +48,11 @@ class ScatterVisualizer(Visualizer):
         n_rows = len(rows)
         n_cols = len(cols)
         fig, axes = self.get_canvas(n_rows, n_cols, shape=(n_cols * 4, n_rows * 3))
+
+        if isinstance(results, pd.DataFrame):
+            metrics = results
+        else:
+            metrics = ScatterVisualizer._parse_results(results)
 
         colors = [
             "#a6cee3",
@@ -137,3 +143,15 @@ class ScatterVisualizer(Visualizer):
             bbox_to_anchor=(0.5, -0.05),
         )
         fig.tight_layout()
+
+    @classmethod
+    def _parse_results(cls, results: dict[str, CorrectionResult]) -> pd.DataFrame:
+        metrics = []
+        for result in results.values():
+            _metrics = result.get_all_metrics()["all"]
+            _method_name = result.get_method()
+            _metrics["method"] = _method_name
+            metrics.append(_metrics)
+        df = pd.DataFrame(metrics)
+
+        return df
