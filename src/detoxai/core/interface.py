@@ -17,7 +17,6 @@ from ..methods import (
     FineTune,
     ModelCorrectionMethod,
     NaiveThresholdOptimizer,
-    RejectOptionClassification,
     SavaniAFT,
     SavaniLWO,
     SavaniRP,
@@ -44,7 +43,6 @@ _method_mapping = {
     "PCLARC": PCLARC,
     "ACLARC": ACLARC,
     "LEACE": LEACE,
-    "ROC": RejectOptionClassification,
     "NT": NaiveThresholdOptimizer,
     "FINETUNE": FineTune,
 }
