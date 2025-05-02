@@ -35,7 +35,6 @@ from .results_class import CorrectionResult
 logger = logging.getLogger(__name__)
 
 
-
 _method_mapping = {
     "SAVANIRP": SavaniRP,
     "SAVANILWO": SavaniLWO,
@@ -134,7 +133,7 @@ def debias(
     metrics: list[str] | str = "all",
     methods_config: dict = {},
     pareto_metrics: list[str] = ["balanced_accuracy", "equalized_odds"],
-    return_type: str = "pareto-front",
+    return_type: str = "all",
     device: str = "cpu",
     include_vanila_in_results: bool = True,
     test_dataloader: DetoxaiDataLoader | DataLoader = None,
