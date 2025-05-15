@@ -152,7 +152,7 @@ If you use DetoxAI, please cite:
 ```bibtex
 @misc{detoxai2025,
   author={Ignacy Stepka and Lukasz Sztukiewicz and Michal Wilinski and Jerzy Stefanowski},
-  title={DetoxAI: a Python Package for Debiasing Neural Networks},
+  title={DetoxAI: a Python Toolkit for Debiasing Deep Learning Models in Computer Vision},
   year={2025},
   url={https://github.com/DetoxAI/detoxai},
 }
