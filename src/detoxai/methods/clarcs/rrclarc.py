@@ -87,6 +87,7 @@ class RRCLARC(CLARC):
                 self.hooks.append(handle)
                 _logger.debug(f"Added RR-CLARC hook to layer: {name}")
                 cav_layer_found = True
+                # Continue to collect all module names for proper layer ordering
 
         if not cav_layer_found:
             raise ValueError(f"CAV layer '{self.cav_layer}' not found in model")
@@ -103,15 +104,22 @@ class RRCLARC(CLARC):
             # Check if this parameter belongs to a module that should be frozen
             # For parameter 'layer1.0.conv.weight', we check if 'layer1', 'layer1.0',
             # or 'layer1.0.conv' is in modules_to_freeze
-            param_parts = name.rsplit(".", 1)[0] if "." in name else name
+            if "." not in name:
+                # Top-level parameters (unlikely in practice) - skip freezing
+                continue
+
+            param_module = name.rsplit(".", 1)[
+                0
+            ]  # Extract module path from parameter name
             should_freeze = False
-            # Check all possible parent module paths
-            parts = param_parts.split(".")
+
+            # Check all possible parent module paths (break early on first match)
+            parts = param_module.split(".")
             for i in range(1, len(parts) + 1):
                 module_path = ".".join(parts[:i])
                 if module_path in modules_to_freeze:
                     should_freeze = True
-                    break
+                    break  # Found a match, no need to check further
 
             if should_freeze:
                 param.requires_grad = False
