@@ -76,6 +76,7 @@ class RRCLARC(CLARC):
         self.cav_layer = cav_layers[0]
 
         # Register rr_clarc_hook
+        cav_layer_found = False
         for name, module in self.model.named_modules():
             if name == self.cav_layer:
                 hook_fn = self.rr_clarc_hook()
@@ -83,6 +84,34 @@ class RRCLARC(CLARC):
                 handle = module.register_forward_hook(hook_fn)
                 self.hooks.append(handle)
                 _logger.debug(f"Added RR-CLARC hook to layer: {name}")
+                cav_layer_found = True
+                break
+
+        if not cav_layer_found:
+            raise ValueError(f"CAV layer '{self.cav_layer}' not found in model")
+
+        # Build a list of all module names in order
+        module_names_in_order = [name for name, _ in self.model.named_modules() if name]
+
+        # Find the index of cav_layer
+        try:
+            cav_layer_idx = module_names_in_order.index(self.cav_layer)
+        except ValueError:
+            raise ValueError(f"CAV layer '{self.cav_layer}' not found in model modules")
+
+        # Get the set of modules that should be frozen (all before cav_layer)
+        modules_to_freeze = set(module_names_in_order[:cav_layer_idx])
+
+        # Store original requires_grad state and freeze layers before cav_layer
+        self.original_requires_grad = {}
+        for name, param in self.model.named_parameters():
+            self.original_requires_grad[name] = param.requires_grad
+            # Extract the module name from parameter name (e.g., "layer1.0.weight" -> "layer1.0")
+            param_module_name = name.rsplit(".", 1)[0] if "." in name else name
+            # Check if this parameter belongs to a module that should be frozen
+            if param_module_name in modules_to_freeze:
+                param.requires_grad = False
+                _logger.debug(f"Frozen parameter: {name}")
 
         # Override training_step in lightning model by modified_training_step
         clone_original_training_step = deepcopy(self.lightning_model.training_step)
@@ -92,7 +121,9 @@ class RRCLARC(CLARC):
 
         def configure_optimizers(self):
             """ """
-            optimizer = torch.optim.Adam(self.parameters(), lr=ft_lr)
+            # Only optimize parameters that require gradients (from cav_layer onwards)
+            params_to_optimize = [p for p in self.parameters() if p.requires_grad]
+            optimizer = torch.optim.Adam(params_to_optimize, lr=ft_lr)
             return optimizer
 
         self.lightning_model.configure_optimizers = types.MethodType(
@@ -116,6 +147,11 @@ class RRCLARC(CLARC):
 
         # Go back to eval mode
         self.lightning_model.eval()
+
+        # Restore original requires_grad state
+        for name, param in self.model.named_parameters():
+            if name in self.original_requires_grad:
+                param.requires_grad = self.original_requires_grad[name]
 
         # Remove hooks
         self.remove_hooks()
