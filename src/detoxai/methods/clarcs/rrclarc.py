@@ -75,41 +75,45 @@ class RRCLARC(CLARC):
         assert len(cav_layers) == 1, "RR-CLARC only supports one CAV layer"
         self.cav_layer = cav_layers[0]
 
-        # Register rr_clarc_hook
+        # Register rr_clarc_hook and build list of module names in order
         cav_layer_found = False
+        module_names_in_order = []
         for name, module in self.model.named_modules():
+            if name:  # Skip empty string (root module)
+                module_names_in_order.append(name)
             if name == self.cav_layer:
                 hook_fn = self.rr_clarc_hook()
-
                 handle = module.register_forward_hook(hook_fn)
                 self.hooks.append(handle)
                 _logger.debug(f"Added RR-CLARC hook to layer: {name}")
                 cav_layer_found = True
-                break
 
         if not cav_layer_found:
             raise ValueError(f"CAV layer '{self.cav_layer}' not found in model")
 
-        # Build a list of all module names in order
-        module_names_in_order = [name for name, _ in self.model.named_modules() if name]
-
-        # Find the index of cav_layer
-        try:
-            cav_layer_idx = module_names_in_order.index(self.cav_layer)
-        except ValueError:
-            raise ValueError(f"CAV layer '{self.cav_layer}' not found in model modules")
-
-        # Get the set of modules that should be frozen (all before cav_layer)
+        # Get the index of cav_layer and the set of modules to freeze (all before cav_layer)
+        cav_layer_idx = module_names_in_order.index(self.cav_layer)
         modules_to_freeze = set(module_names_in_order[:cav_layer_idx])
 
         # Store original requires_grad state and freeze layers before cav_layer
         self.original_requires_grad = {}
         for name, param in self.model.named_parameters():
             self.original_requires_grad[name] = param.requires_grad
-            # Extract the module name from parameter name (e.g., "layer1.0.weight" -> "layer1.0")
-            param_module_name = name.rsplit(".", 1)[0] if "." in name else name
+
             # Check if this parameter belongs to a module that should be frozen
-            if param_module_name in modules_to_freeze:
+            # For parameter 'layer1.0.conv.weight', we check if 'layer1', 'layer1.0',
+            # or 'layer1.0.conv' is in modules_to_freeze
+            param_parts = name.rsplit(".", 1)[0] if "." in name else name
+            should_freeze = False
+            # Check all possible parent module paths
+            parts = param_parts.split(".")
+            for i in range(1, len(parts) + 1):
+                module_path = ".".join(parts[:i])
+                if module_path in modules_to_freeze:
+                    should_freeze = True
+                    break
+
+            if should_freeze:
                 param.requires_grad = False
                 _logger.debug(f"Frozen parameter: {name}")
 
